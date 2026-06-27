@@ -1,0 +1,11 @@
+# db 올리는 법
+
+npx supabase db push
+
+supabase pw : cdtcyw15yCuZTzms
+project url : https://ihtmorgmsfptcmblvpnl.supabase.co
+publishable key: sb_publishable_19vXc-HFI1i-N0B9qUpOYw_Xpt2BNZk
+postgresql://postgres:cdtcyw15yCuZTzms@db.ihtmorgmsfptcmblvpnl.supabase.co:5432/postgres
+
+# 앱실행
+npm run cap:sync;npm run cap:open:android
