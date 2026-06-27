@@ -5,6 +5,7 @@ import RunPage from './pages/RunPage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import { supabase } from './lib/supabaseClient';
+import { clearTestSession, readTestSession } from './lib/testAuth';
 
 const routes = ['home', 'run', 'result', 'ranking'];
 
@@ -16,6 +17,13 @@ export default function App() {
   const [latestResult, setLatestResult] = useState(null);
 
   useEffect(() => {
+    const testSession = readTestSession();
+    if (testSession) {
+      setSession(testSession);
+      setLoading(false);
+      return undefined;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
@@ -30,15 +38,23 @@ export default function App() {
 
   const user = session?.user ?? null;
   const canShowShell = Boolean(user);
+  const isTestUser = user?.app_metadata?.provider === 'local-test';
 
   useEffect(() => {
     if (!user) return;
+    if (isTestUser) return;
 
     supabase.from('profiles').upsert({
       id: user.id,
       nickname: user.email?.split('@')[0] ?? '러너',
     });
-  }, [user]);
+  }, [isTestUser, user]);
+
+  function handleSignOut() {
+    clearTestSession();
+    supabase.auth.signOut();
+    setSession(null);
+  }
 
   const pageTitle = useMemo(() => {
     if (page === 'run') return '러닝';
@@ -52,7 +68,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return <LoginPage onTestLogin={setSession} />;
   }
 
   return (
@@ -62,7 +78,7 @@ export default function App() {
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}
           </button>
-          <button className="ghost-button" type="button" onClick={() => supabase.auth.signOut()}>
+          <button className="ghost-button" type="button" onClick={handleSignOut}>
             로그아웃
           </button>
         </header>

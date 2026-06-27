@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { createTestSession, isTestCredentials, saveTestSession } from '../lib/testAuth';
 
-export default function LoginPage() {
+export default function LoginPage({ onTestLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState('password');
@@ -12,17 +13,27 @@ export default function LoginPage() {
     event.preventDefault();
     setSubmitting(true);
     setMessage('');
+    const login = email.trim();
+
+    if (mode === 'password' && isTestCredentials(login, password)) {
+      const testSession = createTestSession();
+      saveTestSession(testSession);
+      onTestLogin?.(testSession);
+      setMessage('로그인되었습니다.');
+      setSubmitting(false);
+      return;
+    }
 
     const response =
       mode === 'magic'
         ? await supabase.auth.signInWithOtp({
-            email,
+            email: login,
             options: { emailRedirectTo: window.location.origin },
           })
-        : await supabase.auth.signInWithPassword({ email, password });
+        : await supabase.auth.signInWithPassword({ email: login, password });
 
     if (response.error && mode === 'password') {
-      const signUp = await supabase.auth.signUp({ email, password });
+      const signUp = await supabase.auth.signUp({ email: login, password });
       if (signUp.error) setMessage(signUp.error.message);
       else setMessage('가입 확인 메일을 확인해 주세요.');
     } else if (response.error) {
@@ -52,8 +63,8 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label>
-            이메일
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required />
+            이메일 또는 ID
+            <input value={email} onChange={(event) => setEmail(event.target.value)} type="text" required />
           </label>
           {mode === 'password' && (
             <label>
@@ -62,7 +73,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 type="password"
-                minLength={6}
+                minLength={4}
                 required
               />
             </label>
