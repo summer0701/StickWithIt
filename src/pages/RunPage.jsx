@@ -10,6 +10,7 @@ import {
   flushCheckpointQueue,
   readCheckpointQueue,
   saveRunCheckpoint,
+  isValidUuid,
 } from '../services/runRecorder';
 import { rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
 import { speakCoachMessage } from '../services/ttsAdapter';
@@ -127,11 +128,15 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       const state = await RunningPlugin.getRunState();
       const syncedIds = [];
       for (const checkpoint of state.unsyncedCheckpoints ?? []) {
-        if (!runRef.current?.id && checkpoint.session_id) {
-          runRef.current = { id: checkpoint.session_id };
+        const runId = isValidUuid(runRef.current?.id) ? runRef.current.id : checkpoint.session_id;
+        if (!isValidUuid(runId) || !isValidUuid(user.id)) {
+          console.debug('[RunPage] Dropping native checkpoint with invalid ids.', checkpoint);
+          if (checkpoint.id) syncedIds.push(checkpoint.id);
+          continue;
         }
+
         const result = await saveRunCheckpoint({
-          run_id: checkpoint.session_id,
+          run_id: runId,
           user_id: user.id,
           elapsed_seconds: checkpoint.elapsed_seconds,
           distance_meters: checkpoint.distance_meters,
@@ -212,8 +217,13 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
         });
         const checkpointListener = await RunningPlugin.addListener('checkpoint', (checkpoint) => {
           setCoachMessage(checkpoint.spoken_text ?? 'Native 체크포인트를 저장했습니다.');
+          const runId = isValidUuid(runRef.current?.id) ? runRef.current.id : checkpoint.session_id;
+          if (!isValidUuid(runId) || !isValidUuid(user.id)) {
+            console.debug('[RunPage] Ignoring native checkpoint with invalid ids.', checkpoint);
+            return;
+          }
           saveRunCheckpoint({
-            run_id: checkpoint.session_id,
+            run_id: runId,
             user_id: user.id,
             elapsed_seconds: checkpoint.elapsed_seconds,
             distance_meters: checkpoint.distance_meters,

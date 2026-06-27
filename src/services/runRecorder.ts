@@ -3,22 +3,36 @@ import { supabase } from '../lib/supabaseClient';
 const QUEUE_KEY = 'stickwithit:checkpoint-queue';
 
 export async function createRunRecord({ userId, startedAt = new Date(), targetDistanceMeters }) {
+  if (!isValidUuid(userId)) {
+    throw new Error('러닝 기록을 만들 수 없습니다. 사용자 정보가 아직 준비되지 않았습니다.');
+  }
+
   const startedAtIso = toIso(startedAt);
   const targetDistanceKm = targetDistanceMeters ? targetDistanceMeters / 1000 : null;
+  const modernPayload = {
+    user_id: userId,
+    started_at: startedAtIso,
+    status: 'running',
+    target_distance_km: targetDistanceKm,
+    actual_distance_km: 0,
+    duration_seconds: 1,
+    total_distance_meters: 0,
+    total_elapsed_seconds: 0,
+  };
   const { data, error } = await supabase
     .from('runs')
-    .insert({
-      user_id: userId,
-      started_at: startedAtIso,
-      status: 'running',
-      target_distance_km: targetDistanceKm,
-      actual_distance_km: 0,
-      duration_seconds: 1,
-      total_distance_meters: 0,
-      total_elapsed_seconds: 0,
-    })
+    .insert(modernPayload)
     .select()
     .single();
+
+  if (isMissingColumnError(error)) {
+    console.debug('[runRecorder] Falling back to legacy runs schema.', error);
+    const legacyPayload = toLegacyRunPayload(modernPayload, startedAtIso);
+    const legacyResult = await supabase.from('runs').insert(legacyPayload).select().single();
+    if (!legacyResult.error) return legacyResult.data;
+    console.debug('[runRecorder] Failed to create legacy run.', legacyResult.error);
+    throw legacyResult.error;
+  }
 
   if (error) {
     console.debug('[runRecorder] Failed to create run.', error);
@@ -30,6 +44,11 @@ export async function createRunRecord({ userId, startedAt = new Date(), targetDi
 
 export async function saveRunCheckpoint(checkpoint) {
   const payload = normalizeCheckpointPayload(checkpoint);
+  if (!payload) {
+    console.debug('[runRecorder] Dropping invalid checkpoint payload.', checkpoint);
+    return { data: null, error: new Error('Invalid checkpoint payload.'), queued: false, dropped: true };
+  }
+
   const { data, error } = await supabase.from('run_checkpoints').insert(payload).select().single();
 
   if (error) {
@@ -42,6 +61,10 @@ export async function saveRunCheckpoint(checkpoint) {
 }
 
 export async function completeRunRecord({ runId, userId, startedAt, endedAt = new Date(), totalDistanceMeters, totalElapsedSeconds }) {
+  if (!isValidUuid(runId) || !isValidUuid(userId)) {
+    return { data: null, error: new Error('Invalid run id or user id.') };
+  }
+
   const distanceKm = totalDistanceMeters / 1000;
   const avgPace = distanceKm > 0 ? Math.round(totalElapsedSeconds / distanceKm) : null;
   const updatePayload = {
@@ -63,6 +86,20 @@ export async function completeRunRecord({ runId, userId, startedAt, endedAt = ne
     .select()
     .single();
 
+  if (isMissingColumnError(error)) {
+    const legacyPayload = toLegacyRunPayload(updatePayload, toIso(startedAt), toIso(endedAt));
+    const legacyResult = await supabase
+      .from('runs')
+      .update(legacyPayload)
+      .eq('id', runId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+    if (!legacyResult.error) return { data: legacyResult.data, error: null };
+    console.debug('[runRecorder] Failed to complete legacy run.', legacyResult.error);
+    return { data: null, error: legacyResult.error };
+  }
+
   if (error) {
     console.debug('[runRecorder] Failed to complete run.', error);
   }
@@ -71,12 +108,21 @@ export async function completeRunRecord({ runId, userId, startedAt, endedAt = ne
 }
 
 export async function cancelRunRecord({ runId, userId }) {
-  if (!runId) return { data: null, error: null };
-  return supabase.from('runs').update({ status: 'cancelled', ended_at: new Date().toISOString() }).eq('id', runId).eq('user_id', userId);
+  if (!isValidUuid(runId) || !isValidUuid(userId)) return { data: null, error: null };
+  const result = await supabase
+    .from('runs')
+    .update({ status: 'cancelled', ended_at: new Date().toISOString() })
+    .eq('id', runId)
+    .eq('user_id', userId);
+
+  if (!isMissingColumnError(result.error)) return result;
+
+  return supabase.from('runs').update({ ended_at: new Date().toISOString() }).eq('id', runId).eq('user_id', userId);
 }
 
 export async function flushCheckpointQueue() {
-  const queued = readCheckpointQueue();
+  const queued = readCheckpointQueue().filter((checkpoint) => normalizeCheckpointPayload(checkpoint));
+  if (queued.length !== readCheckpointQueue().length) writeCheckpointQueue(queued);
   if (queued.length === 0) return { flushed: 0, remaining: 0 };
 
   const { error } = await supabase.from('run_checkpoints').insert(queued);
@@ -109,6 +155,10 @@ function writeCheckpointQueue(queue) {
 }
 
 function normalizeCheckpointPayload(checkpoint) {
+  if (!isValidUuid(checkpoint?.run_id) || !isValidUuid(checkpoint?.user_id)) {
+    return null;
+  }
+
   return {
     run_id: checkpoint.run_id,
     user_id: checkpoint.user_id,
@@ -124,4 +174,26 @@ function normalizeCheckpointPayload(checkpoint) {
 
 function toIso(value) {
   return value instanceof Date ? value.toISOString() : value;
+}
+
+export function isValidUuid(value) {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isMissingColumnError(error) {
+  if (!error) return false;
+  const message = `${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`;
+  return /column|schema cache|Could not find/i.test(message);
+}
+
+function toLegacyRunPayload(payload, startedAtIso, endedAtIso = startedAtIso) {
+  return {
+    user_id: payload.user_id,
+    target_distance_km: payload.target_distance_km,
+    actual_distance_km: payload.actual_distance_km ?? Number(((payload.total_distance_meters ?? 0) / 1000).toFixed(3)),
+    duration_seconds: Math.max(1, Math.round(payload.duration_seconds ?? payload.total_elapsed_seconds ?? 1)),
+    avg_pace_seconds_per_km: payload.avg_pace_seconds_per_km ?? null,
+    started_at: startedAtIso,
+    ended_at: endedAtIso,
+  };
 }
