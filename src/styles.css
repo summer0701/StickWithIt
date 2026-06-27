@@ -28,6 +28,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow: hidden;
   background: #f4f6f8;
 }
 
@@ -42,8 +43,9 @@ button {
 }
 
 .app-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   padding-bottom: calc(var(--bottom-nav-height) + 24px);
 }
 
@@ -253,6 +255,70 @@ button {
     url("https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80") center/cover;
 }
 
+.home-screen {
+  height: calc(100dvh - 58px - var(--bottom-nav-height));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.home-screen .hero-band {
+  flex: 0 0 auto;
+  min-height: clamp(92px, 20dvh, 150px);
+  margin: 0 -14px;
+  padding: 22px 14px 16px;
+}
+
+.home-screen .hero-band h1 {
+  font-size: clamp(2rem, 10vw, 3.4rem);
+}
+
+.home-screen .panel {
+  margin: 0;
+  padding: 12px;
+}
+
+.home-screen .panel h2 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.home-screen .target-grid {
+  margin-bottom: 8px;
+}
+
+.home-screen .target-grid button {
+  min-height: 44px;
+}
+
+.home-screen .custom-target input {
+  min-height: 42px;
+}
+
+.home-screen .action-row {
+  flex: 0 0 auto;
+}
+
+.home-screen .xl {
+  min-height: 54px;
+}
+
+.home-screen .panel:last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.home-screen .run-list {
+  gap: 6px;
+}
+
+.home-screen .run-list li {
+  min-height: 36px;
+}
+
 .hero-band p {
   max-width: 34rem;
   margin: 0;
@@ -336,9 +402,11 @@ button {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  overflow-x: hidden;
-  padding: 22px 20px calc(150px + var(--app-safe-area-inset-bottom));
+  height: 100vh;
+  height: 100dvh;
+  gap: clamp(6px, 1.2dvh, 12px);
+  overflow: hidden;
+  padding: clamp(10px, 2dvh, 18px) 16px calc(132px + var(--app-safe-area-inset-bottom));
   background:
     radial-gradient(circle at 50% 28%, rgba(21, 145, 255, 0.26), transparent 30%),
     linear-gradient(180deg, rgba(1, 9, 22, 0.22), rgba(0, 7, 17, 0.92) 52%, #020711 100%),
@@ -365,7 +433,7 @@ button {
 
 .run-hud-top {
   display: grid;
-  grid-template-columns: 58px 1fr 58px;
+  grid-template-columns: 48px 1fr 48px;
   align-items: center;
   gap: 12px;
 }
@@ -396,21 +464,21 @@ button {
 }
 
 .hud-icon-button {
-  width: 58px;
-  height: 58px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
 }
 
 .ghost-race-card {
   display: grid;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 0;
   text-align: center;
 }
 
 .ghost-race-card h1 {
-  margin: 0 0 10px;
-  font-size: 1.2rem;
+  margin: 0 0 4px;
+  font-size: clamp(1rem, 4vw, 1.18rem);
 }
 
 .ghost-pace-row {
@@ -431,7 +499,7 @@ button {
 .ghost-pace-row strong {
   display: block;
   margin-top: 4px;
-  font-size: clamp(1.6rem, 8vw, 2.4rem);
+  font-size: clamp(1.35rem, 7vw, 2.1rem);
   line-height: 1;
 }
 
@@ -454,7 +522,7 @@ button {
 
 .ghost-track {
   position: relative;
-  height: 44px;
+  height: 34px;
   overflow: hidden;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(15, 131, 255, 0.7), rgba(6, 23, 48, 0.9), rgba(42, 255, 137, 0.68));
@@ -463,7 +531,7 @@ button {
 
 .ghost-track-fill {
   position: absolute;
-  inset: 7px auto 7px 7px;
+  inset: 6px auto 6px 6px;
   min-width: 34px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(31, 157, 255, 0.88), rgba(74, 255, 151, 0.8));
@@ -471,7 +539,7 @@ button {
 
 .ghost-runner {
   position: absolute;
-  top: 10px;
+  top: 7px;
   width: 14px;
   height: 24px;
   border-radius: 999px;
@@ -491,7 +559,7 @@ button {
 
 .ghost-race-card p {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 4.6vw, 1.22rem);
   font-weight: 900;
 }
 
@@ -502,7 +570,8 @@ button {
 .route-card {
   display: flex;
   justify-content: flex-end;
-  min-height: 280px;
+  flex: 1 1 auto;
+  min-height: 96px;
   align-items: end;
   transition:
     min-height 180ms ease,
@@ -510,7 +579,7 @@ button {
 }
 
 .route-card.focused {
-  min-height: 360px;
+  min-height: 160px;
   filter: drop-shadow(0 0 24px rgba(45, 173, 255, 0.28));
 }
 
@@ -525,8 +594,8 @@ button {
 
 .mini-map {
   position: relative;
-  width: 132px;
-  height: 132px;
+  width: clamp(96px, 28vw, 124px);
+  height: clamp(96px, 28vw, 124px);
   border-radius: 50%;
   background: rgba(2, 17, 31, 0.76);
   box-shadow: 0 0 28px rgba(35, 207, 155, 0.2);
@@ -591,7 +660,7 @@ button {
 }
 
 .hud-stat {
-  min-height: 98px;
+  min-height: clamp(64px, 10dvh, 88px);
   display: grid;
   place-items: center;
   padding: 12px 6px;
@@ -610,12 +679,12 @@ button {
 
 .hud-stat strong {
   color: #fff;
-  font-size: clamp(1.5rem, 8vw, 2.35rem);
+  font-size: clamp(1.2rem, 6vw, 2rem);
   line-height: 1;
 }
 
 .hud-stat strong.highlight {
-  font-size: clamp(2rem, 10vw, 2.8rem);
+  font-size: clamp(1.6rem, 8vw, 2.4rem);
 }
 
 .hud-stat strong.green {
@@ -635,8 +704,8 @@ button {
 
 .next-goal-card {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 10px;
+  padding: 12px;
 }
 
 .paused-session-card {
@@ -719,7 +788,7 @@ button {
   gap: 18px;
   width: min(100%, 520px);
   margin: 0 auto;
-  padding: 16px 28px calc(20px + env(safe-area-inset-bottom));
+  padding: 12px 28px calc(20px + env(safe-area-inset-bottom));
   padding-bottom: calc(20px + var(--app-safe-area-inset-bottom));
   background: linear-gradient(180deg, transparent, rgba(1, 6, 14, 0.94) 34%);
 }
@@ -732,8 +801,8 @@ button {
 }
 
 .hud-action-button {
-  width: 76px;
-  height: 76px;
+  width: 66px;
+  height: 66px;
   justify-self: center;
 }
 
@@ -751,8 +820,8 @@ button {
 }
 
 .hud-pause-button {
-  width: 104px;
-  height: 104px;
+  width: 88px;
+  height: 88px;
   justify-self: center;
   border: 4px solid #27a8ff;
   background: rgba(4, 15, 34, 0.88);

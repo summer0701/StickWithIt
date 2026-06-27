@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Trophy, Play, BarChart3 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatDuration, formatPace } from '../lib/pace';
+import { readLocalRuns } from '../lib/localRuns';
 
 const quickTargets = [1, 3, 5, 10];
 
@@ -10,13 +11,21 @@ export default function HomePage({ user, targetDistanceKm, onTargetChange, onSta
   const [customTarget, setCustomTarget] = useState('');
 
   useEffect(() => {
+    const localRuns = readLocalRuns(user.id);
+
     supabase
       .from('runs')
       .select('*')
       .eq('user_id', user.id)
       .order('started_at', { ascending: false })
       .limit(5)
-      .then(({ data }) => setRuns(data ?? []));
+      .then(({ data }) => {
+        const mergedRuns = [...(data ?? []), ...localRuns].sort(compareRunStartedDesc).slice(0, 5);
+        setRuns(mergedRuns);
+      })
+      .catch(() => {
+        setRuns(localRuns.slice(0, 5));
+      });
   }, [user.id]);
 
   const yesterdayAvailable = useMemo(() => {
@@ -97,4 +106,8 @@ export default function HomePage({ user, targetDistanceKm, onTargetChange, onSta
       </section>
     </main>
   );
+}
+
+function compareRunStartedDesc(a, b) {
+  return new Date(b.started_at ?? b.created_at ?? 0) - new Date(a.started_at ?? a.created_at ?? 0);
 }

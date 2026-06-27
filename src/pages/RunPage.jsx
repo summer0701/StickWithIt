@@ -5,6 +5,7 @@ import { compareWithGhost, estimateGhostElapsed, sameTargetDistance } from '../l
 import { secondsPerKm } from '../lib/pace';
 import { calculateCalories, formatGhostDelta, formatHudClock, formatHudPace } from '../lib/runningHud';
 import { clearStoredSession, persistRunningSession, restoreRunningSession } from '../lib/runningSession';
+import { saveLocalRun } from '../lib/localRuns';
 import { watchRunPosition } from '../lib/geolocation';
 import { supabase } from '../lib/supabaseClient';
 import runningHudBg from '../assets/running-hud-bg.jpg';
@@ -254,6 +255,9 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
 
     const { data: savedRun, error } = await supabase.from('runs').insert(runPayload).select().single();
 
+    let completedRun = savedRun;
+    let saveError = error?.message;
+
     if (!error && savedRun) {
       const splitPayload = finalSplits.map((split) => ({
         run_id: savedRun.id,
@@ -268,14 +272,19 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       }
     }
 
+    if (error || !savedRun || user.app_metadata?.provider === 'local-test') {
+      completedRun = saveLocalRun(user.id, runPayload);
+      saveError = null;
+    }
+
     clearStoredSession();
     setSaving(false);
     onComplete({
-      run: savedRun ?? runPayload,
+      run: completedRun ?? runPayload,
       splits: finalSplits,
       ghostRun,
       ghostDiffSeconds,
-      saveError: error?.message,
+      saveError,
     });
   }
 
