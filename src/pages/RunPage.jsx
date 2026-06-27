@@ -3,11 +3,12 @@ import { Lock, MapPin, Music, Pause, Play, Settings, Unlock } from 'lucide-react
 import { calculateNextDistance, normalizePosition } from '../lib/distance';
 import { compareWithGhost, estimateGhostElapsed, sameTargetDistance } from '../lib/ghostRun';
 import { secondsPerKm } from '../lib/pace';
+import { calculateCalories, formatGhostDelta, formatHudClock, formatHudPace } from '../lib/runningHud';
+import { clearStoredSession, persistRunningSession, restoreRunningSession } from '../lib/runningSession';
 import { watchRunPosition } from '../lib/geolocation';
 import { supabase } from '../lib/supabaseClient';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
-const SESSION_STORAGE_KEY = 'stickwithit:active-running-session';
 const EMPTY_SENSOR = '--';
 
 export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }) {
@@ -44,7 +45,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
     [ghostRun],
   );
   const progress = Math.min(100, Math.max(0, (distanceKm / targetDistanceKm) * 100));
-  const calories = Math.round(distanceKm * 74);
+  const calories = calculateCalories(distanceKm);
   const ghostElapsed = estimateGhostElapsed({ currentDistanceKm: distanceKm, ghostRun, ghostSplits });
   const ghostStatusText =
     ghostDiffSeconds == null
@@ -89,21 +90,16 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
   }, []);
 
   useEffect(() => {
-    const savedSession = readStoredSession(user.id, targetDistanceKm);
+    const savedSession = restoreRunningSession(user.id, targetDistanceKm);
     if (!savedSession) return;
 
-    const savedElapsed = Number(savedSession.elapsedSeconds ?? 0);
-    const lastSavedAt = Number(savedSession.lastSavedAt ?? Date.now());
-    const restoredElapsed =
-      savedSession.status === 'running' ? savedElapsed + Math.floor((Date.now() - lastSavedAt) / 1000) : savedElapsed;
-
     startedAtRef.current = new Date(savedSession.startedAt ?? Date.now());
-    setDistanceKm(Number(savedSession.distanceKm ?? 0));
-    setElapsedSeconds(Math.max(0, restoredElapsed));
-    setSplits(savedSession.splits ?? []);
-    setRoutePoints(savedSession.routePoints ?? []);
-    setStatus(savedSession.status === 'paused' ? 'paused' : 'running');
-    lastSplitDistanceRef.current = Number(savedSession.lastSplitDistance ?? 0);
+    setDistanceKm(savedSession.distanceKm);
+    setElapsedSeconds(savedSession.elapsedSeconds);
+    setSplits(savedSession.splits);
+    setRoutePoints(savedSession.routePoints);
+    setStatus(savedSession.status);
+    lastSplitDistanceRef.current = savedSession.lastSplitDistance;
   }, [targetDistanceKm, user.id]);
 
   useEffect(() => {
@@ -196,7 +192,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
   useEffect(() => {
     if (sessionEndedRef.current) return;
 
-    persistSession({
+    persistRunningSession({
       userId: user.id,
       targetDistanceKm,
       status,
@@ -320,7 +316,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
         <p className={ghostDiffSeconds == null ? 'muted' : ghostDiffSeconds <= 0 ? 'green' : 'orange'}>
           {ghostStatusText}
         </p>
-        {ghostElapsed != null && <small>어제 예상 시간 {formatClock(ghostElapsed)}</small>}
+        {ghostElapsed != null && <small>어제 예상 시간 {formatHudClock(ghostElapsed)}</small>}
       </section>
 
       <section className={`route-card ${routeFocused ? 'focused' : ''}`} aria-label="경로 미니맵">
@@ -330,7 +326,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
 
       <section className="hud-stats-card">
         <HudStat label="거리" value={distanceKm.toFixed(2)} unit="km" highlight />
-        <HudStat label="시간" value={formatClock(elapsedSeconds)} />
+        <HudStat label="시간" value={formatHudClock(elapsedSeconds)} />
         <HudStat label="평균 페이스" value={formatHudPace(averagePace)} accent="green" />
         <HudStat label="칼로리" value={calories} unit="kcal" />
         <HudStat label="심박수" value={EMPTY_SENSOR} unit="bpm" accent="orange" />
@@ -432,59 +428,4 @@ function buildRoutePath(points) {
       return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
     })
     .join(' ');
-}
-
-function formatClock(totalSeconds = 0) {
-  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
-  const minutes = Math.floor(safeSeconds / 60);
-  const seconds = safeSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function formatHudPace(paceSeconds) {
-  if (!paceSeconds || paceSeconds <= 0 || !Number.isFinite(paceSeconds)) return "--'--\"";
-
-  const minutes = Math.floor(paceSeconds / 60);
-  const seconds = Math.round(paceSeconds % 60);
-  return `${minutes}'${String(seconds).padStart(2, '0')}"/km`;
-}
-
-function formatGhostDelta(diffSeconds) {
-  const abs = Math.abs(Math.round(diffSeconds));
-  const minutes = Math.floor(abs / 60);
-  const seconds = abs % 60;
-  return `${diffSeconds <= 0 ? '+' : '-'}${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function readStoredSession(userId, targetDistanceKm) {
-  try {
-    const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!rawSession) return null;
-
-    const session = JSON.parse(rawSession);
-    if (session.userId !== userId || !sameTargetDistance(session.targetDistanceKm, targetDistanceKm)) return null;
-
-    return session;
-  } catch {
-    clearStoredSession();
-    return null;
-  }
-}
-
-function persistSession(session) {
-  try {
-    window.localStorage.setItem(
-      SESSION_STORAGE_KEY,
-      JSON.stringify({
-        ...session,
-        lastSavedAt: Date.now(),
-      }),
-    );
-  } catch {
-    // TODO: 앱 전용 세션 테이블이 생기면 localStorage 대신 Supabase session draft 저장으로 교체합니다.
-  }
-}
-
-function clearStoredSession() {
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
 }
