@@ -59,8 +59,25 @@ export function interpolateGhostElapsed(splits = [], currentDistanceKm) {
   return Math.round(previous.elapsed_seconds + ratio * (exact.elapsed_seconds - previous.elapsed_seconds));
 }
 
-export function compareWithGhost({ currentDistanceKm, elapsedSeconds, ghostSplits }) {
-  const ghostElapsed = interpolateGhostElapsed(ghostSplits, currentDistanceKm);
+export function estimateGhostElapsed({ currentDistanceKm, ghostRun, ghostSplits = [] }) {
+  const splitElapsed = interpolateGhostElapsed(ghostSplits, currentDistanceKm);
+  if (splitElapsed != null) {
+    return splitElapsed;
+  }
+
+  const ghostDistanceKm = Number(ghostRun?.actual_distance_km ?? ghostRun?.target_distance_km ?? 0);
+  const ghostDurationSeconds = Number(ghostRun?.duration_seconds ?? 0);
+
+  if (currentDistanceKm <= 0 || ghostDistanceKm <= 0 || ghostDurationSeconds <= 0) {
+    return null;
+  }
+
+  const ratio = Math.min(1, currentDistanceKm / ghostDistanceKm);
+  return Math.round(ghostDurationSeconds * ratio);
+}
+
+export function compareWithGhost({ currentDistanceKm, elapsedSeconds, ghostRun, ghostSplits }) {
+  const ghostElapsed = estimateGhostElapsed({ currentDistanceKm, ghostRun, ghostSplits });
 
   if (ghostElapsed == null) {
     return null;

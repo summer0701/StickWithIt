@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareWithGhost, interpolateGhostElapsed, pickGhostRun } from './ghostRun';
+import { compareWithGhost, estimateGhostElapsed, interpolateGhostElapsed, pickGhostRun } from './ghostRun';
 
 describe('ghostRun', () => {
   it('prefers yesterday same target, then recent best, then personal best', () => {
@@ -26,5 +26,12 @@ describe('ghostRun', () => {
 
     expect(interpolateGhostElapsed(splits, 0.75)).toBe(240);
     expect(compareWithGhost({ currentDistanceKm: 0.75, elapsedSeconds: 228, ghostSplits: splits })).toBe(-12);
+  });
+
+  it('falls back to total ghost run duration when splits are missing', () => {
+    const ghostRun = { target_distance_km: 3, actual_distance_km: 3, duration_seconds: 900 };
+
+    expect(estimateGhostElapsed({ currentDistanceKm: 1.5, ghostRun, ghostSplits: [] })).toBe(450);
+    expect(compareWithGhost({ currentDistanceKm: 1.5, elapsedSeconds: 420, ghostRun, ghostSplits: [] })).toBe(-30);
   });
 });

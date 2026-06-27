@@ -1,6 +1,6 @@
 const EARTH_RADIUS_M = 6371000;
 const MAX_ACCURACY_M = 50;
-const MIN_DISTANCE_M = 3;
+const MIN_DISTANCE_M = 5;
 const MAX_REASONABLE_SPEED_MPS = 8.5;
 
 function toRadians(value) {
