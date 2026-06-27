@@ -912,6 +912,23 @@ button {
   box-shadow: 0 0 26px rgba(39, 168, 255, 0.46), inset 0 0 24px rgba(39, 168, 255, 0.16);
   touch-action: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  outline: none;
+}
+
+.hud-pause-button:focus,
+.hud-pause-button:focus-visible,
+.hud-pause-button:active {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hud-pause-button svg,
+.hud-pause-button span {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .hud-pause-button.holding {
