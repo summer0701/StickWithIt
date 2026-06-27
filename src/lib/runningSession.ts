@@ -40,7 +40,7 @@ export function persistRunningSession(session, nowMs = Date.now()) {
       }),
     );
   } catch {
-    // TODO: 앱 전용 세션 테이블이 생기면 localStorage 대신 Supabase session draft 저장으로 교체합니다.
+    // localStorage 저장 실패 시 현재 세션 복구만 건너뜁니다.
   }
 }
 

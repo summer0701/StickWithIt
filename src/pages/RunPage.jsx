@@ -1,351 +1,440 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Lock, MapPin, Music, Pause, Play, Settings, Unlock } from 'lucide-react';
-import { calculateNextDistance, normalizePosition } from '../lib/distance';
-import { compareWithGhost, estimateGhostElapsed, sameTargetDistance } from '../lib/ghostRun';
-import { secondsPerKm } from '../lib/pace';
-import { calculateCalories, formatGhostDelta, formatHudClock, formatHudPace } from '../lib/runningHud';
-import { clearStoredSession, persistRunningSession, restoreRunningSession } from '../lib/runningSession';
-import { saveLocalRun } from '../lib/localRuns';
-import { watchRunPosition } from '../lib/geolocation';
-import { supabase } from '../lib/supabaseClient';
+import { Capacitor } from '@capacitor/core';
+import { BatteryWarning, Lock, MapPin, Pause, Play, Settings, Unlock } from 'lucide-react';
+import { formatHudClock, formatHudPace } from '../lib/runningHud';
+import { buildCheckpoint, createLocationTracker } from '../services/locationTracker';
+import { loadRecentRunHistory } from '../services/runComparison';
+import {
+  completeRunRecord,
+  createRunRecord,
+  flushCheckpointQueue,
+  readCheckpointQueue,
+  saveRunCheckpoint,
+} from '../services/runRecorder';
+import { rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
+import { speakCoachMessage } from '../services/ttsAdapter';
+import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
-const EMPTY_SENSOR = '--';
+const CHECKPOINT_INTERVAL_SECONDS = 60;
+const FINISH_HOLD_MS = 3000;
+const HOLD_RING_CIRCUMFERENCE = 264;
 
 export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }) {
-  const [status, setStatus] = useState('running');
+  const targetDistanceMeters = Number(targetDistanceKm) * 1000;
+  const [status, setStatus] = useState('preparing');
   const [locked, setLocked] = useState(false);
   const [routeFocused, setRouteFocused] = useState(false);
-  const [distanceKm, setDistanceKm] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(true);
+  const [batteryGuideOpen, setBatteryGuideOpen] = useState(false);
+  const [distanceMeters, setDistanceMeters] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [currentPaceSeconds, setCurrentPaceSeconds] = useState(null);
-  const [splits, setSplits] = useState([]);
-  const [ghostRun, setGhostRun] = useState(null);
-  const [ghostSplits, setGhostSplits] = useState([]);
   const [routePoints, setRoutePoints] = useState([]);
-  const [gpsMessage, setGpsMessage] = useState('GPS 권한 확인 중');
+  const [gpsMessage, setGpsMessage] = useState('GPS 준비 중');
+  const [coachMessage, setCoachMessage] = useState('러닝 시작 전 위치 권한 안내를 확인해 주세요.');
   const [saving, setSaving] = useState(false);
+  const [queuedCount, setQueuedCount] = useState(0);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [recentRuns, setRecentRuns] = useState([]);
+  const [recentCheckpoints, setRecentCheckpoints] = useState([]);
+
+  const runRef = useRef(null);
+  const trackerRef = useRef(null);
   const startedAtRef = useRef(new Date());
-  const previousPointRef = useRef(null);
-  const cleanupWatchRef = useRef(null);
-  const lastSplitDistanceRef = useRef(0);
-  const sessionEndedRef = useRef(false);
+  const lastPointRef = useRef(null);
+  const lastCheckpointAtRef = useRef(0);
+  const spokenMessagesRef = useRef([]);
   const statusRef = useRef(status);
-  const distanceRef = useRef(distanceKm);
-  const elapsedRef = useRef(elapsedSeconds);
+  const distanceRef = useRef(0);
+  const elapsedRef = useRef(0);
+  const sessionEndedRef = useRef(false);
+  const longPressTimeoutRef = useRef(null);
+  const longPressFrameRef = useRef(null);
+  const longPressStartedAtRef = useRef(0);
+  const longPressTriggeredRef = useRef(false);
+  const nativeListenerCleanupRef = useRef([]);
+  const usingNativeRunRef = useRef(false);
 
-  const ghostDiffSeconds = useMemo(
-    () => compareWithGhost({ currentDistanceKm: distanceKm, elapsedSeconds, ghostRun, ghostSplits }),
-    [distanceKm, elapsedSeconds, ghostRun, ghostSplits],
-  );
-
-  const averagePace = useMemo(() => secondsPerKm(distanceKm, elapsedSeconds), [distanceKm, elapsedSeconds]);
-  const currentPace = currentPaceSeconds ?? averagePace;
-  const ghostPace = useMemo(
-    () => secondsPerKm(Number(ghostRun?.actual_distance_km ?? ghostRun?.target_distance_km ?? 0), ghostRun?.duration_seconds),
-    [ghostRun],
-  );
-  const progress = Math.min(100, Math.max(0, (distanceKm / targetDistanceKm) * 100));
-  const calories = calculateCalories(distanceKm);
-  const ghostElapsed = estimateGhostElapsed({ currentDistanceKm: distanceKm, ghostRun, ghostSplits });
-  const ghostStatusText =
-    ghostDiffSeconds == null
-      ? '어제 기록 없음'
-      : ghostDiffSeconds <= 0
-        ? `${formatGhostDelta(ghostDiffSeconds)} 앞서고 있어요!`
-        : `${formatGhostDelta(ghostDiffSeconds)} 뒤처졌어요`;
-
-  const handlePosition = useCallback((position) => {
-    if (statusRef.current !== 'running') return;
-
-    const nextPoint = normalizePosition(position);
-    const previousPoint = previousPointRef.current;
-    const nextDistance = calculateNextDistance(previousPoint, nextPoint, distanceRef.current);
-
-    if (!nextDistance.accepted && nextDistance.reason === 'low_accuracy') {
-      setGpsMessage('GPS 정확도가 낮아 잠시 무시했습니다.');
-      return;
-    }
-
-    if (!nextDistance.accepted && nextDistance.reason !== 'too_short') {
-      setGpsMessage('GPS 신호를 안정화하는 중');
-      return;
-    }
-
-    if (nextDistance.accepted) {
-      if (previousPoint) {
-        const movementSeconds = Math.max(1, (nextPoint.timestamp - previousPoint.timestamp) / 1000);
-        setCurrentPaceSeconds(secondsPerKm(nextDistance.distanceMeters / 1000, movementSeconds));
-      }
-
-      previousPointRef.current = nextPoint;
-      setDistanceKm(nextDistance.totalDistanceKm);
-      setRoutePoints((current) => [...current.slice(-39), nextPoint]);
-      setGpsMessage(`GPS 추적 중 · ±${Math.round(nextPoint.accuracy)}m`);
-      maybeAddSplit(nextDistance.totalDistanceKm);
-    }
-  }, []);
-
-  const handlePositionError = useCallback((error) => {
-    setGpsMessage(error.message ?? 'GPS 신호를 확인해 주세요.');
-  }, []);
-
-  useEffect(() => {
-    const savedSession = restoreRunningSession(user.id, targetDistanceKm);
-    if (!savedSession) return;
-
-    startedAtRef.current = new Date(savedSession.startedAt ?? Date.now());
-    setDistanceKm(savedSession.distanceKm);
-    setElapsedSeconds(savedSession.elapsedSeconds);
-    setSplits(savedSession.splits);
-    setRoutePoints(savedSession.routePoints);
-    setStatus(savedSession.status);
-    lastSplitDistanceRef.current = savedSession.lastSplitDistance;
-  }, [targetDistanceKm, user.id]);
-
-  useEffect(() => {
-    async function loadYesterdayGhost() {
-      const { data: runs } = await supabase
-        .from('runs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('started_at', { ascending: false })
-        .limit(80);
-
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayKey = yesterday.toISOString().slice(0, 10);
-      const yesterdayRuns = (runs ?? [])
-        .filter((run) => sameTargetDistance(run.target_distance_km, targetDistanceKm))
-        .filter((run) => (run.started_at ?? run.created_at ?? '').slice(0, 10) === yesterdayKey)
-        .sort((a, b) => a.duration_seconds - b.duration_seconds);
-      const selected = yesterdayRuns[0] ?? null;
-
-      setGhostRun(selected);
-
-      if (!selected) {
-        setGhostSplits([]);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('run_splits')
-        .select('*')
-        .eq('run_id', selected.id)
-        .order('distance_km', { ascending: true });
-      setGhostSplits(data ?? []);
-    }
-
-    loadYesterdayGhost();
-  }, [targetDistanceKm, user.id]);
+  const distanceKm = distanceMeters / 1000;
+  const averagePace = useMemo(() => {
+    if (distanceKm <= 0 || elapsedSeconds <= 0) return null;
+    return Math.round(elapsedSeconds / distanceKm);
+  }, [distanceKm, elapsedSeconds]);
+  const speedKmh = useMemo(() => {
+    if (distanceKm <= 0 || elapsedSeconds <= 0) return 0;
+    return distanceKm / (elapsedSeconds / 3600);
+  }, [distanceKm, elapsedSeconds]);
+  const progress = Math.min(100, Math.max(0, (distanceMeters / targetDistanceMeters) * 100));
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
 
   useEffect(() => {
-    distanceRef.current = distanceKm;
-  }, [distanceKm]);
+    distanceRef.current = distanceMeters;
+  }, [distanceMeters]);
 
   useEffect(() => {
     elapsedRef.current = elapsedSeconds;
   }, [elapsedSeconds]);
 
   useEffect(() => {
-    if (status !== 'running') return undefined;
+    setQueuedCount(readCheckpointQueue().length);
+    loadRecentRunHistory(user.id).then(({ recentRuns: runs, recentCheckpoints: checkpoints }) => {
+      setRecentRuns(runs);
+      setRecentCheckpoints(checkpoints);
+    });
+  }, [user.id]);
 
+  useEffect(() => {
+    function handleOnline() {
+      flushCheckpointQueue().then((result) => setQueuedCount(result.remaining ?? 0));
+      syncNativeCheckpoints();
+    }
+
+    function handleVisible() {
+      if (document.visibilityState === 'visible') syncNativeCheckpoints();
+    }
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisible);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'running') return undefined;
     const timer = window.setInterval(() => {
       setElapsedSeconds((value) => value + 1);
     }, 1000);
-
     return () => window.clearInterval(timer);
   }, [status]);
 
   useEffect(() => {
-    if (status !== 'running') {
-      cleanupWatchRef.current?.();
-      cleanupWatchRef.current = null;
-      return undefined;
+    return () => {
+      trackerRef.current?.stop?.();
+      nativeListenerCleanupRef.current.forEach((cleanup) => cleanup?.());
+      cancelFinishHold(false);
+    };
+  }, []);
+
+  async function syncNativeCheckpoints() {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      const state = await RunningPlugin.getRunState();
+      const syncedIds = [];
+      for (const checkpoint of state.unsyncedCheckpoints ?? []) {
+        if (!runRef.current?.id && checkpoint.session_id) {
+          runRef.current = { id: checkpoint.session_id };
+        }
+        const result = await saveRunCheckpoint({
+          run_id: checkpoint.session_id,
+          user_id: user.id,
+          elapsed_seconds: checkpoint.elapsed_seconds,
+          distance_meters: checkpoint.distance_meters,
+          pace_seconds_per_km: checkpoint.pace_seconds_per_km,
+          speed_kmh: checkpoint.speed_kmh,
+          latitude: checkpoint.latitude,
+          longitude: checkpoint.longitude,
+          created_at: new Date(checkpoint.created_at).toISOString(),
+        });
+        if (!result.queued && !result.error) syncedIds.push(checkpoint.id);
+      }
+      if (syncedIds.length > 0) await RunningPlugin.markCheckpointsSynced({ ids: syncedIds });
+      setQueuedCount(readCheckpointQueue().length + Math.max(0, (state.unsyncedCount ?? 0) - syncedIds.length));
+    } catch (error) {
+      console.debug('[RunPage] Native checkpoint sync failed.', error);
+    }
+  }
+
+  const saveCheckpointAndCoach = useCallback(async (point, force = false) => {
+    if (!runRef.current || !point) return;
+    const elapsed = Math.max(1, elapsedRef.current);
+    if (!force && elapsed - lastCheckpointAtRef.current < CHECKPOINT_INTERVAL_SECONDS) return;
+
+    const checkpoint = buildCheckpoint({
+      runId: runRef.current.id,
+      userId: user.id,
+      elapsedSeconds: elapsed,
+      distanceMeters: distanceRef.current,
+      point,
+    });
+
+    console.debug('[RunPage] Saving checkpoint.', checkpoint);
+    const result = await saveRunCheckpoint(checkpoint);
+    lastCheckpointAtRef.current = elapsed;
+    setQueuedCount(readCheckpointQueue().length);
+
+    const cue = ruleBasedCoach({
+      currentCheckpoint: checkpoint,
+      recentRuns,
+      recentCheckpoints,
+      targetDistanceMeters,
+      spokenMessages: spokenMessagesRef.current,
+    });
+
+    setCoachMessage(cue.message);
+    if (cue.priority > 1) {
+      const spoken = await speakCoachMessage(cue.message, { preferNative: false });
+      if (spoken) spokenMessagesRef.current = rememberSpokenMessage(spokenMessagesRef.current, cue.message);
     }
 
-    let cancelled = false;
+    if (result.queued) {
+      setGpsMessage('네트워크 장애로 체크포인트를 로컬 큐에 저장했습니다.');
+    }
+  }, [recentCheckpoints, recentRuns, targetDistanceMeters, user.id]);
 
-    async function startWatch() {
-      setGpsMessage('GPS 권한 확인 중');
-      const cleanup = await watchRunPosition(handlePosition, handlePositionError);
-      if (cancelled) {
-        cleanup?.();
+  async function startRun() {
+    setSaving(true);
+    try {
+      startedAtRef.current = new Date();
+      const run = await createRunRecord({ userId: user.id, startedAt: startedAtRef.current, targetDistanceMeters });
+      runRef.current = run;
+
+      if (Capacitor.isNativePlatform()) {
+        usingNativeRunRef.current = true;
+        const stateListener = await RunningPlugin.addListener('runState', (state) => {
+          setElapsedSeconds(state.elapsedSeconds);
+          setDistanceMeters(state.distanceMeters);
+          setRoutePoints((current) => [
+            ...current.slice(-79),
+            {
+              latitude: state.latitude,
+              longitude: state.longitude,
+              accuracy: 0,
+              timestamp: Date.now(),
+            },
+          ]);
+          setGpsMessage('Native GPS 추적과 음성 코칭 실행 중');
+        });
+        const checkpointListener = await RunningPlugin.addListener('checkpoint', (checkpoint) => {
+          setCoachMessage(checkpoint.spoken_text ?? 'Native 체크포인트를 저장했습니다.');
+          saveRunCheckpoint({
+            run_id: checkpoint.session_id,
+            user_id: user.id,
+            elapsed_seconds: checkpoint.elapsed_seconds,
+            distance_meters: checkpoint.distance_meters,
+            pace_seconds_per_km: checkpoint.pace_seconds_per_km,
+            speed_kmh: checkpoint.speed_kmh,
+            latitude: checkpoint.latitude,
+            longitude: checkpoint.longitude,
+            created_at: new Date(checkpoint.created_at).toISOString(),
+          }).then(() => syncNativeCheckpoints());
+        });
+        const debugListener = await RunningPlugin.addListener('debug', (payload) => {
+          console.debug('[RunningPlugin]', payload.message);
+        });
+        nativeListenerCleanupRef.current = [
+          () => stateListener.remove(),
+          () => checkpointListener.remove(),
+          () => debugListener.remove(),
+        ];
+        await RunningPlugin.startRun({
+          sessionId: run.id,
+          targetDistanceMeters,
+          useNativeTts: true,
+          ...buildNativeComparisonOptions(recentRuns),
+        });
+        setStatus('running');
+        setCoachMessage('Native 음성 코칭이 시작됐습니다. 화면이 꺼져도 안내가 계속됩니다.');
         return;
       }
 
-      cleanupWatchRef.current = cleanup;
-    }
-
-    startWatch();
-
-    return () => {
-      cancelled = true;
-      cleanupWatchRef.current?.();
-      cleanupWatchRef.current = null;
-    };
-  }, [handlePosition, handlePositionError, status]);
-
-  useEffect(() => {
-    if (sessionEndedRef.current) return;
-
-    persistRunningSession({
-      userId: user.id,
-      targetDistanceKm,
-      status,
-      distanceKm,
-      elapsedSeconds,
-      splits,
-      routePoints,
-      startedAt: startedAtRef.current.toISOString(),
-      lastSplitDistance: lastSplitDistanceRef.current,
-    });
-  }, [distanceKm, elapsedSeconds, routePoints, splits, status, targetDistanceKm, user.id]);
-
-  function maybeAddSplit(nextDistanceKm) {
-    const nextSplitDistance = Math.floor(nextDistanceKm * 2) / 2;
-    if (nextSplitDistance > 0 && nextSplitDistance > lastSplitDistanceRef.current) {
-      lastSplitDistanceRef.current = nextSplitDistance;
-      setSplits((current) => [
-        ...current,
-        {
-          distance_km: nextSplitDistance,
-          elapsed_seconds: elapsedRef.current,
-          pace_seconds_per_km: secondsPerKm(nextSplitDistance, elapsedRef.current),
+      const tracker = await createLocationTracker({
+        onAcceptedPoint: ({ point, distanceMeters: nextDistanceMeters }) => {
+          lastPointRef.current = point;
+          setDistanceMeters(nextDistanceMeters);
+          setRoutePoints((current) => [...current.slice(-79), point]);
+          setGpsMessage(`GPS 추적 중 · ±${Math.round(point.accuracy)}m`);
+          saveCheckpointAndCoach(point);
         },
-      ]);
+        onRejectedPoint: ({ reason }) => {
+          const message = reason === 'low_accuracy' ? 'GPS 정확도가 낮아 기록에 반영하지 않았습니다.' : '비정상 GPS 값을 무시했습니다.';
+          console.debug('[RunPage] Rejected point.', reason);
+          setGpsMessage(message);
+        },
+        onError: (error) => {
+          console.debug('[RunPage] Location error.', error);
+          setGpsMessage(error?.message ?? 'GPS를 시작하지 못했습니다.');
+        },
+      });
+
+      trackerRef.current = tracker;
+      await tracker.start();
+      setStatus('running');
+      setCoachMessage('좋아. 시작했어. 처음 1분은 힘을 아끼면서 리듬부터 잡자.');
+      speakCoachMessage('좋아. 시작했어. 처음 1분은 힘을 아끼면서 리듬부터 잡자.');
+    } catch (error) {
+      console.debug('[RunPage] Failed to start run.', error);
+      setGpsMessage(error?.message ?? '러닝을 시작하지 못했습니다.');
+      setStatus('error');
+    } finally {
+      setSaving(false);
+      setPermissionModalOpen(false);
     }
   }
 
   async function finishRun() {
+    if (sessionEndedRef.current) return;
     sessionEndedRef.current = true;
-    setStatus('finished');
     setSaving(true);
-    cleanupWatchRef.current?.();
-    cleanupWatchRef.current = null;
+    setStatus('finished');
+    if (usingNativeRunRef.current) {
+      await RunningPlugin.stopRun();
+      nativeListenerCleanupRef.current.forEach((cleanup) => cleanup?.());
+      nativeListenerCleanupRef.current = [];
+      await syncNativeCheckpoints();
+    } else {
+      await trackerRef.current?.stop?.();
+    }
+
+    if (!usingNativeRunRef.current && lastPointRef.current) {
+      await saveCheckpointAndCoach(lastPointRef.current, true);
+    }
 
     const endedAt = new Date();
-    const durationSeconds = Math.max(1, elapsedSeconds);
-    const avgPace = secondsPerKm(distanceKm, durationSeconds);
-    const finalSplits =
-      splits.length === 0 || splits[splits.length - 1].distance_km < distanceKm
-        ? [
-            ...splits,
-            {
-              distance_km: Number(distanceKm.toFixed(3)),
-              elapsed_seconds: durationSeconds,
-              pace_seconds_per_km: avgPace,
-            },
-          ]
-        : splits;
+    const totalElapsedSeconds = Math.max(1, elapsedRef.current);
+    const totalDistanceMeters = Math.max(0, distanceRef.current);
+    const { data: completedRun, error } = await completeRunRecord({
+      runId: runRef.current?.id,
+      userId: user.id,
+      startedAt: startedAtRef.current,
+      endedAt,
+      totalDistanceMeters,
+      totalElapsedSeconds,
+    });
 
-    const runPayload = {
-      user_id: user.id,
-      target_distance_km: targetDistanceKm,
-      actual_distance_km: Number(distanceKm.toFixed(3)),
-      duration_seconds: durationSeconds,
-      avg_pace_seconds_per_km: avgPace,
-      started_at: startedAtRef.current?.toISOString() ?? endedAt.toISOString(),
-      ended_at: endedAt.toISOString(),
-    };
-
-    const { data: savedRun, error } = await supabase.from('runs').insert(runPayload).select().single();
-
-    let completedRun = savedRun;
-    let saveError = error?.message;
-
-    if (!error && savedRun) {
-      const splitPayload = finalSplits.map((split) => ({
-        run_id: savedRun.id,
-        user_id: user.id,
-        distance_km: split.distance_km,
-        elapsed_seconds: split.elapsed_seconds,
-        pace_seconds_per_km: split.pace_seconds_per_km,
-      }));
-
-      if (splitPayload.length > 0) {
-        await supabase.from('run_splits').insert(splitPayload);
-      }
-    }
-
-    if (error || !savedRun || user.app_metadata?.provider === 'local-test') {
-      completedRun = saveLocalRun(user.id, runPayload);
-      saveError = null;
-    }
-
-    clearStoredSession();
     setSaving(false);
     onComplete({
-      run: completedRun ?? runPayload,
-      splits: finalSplits,
-      ghostRun,
-      ghostDiffSeconds,
-      saveError,
+      run: completedRun ?? {
+        id: runRef.current?.id,
+        user_id: user.id,
+        started_at: startedAtRef.current.toISOString(),
+        ended_at: endedAt.toISOString(),
+        total_distance_meters: totalDistanceMeters,
+        total_elapsed_seconds: totalElapsedSeconds,
+        avg_pace_seconds_per_km: averagePace,
+        status: 'completed',
+      },
+      splits: [],
+      saveError: error?.message,
     });
   }
 
   function togglePause() {
+    if (usingNativeRunRef.current) {
+      if (status === 'running') RunningPlugin.pauseRun();
+      if (status === 'paused') RunningPlugin.resumeRun();
+    }
     setStatus((current) => (current === 'running' ? 'paused' : 'running'));
+  }
+
+  function startFinishHold(event) {
+    if (saving || locked || sessionEndedRef.current || status === 'preparing') return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    longPressTriggeredRef.current = false;
+    longPressStartedAtRef.current = performance.now();
+    setHoldProgress(0);
+
+    function updateProgress() {
+      const elapsedMs = performance.now() - longPressStartedAtRef.current;
+      setHoldProgress(Math.min(1, elapsedMs / FINISH_HOLD_MS));
+      if (elapsedMs < FINISH_HOLD_MS && !longPressTriggeredRef.current) {
+        longPressFrameRef.current = window.requestAnimationFrame(updateProgress);
+      }
+    }
+
+    longPressFrameRef.current = window.requestAnimationFrame(updateProgress);
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      setHoldProgress(1);
+      finishRun();
+    }, FINISH_HOLD_MS);
+  }
+
+  function endFinishHold() {
+    const triggered = longPressTriggeredRef.current;
+    cancelFinishHold();
+    if (!triggered && !saving && !locked && status !== 'preparing') {
+      togglePause();
+    }
+  }
+
+  function cancelFinishHold(resetProgress = true) {
+    if (longPressTimeoutRef.current) window.clearTimeout(longPressTimeoutRef.current);
+    if (longPressFrameRef.current) window.cancelAnimationFrame(longPressFrameRef.current);
+    longPressTimeoutRef.current = null;
+    longPressFrameRef.current = null;
+    if (resetProgress) setHoldProgress(0);
   }
 
   return (
     <main className="run-screen running-hud" style={{ '--running-bg': `url(${runningHudBg})` }}>
       <header className="run-hud-top">
-        <button className="hud-icon-button" type="button" onClick={() => {}} aria-label="음악">
-          <Music size={24} />
+        <button className="hud-icon-button" type="button" onClick={() => setBatteryGuideOpen(true)} aria-label="배터리 안내">
+          <BatteryWarning size={24} />
         </button>
-        <strong className="run-hud-logo">끝까지 <span>달려라</span></strong>
-        <button className="hud-icon-button" type="button" onClick={() => {}} aria-label="설정">
-          <Settings size={24} />
-        </button>
+        <strong className="run-hud-logo">끝까지 <span>버텨라</span></strong>
+        <div className="hud-settings">
+          <button
+            className="hud-icon-button"
+            type="button"
+            onClick={() => setSettingsOpen((open) => !open)}
+            aria-expanded={settingsOpen}
+            aria-label="설정"
+          >
+            <Settings size={24} />
+          </button>
+          {settingsOpen && (
+            <div className="hud-settings-menu">
+              <button type="button" onClick={() => setBatteryGuideOpen(true)}>
+                <span>배터리 최적화</span>
+                <strong>안내</strong>
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
-      <section className="ghost-race-card" aria-label="고스트 비교">
-        <h1>어제의 나를 추월하자!</h1>
+      <section className="ghost-race-card" aria-label="러닝 코치">
+        <h1>어제의 나를 추월하자</h1>
         <div className="ghost-pace-row">
           <div>
-            <span>고스트 (어제의 나)</span>
-            <strong className="blue">{formatHudPace(ghostPace)}</strong>
+            <span>현재 페이스</span>
+            <strong className="green">{formatHudPace(averagePace)}</strong>
           </div>
           <b>VS</b>
           <div>
-            <span>현재 페이스</span>
-            <strong className="green">{formatHudPace(currentPace)}</strong>
+            <span>최근 기록</span>
+            <strong className="blue">{recentRuns.length}개</strong>
           </div>
         </div>
-        <div className="ghost-track">
-          <span className="ghost-runner ghost-left" />
-          <span className="ghost-track-fill" style={{ width: `${Math.min(100, Math.max(8, progress))}%` }} />
-          <span className="ghost-runner ghost-right" />
-        </div>
-        <p className={ghostDiffSeconds == null ? 'muted' : ghostDiffSeconds <= 0 ? 'green' : 'orange'}>
-          {ghostStatusText}
-        </p>
-        {ghostElapsed != null && <small>어제 예상 시간 {formatHudClock(ghostElapsed)}</small>}
+        <p className="green">{coachMessage}</p>
+        {queuedCount > 0 && <small>오프라인 체크포인트 {queuedCount}개 동기화 대기 중</small>}
       </section>
 
       <section className={`route-card ${routeFocused ? 'focused' : ''}`} aria-label="경로 미니맵">
         <MiniMap points={routePoints} distanceKm={distanceKm} />
-        <span className="gps-pill">{gpsMessage}</span>
+        <div className="gps-status-stack">
+          <span className="gps-pill">{gpsMessage}</span>
+          <small>{speedKmh.toFixed(1)} km/h</small>
+        </div>
       </section>
 
       <section className="hud-stats-card">
         <HudStat label="거리" value={distanceKm.toFixed(2)} unit="km" highlight />
         <HudStat label="시간" value={formatHudClock(elapsedSeconds)} />
         <HudStat label="평균 페이스" value={formatHudPace(averagePace)} accent="green" />
-        <HudStat label="칼로리" value={calories} unit="kcal" />
-        <HudStat label="심박수" value={EMPTY_SENSOR} unit="bpm" accent="orange" />
-        <HudStat label="케이던스" value={EMPTY_SENSOR} unit="spm" />
       </section>
 
       <section className="next-goal-card">
         <div>
-          <span>다음 목표</span>
-          <strong>{Number(targetDistanceKm).toFixed(1)} km 도달하기</strong>
+          <span>목표 거리</span>
+          <strong>{Number(targetDistanceKm).toFixed(1)} km 완주</strong>
         </div>
         <div className="goal-progress-row">
           <div className="goal-progress">
@@ -359,8 +448,8 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
 
       {status === 'paused' && (
         <div className="paused-session-card">
-          <strong>일시정지됨</strong>
-          <span>GPS와 타이머가 멈췄습니다.</span>
+          <strong>일시정지</strong>
+          <span>다시 누르면 기록을 이어갑니다.</span>
           <button type="button" onClick={finishRun} disabled={saving || locked || elapsedSeconds === 0}>
             {saving ? '저장 중...' : '러닝 종료'}
           </button>
@@ -372,9 +461,21 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
           {locked ? <Lock size={24} /> : <Unlock size={24} />}
           <span>잠금</span>
         </button>
-        <button className="hud-pause-button" type="button" onClick={togglePause} disabled={saving || locked}>
+        <button
+          className={`hud-pause-button ${holdProgress > 0 ? 'holding' : ''}`}
+          type="button"
+          onPointerDown={startFinishHold}
+          onPointerUp={endFinishHold}
+          onPointerLeave={cancelFinishHold}
+          onPointerCancel={cancelFinishHold}
+          disabled={saving || locked}
+          aria-label="짧게 누르면 일시정지, 3초간 길게 누르면 러닝 종료"
+        >
+          <svg className="hold-progress-ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="42" style={{ strokeDashoffset: HOLD_RING_CIRCUMFERENCE * (1 - holdProgress) }} />
+          </svg>
           {status === 'running' ? <Pause size={34} /> : <Play size={34} />}
-          <span>{status === 'running' ? '일시정지' : '재개'}</span>
+          <span>{status === 'preparing' ? '대기' : holdProgress > 0 ? '길게 종료' : status === 'running' ? '일시정지' : '재개'}</span>
         </button>
         <button
           className={`hud-action-button ${routeFocused ? 'active' : ''}`}
@@ -386,8 +487,59 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
           <span>경로</span>
         </button>
       </div>
+
+      {permissionModalOpen && (
+        <div className="run-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="location-permission-title">
+          <div className="run-modal">
+            <h2 id="location-permission-title">백그라운드 위치 안내</h2>
+            <p>
+              화면이 꺼져도 러닝 기록을 유지하기 위해 위치 권한과 백그라운드 위치 권한을 사용합니다. Android에서는 지속 알림이 표시됩니다.
+            </p>
+            <div className="action-row">
+              <button className="danger-button" type="button" onClick={onCancel}>
+                취소
+              </button>
+              <button className="primary-button" type="button" onClick={startRun} disabled={saving}>
+                {saving ? '시작 중...' : '동의하고 시작'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {batteryGuideOpen && (
+        <div className="run-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="battery-guide-title">
+          <div className="run-modal">
+            <h2 id="battery-guide-title">배터리 최적화 제외 안내</h2>
+            <p>
+              Android 설정에서 이 앱을 배터리 최적화 제외 대상으로 설정하면 화면 꺼짐 상태의 GPS 추적 안정성이 좋아집니다.
+            </p>
+            <button className="secondary-button" type="button" onClick={() => setBatteryGuideOpen(false)}>
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
+}
+
+function buildNativeComparisonOptions(recentRuns) {
+  const speeds = recentRuns
+    .slice(0, 5)
+    .map((run) => {
+      const distanceMeters = Number(run.total_distance_meters ?? Number(run.actual_distance_km || 0) * 1000);
+      const elapsedSeconds = Number(run.total_elapsed_seconds ?? run.duration_seconds);
+      if (!distanceMeters || !elapsedSeconds) return null;
+      return (distanceMeters / 1000) / (elapsedSeconds / 3600);
+    })
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  if (speeds.length === 0) return {};
+  return {
+    recentAverageSpeedKmh: speeds.reduce((sum, value) => sum + value, 0) / speeds.length,
+    recentBestSpeedKmh: Math.max(...speeds),
+  };
 }
 
 function HudStat({ label, value, unit, accent, highlight }) {

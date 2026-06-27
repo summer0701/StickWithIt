@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(RunningPlugin.class);
         super.onCreate(savedInstanceState);
         configureSystemBars();
         installWindowInsetsBridge();
