@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { BatteryWarning, Lock, MapPin, Pause, Play, Settings, Unlock } from 'lucide-react';
+import { Lock, MapPin, Pause, Play, Settings, Unlock } from 'lucide-react';
 import { formatHudClock, formatHudPace } from '../lib/runningHud';
 import { buildCheckpoint, createLocationTracker } from '../services/locationTracker';
 import { loadRecentRunHistory } from '../services/runComparison';
@@ -13,22 +13,26 @@ import {
   isValidUuid,
 } from '../services/runRecorder';
 import { buildGhostRunners, rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
-import { speakCoachMessage } from '../services/ttsAdapter';
+import { COACH_VOICE_TYPES, getCoachVoiceType, playCoachCue, preloadCoachAudio, setCoachVoiceType } from '../lib/coachAudioPlayer';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
 const CHECKPOINT_INTERVAL_SECONDS = 60;
 const FINISH_HOLD_MS = 3000;
 const HOLD_RING_CIRCUMFERENCE = 264;
+const START_COACH_TEXT = '달리기 시작. 오늘도 과거의 너와 경쟁한다.';
 
-export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }) {
-  const targetDistanceMeters = Number(targetDistanceKm) * 1000;
+export default function RunPage({ user, targetDistanceKm, onTargetChange, onCancel, onComplete }) {
+  const normalizedTargetDistanceKm = Math.max(0.1, Number(targetDistanceKm) || 10);
+  const targetDistanceMeters = normalizedTargetDistanceKm * 1000;
   const [status, setStatus] = useState('preparing');
   const [locked, setLocked] = useState(false);
   const [routeFocused, setRouteFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [permissionModalOpen, setPermissionModalOpen] = useState(true);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [batteryGuideOpen, setBatteryGuideOpen] = useState(false);
+  const [coachVoiceType, setCoachVoiceTypeState] = useState(() => getCoachVoiceType());
+  const [targetDistanceInput, setTargetDistanceInput] = useState(() => normalizedTargetDistanceKm.toFixed(1));
   const [distanceMeters, setDistanceMeters] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [routePoints, setRoutePoints] = useState([]);
@@ -56,6 +60,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
   const longPressTriggeredRef = useRef(false);
   const nativeListenerCleanupRef = useRef([]);
   const usingNativeRunRef = useRef(false);
+  const autoStartRequestedRef = useRef(false);
 
   const distanceKm = distanceMeters / 1000;
   const averagePace = useMemo(() => {
@@ -77,16 +82,27 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
   }, [distanceMeters]);
 
   useEffect(() => {
+    setTargetDistanceInput(normalizedTargetDistanceKm.toFixed(1));
+  }, [normalizedTargetDistanceKm]);
+
+  useEffect(() => {
     elapsedRef.current = elapsedSeconds;
   }, [elapsedSeconds]);
 
   useEffect(() => {
     setQueuedCount(readCheckpointQueue().length);
+    preloadCoachAudio();
     loadRecentRunHistory(user.id).then(({ recentRuns: runs, recentCheckpoints: checkpoints }) => {
       setRecentRuns(runs);
       setRecentCheckpoints(checkpoints);
     });
   }, [user.id]);
+
+  useEffect(() => {
+    if (autoStartRequestedRef.current) return;
+    autoStartRequestedRef.current = true;
+    startRun();
+  }, []);
 
   useEffect(() => {
     function handleOnline() {
@@ -121,6 +137,40 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       cancelFinishHold(false);
     };
   }, []);
+
+  async function selectCoachVoiceType(nextVoiceType) {
+    const selectedVoiceType = setCoachVoiceType(nextVoiceType);
+    setCoachVoiceTypeState(selectedVoiceType);
+    await preloadCoachAudio(['start', 'ahead', 'behind', 'finish_push', 'one_km_left']);
+    if (Capacitor.isNativePlatform()) {
+      RunningPlugin.setCoachVoiceType({ voiceType: selectedVoiceType }).catch((error) => {
+        console.debug('[RunPage] Native coach voice type update failed.', error);
+      });
+    }
+  }
+
+  function applyTargetDistance() {
+    const nextTargetDistanceKm = Math.max(0.1, Math.min(100, Number(targetDistanceInput) || normalizedTargetDistanceKm));
+    onTargetChange?.(nextTargetDistanceKm);
+    setTargetDistanceInput(nextTargetDistanceKm.toFixed(1));
+    if (Capacitor.isNativePlatform()) {
+      RunningPlugin.updateTargetDistance({ targetDistanceMeters: nextTargetDistanceKm * 1000 }).catch((error) => {
+        console.debug('[RunPage] Native target distance update failed.', error);
+      });
+    }
+  }
+
+  function openBatteryOptimizationSettings() {
+    setSettingsOpen(false);
+    if (!Capacitor.isNativePlatform()) {
+      setBatteryGuideOpen(true);
+      return;
+    }
+    RunningPlugin.openBatteryOptimizationSettings().catch((error) => {
+      console.debug('[RunPage] Battery optimization settings failed.', error);
+      setBatteryGuideOpen(true);
+    });
+  }
 
   async function syncNativeCheckpoints() {
     if (!Capacitor.isNativePlatform()) return;
@@ -181,10 +231,11 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       spokenMessages: spokenMessagesRef.current,
     });
 
-    setCoachMessage(cue.message);
+    const cueText = cue.fallbackText ?? cue.message;
+    setCoachMessage(cueText);
     if (cue.priority > 1) {
-      const spoken = await speakCoachMessage(cue.message, { preferNative: false });
-      if (spoken) spokenMessagesRef.current = rememberSpokenMessage(spokenMessagesRef.current, cue.message);
+      const spoken = await playCoachCue(cue.category, cueText);
+      if (spoken) spokenMessagesRef.current = rememberSpokenMessage(spokenMessagesRef.current, cueText);
     }
 
     if (result.queued) {
@@ -192,12 +243,21 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
     }
   }, [recentCheckpoints, recentRuns, targetDistanceMeters, user.id]);
 
+  useEffect(() => {
+    if (status !== 'running' || usingNativeRunRef.current) return undefined;
+    const timer = window.setInterval(() => {
+      if (lastPointRef.current) saveCheckpointAndCoach(lastPointRef.current);
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [saveCheckpointAndCoach, status]);
+
   async function startRun() {
     setSaving(true);
     try {
       startedAtRef.current = new Date();
       const run = await createRunRecord({ userId: user.id, startedAt: startedAtRef.current, targetDistanceMeters });
       runRef.current = run;
+      await preloadCoachAudio(['start', 'ahead', 'behind', 'finish_push', 'one_km_left']);
 
       if (Capacitor.isNativePlatform()) {
         usingNativeRunRef.current = true;
@@ -246,10 +306,11 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
           sessionId: run.id,
           targetDistanceMeters,
           useNativeTts: true,
+          voiceType: coachVoiceType,
           ghostRunnersJson: JSON.stringify(buildGhostRunners(recentRuns, recentCheckpoints)),
         });
         setStatus('running');
-        setCoachMessage('Native 음성 코칭이 시작됐습니다. 화면이 꺼져도 안내가 계속됩니다.');
+        setCoachMessage(START_COACH_TEXT);
         return;
       }
 
@@ -275,8 +336,8 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       trackerRef.current = tracker;
       await tracker.start();
       setStatus('running');
-      setCoachMessage('좋아. 시작했어. 처음 1분은 힘을 아끼면서 리듬부터 잡자.');
-      speakCoachMessage('좋아. 시작했어. 처음 1분은 힘을 아끼면서 리듬부터 잡자.');
+      setCoachMessage(START_COACH_TEXT);
+      await playCoachCue('start', START_COACH_TEXT);
     } catch (error) {
       console.debug('[RunPage] Failed to start run.', error);
       setGpsMessage(error?.message ?? '러닝을 시작하지 못했습니다.');
@@ -315,7 +376,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       endedAt,
       totalDistanceMeters,
       totalElapsedSeconds,
-      targetDistanceKm: Number(targetDistanceKm),
+      targetDistanceKm: normalizedTargetDistanceKm,
     });
 
     setSaving(false);
@@ -386,9 +447,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
   return (
     <main className="run-screen running-hud" style={{ '--running-bg': `url(${runningHudBg})` }}>
       <header className="run-hud-top">
-        <button className="hud-icon-button" type="button" onClick={() => setBatteryGuideOpen(true)} aria-label="배터리 안내">
-          <BatteryWarning size={24} />
-        </button>
+        <span className="hud-top-spacer" aria-hidden="true" />
         <strong className="run-hud-logo">끝까지 <span>버텨라</span></strong>
         <div className="hud-settings">
           <button
@@ -402,9 +461,41 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
           </button>
           {settingsOpen && (
             <div className="hud-settings-menu">
-              <button type="button" onClick={() => setBatteryGuideOpen(true)}>
+              <div className="hud-settings-section" role="group" aria-label="음성 가이드">
+                <span>음성 가이드</span>
+                <div className="hud-settings-choice">
+                  {COACH_VOICE_TYPES.map((voiceType) => (
+                    <button
+                      key={voiceType}
+                      type="button"
+                      className={coachVoiceType === voiceType ? 'active' : ''}
+                      onClick={() => selectCoachVoiceType(voiceType)}
+                      aria-pressed={coachVoiceType === voiceType}
+                    >
+                      {voiceType}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="hud-settings-section" role="group" aria-label="목표 거리">
+                <span>목표 거리</span>
+                <div className="hud-target-control">
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="100"
+                    step="0.1"
+                    value={targetDistanceInput}
+                    onChange={(event) => setTargetDistanceInput(event.target.value)}
+                    onBlur={applyTargetDistance}
+                    aria-label="목표 거리 km"
+                  />
+                  <button type="button" onClick={applyTargetDistance}>km 적용</button>
+                </div>
+              </div>
+              <button type="button" onClick={openBatteryOptimizationSettings}>
                 <span>배터리 최적화</span>
-                <strong>안내</strong>
+                <strong>설정</strong>
               </button>
             </div>
           )}
@@ -445,14 +536,14 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       <section className="next-goal-card">
         <div>
           <span>목표 거리</span>
-          <strong>{Number(targetDistanceKm).toFixed(1)} km 완주</strong>
+          <strong>{normalizedTargetDistanceKm.toFixed(1)} km 완주</strong>
         </div>
         <div className="goal-progress-row">
           <div className="goal-progress">
             <span style={{ width: `${progress}%` }} />
           </div>
           <b>
-            {distanceKm.toFixed(2)} <span>/ {Number(targetDistanceKm).toFixed(2)} km</span>
+            {distanceKm.toFixed(2)} <span>/ {normalizedTargetDistanceKm.toFixed(2)} km</span>
           </b>
         </div>
       </section>

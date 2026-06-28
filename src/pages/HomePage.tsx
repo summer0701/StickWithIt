@@ -18,6 +18,7 @@ import { GiJumpAcross, GiMuscleUp, GiPlanks, GiWeightLiftingUp } from 'react-ico
 import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
 import { isTestUserId } from '../lib/testAuth';
+import { achievementRate } from '../lib/runningProgress';
 import heroImage from '../assets/iron-five-hero.webp';
 
 type HomePageProps = {
@@ -35,9 +36,11 @@ type Exercise = {
   english: string;
   color: string;
   goalLabel: string;
+  goalTitle?: string;
   recordLabel: string;
   targetValue: number;
   currentValue: number;
+  achievementLabel?: string;
   unit: string;
   buttonLabel: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -131,21 +134,60 @@ export default function HomePage({
 }: HomePageProps) {
   const [toast, setToast] = useState('');
   const [recentRunsCount, setRecentRunsCount] = useState(0);
+  const [todayRunningKm, setTodayRunningKm] = useState(0);
+  const [yesterdayBestRunningKm, setYesterdayBestRunningKm] = useState(0);
+  const exerciseItems = useMemo(
+    () => exercises.map((exercise) => (
+      exercise.id === 'running'
+        ? {
+            ...exercise,
+            goalTitle: '어제 최고 기록',
+            goalLabel: yesterdayBestRunningKm > 0 ? `${yesterdayBestRunningKm.toFixed(2)}km` : '기록 없음',
+            recordLabel: `${todayRunningKm.toFixed(2)}km`,
+            targetValue: yesterdayBestRunningKm,
+            currentValue: todayRunningKm,
+            achievementLabel: getRunningAchievementLabel(todayRunningKm, yesterdayBestRunningKm),
+          }
+        : exercise
+    )),
+    [todayRunningKm, yesterdayBestRunningKm],
+  );
   const totalProgress = Math.round(
-    exercises.reduce((sum, exercise) => sum + getProgress(exercise), 0) / exercises.length,
+    exerciseItems.reduce((sum, exercise) => sum + getProgress(exercise), 0) / exerciseItems.length,
   );
 
   useEffect(() => {
     const localRuns = readLocalRuns(user.id);
     setRecentRunsCount(localRuns.length);
+    setTodayRunningKm(sumTodayRunningKm(localRuns));
+    setYesterdayBestRunningKm(bestRunningKmOnDate(localRuns, yesterdayDateKey()));
     if (isTestUserId(user.id)) return;
 
     async function loadRunCount() {
       try {
-        const { data } = await supabase.from('runs').select('id').eq('user_id', user.id).limit(30);
-        setRecentRunsCount(Math.max(localRuns.length, data?.length ?? 0));
+        const [recentResult, todayResult, yesterdayResult] = await Promise.all([
+          supabase.from('runs').select('id').eq('user_id', user.id).limit(30),
+          supabase
+            .from('runs')
+            .select('id,status,ended_at,started_at,created_at,actual_distance_km,total_distance_meters')
+            .eq('user_id', user.id)
+            .gte('started_at', startOfTodayIso())
+            .limit(100),
+          supabase
+            .from('runs')
+            .select('id,status,ended_at,started_at,created_at,actual_distance_km,total_distance_meters')
+            .eq('user_id', user.id)
+            .gte('started_at', startOfYesterdayIso())
+            .lt('started_at', startOfTodayIso())
+            .limit(100),
+        ]);
+        setRecentRunsCount(Math.max(localRuns.length, recentResult.data?.length ?? 0));
+        setTodayRunningKm(sumTodayRunningKm([...(todayResult.data ?? []), ...localRuns]));
+        setYesterdayBestRunningKm(bestRunningKmOnDate([...(yesterdayResult.data ?? []), ...localRuns], yesterdayDateKey()));
       } catch {
         setRecentRunsCount(localRuns.length);
+        setTodayRunningKm(sumTodayRunningKm(localRuns));
+        setYesterdayBestRunningKm(bestRunningKmOnDate(localRuns, yesterdayDateKey()));
       }
     }
 
@@ -196,7 +238,7 @@ export default function HomePage({
 
       <SectionTitle title="철인 5종목" caption="원하는 종목을 선택해 운동을 시작하세요." />
       <section className="exercise-rail" aria-label="철인 5종목 카드">
-        {exercises.map((exercise, index) => (
+        {exerciseItems.map((exercise, index) => (
           <ExerciseCard key={exercise.id} exercise={exercise} index={index} onStart={handleExerciseStart} />
         ))}
       </section>
@@ -205,7 +247,7 @@ export default function HomePage({
         <CircularProgress value={totalProgress} />
         <div className="progress-list">
           <strong>5종목 진행률</strong>
-          {exercises.map((exercise) => (
+          {exerciseItems.map((exercise) => (
             <ProgressRow key={exercise.id} label={exercise.english} value={getProgress(exercise)} color={exercise.color} />
           ))}
         </div>
@@ -287,7 +329,16 @@ const ExerciseCard = memo(function ExerciseCard({
   return (
     <motion.article
       className="exercise-card"
+      role="button"
+      tabIndex={0}
       style={{ '--accent': exercise.color } as React.CSSProperties}
+      onClick={() => onStart(exercise)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onStart(exercise);
+        }
+      }}
       initial={{ opacity: 0, x: 34 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-20px' }}
@@ -297,7 +348,7 @@ const ExerciseCard = memo(function ExerciseCard({
       <Icon size={44} className="exercise-icon" />
       <h3>{exercise.name}</h3>
       <div className="exercise-metrics">
-        <span>목표</span>
+        <span>{exercise.goalTitle ?? '목표'}</span>
         <strong>{exercise.goalLabel}</strong>
         <span>오늘 기록</span>
         <strong>{exercise.recordLabel}</strong>
@@ -305,9 +356,16 @@ const ExerciseCard = memo(function ExerciseCard({
       <ProgressBar value={progress} color={exercise.color} />
       <div className="achievement">
         <span>달성률</span>
-        <b>{progress}%</b>
+        <b>{exercise.achievementLabel ?? `${progress}%`}</b>
       </div>
-      <button className="ripple-button" type="button" onClick={() => onStart(exercise)}>
+      <button
+        className="ripple-button"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onStart(exercise);
+        }}
+      >
         {exercise.buttonLabel}
       </button>
     </motion.article>
@@ -455,7 +513,73 @@ function SectionTitle({ title, caption }: { title: string; caption: string }) {
 }
 
 function getProgress(exercise: Exercise) {
-  return Math.min(100, Math.round((exercise.currentValue / exercise.targetValue) * 100));
+  if (exercise.targetValue <= 0) return 0;
+  return Math.min(100, achievementRate(exercise.currentValue, exercise.targetValue));
+}
+
+function getRunningAchievementLabel(todayKm: number, yesterdayBestKm: number) {
+  if (yesterdayBestKm <= 0) return '기록 없음';
+  if (todayKm > yesterdayBestKm) return '어제 대비 신기록';
+  return `${Math.min(100, Math.round((todayKm / yesterdayBestKm) * 100))}%`;
+}
+
+function sumTodayRunningKm(runs: Array<Record<string, any>>) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const uniqueRuns = new Map<string, Record<string, any>>();
+
+  runs.forEach((run, index) => {
+    uniqueRuns.set(String(run.id ?? `run-${index}`), run);
+  });
+
+  return Array.from(uniqueRuns.values())
+    .filter((run) => isCompletedOnDate(run, todayKey))
+    .reduce((sum, run) => sum + runDistanceKm(run), 0);
+}
+
+function bestRunningKmOnDate(runs: Array<Record<string, any>>, dateKey: string) {
+  const uniqueRuns = new Map<string, Record<string, any>>();
+
+  runs.forEach((run, index) => {
+    uniqueRuns.set(String(run.id ?? `run-${index}`), run);
+  });
+
+  return Array.from(uniqueRuns.values())
+    .filter((run) => isCompletedOnDate(run, dateKey))
+    .reduce((best, run) => Math.max(best, runDistanceKm(run)), 0);
+}
+
+function isCompletedOnDate(run: Record<string, any>, targetDateKey: string) {
+  const runDateKey = String(run.ended_at ?? run.started_at ?? run.created_at ?? '').slice(0, 10);
+  if (runDateKey !== targetDateKey) return false;
+  if (run.status === 'completed') return true;
+  return run.status == null && Boolean(run.ended_at);
+}
+
+function runDistanceKm(run: Record<string, any>) {
+  const meters = Number(run.total_distance_meters);
+  if (Number.isFinite(meters) && meters > 0) return meters / 1000;
+
+  const km = Number(run.actual_distance_km);
+  return Number.isFinite(km) && km > 0 ? km : 0;
+}
+
+function startOfTodayIso() {
+  const value = new Date();
+  value.setHours(0, 0, 0, 0);
+  return value.toISOString();
+}
+
+function startOfYesterdayIso() {
+  const value = new Date();
+  value.setDate(value.getDate() - 1);
+  value.setHours(0, 0, 0, 0);
+  return value.toISOString();
+}
+
+function yesterdayDateKey() {
+  const value = new Date();
+  value.setDate(value.getDate() - 1);
+  return value.toISOString().slice(0, 10);
 }
 
 const cardVariant = {

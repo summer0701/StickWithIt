@@ -9,6 +9,7 @@ class CheckpointManager(
     private val scope: CoroutineScope,
     private val coach: RuleBasedCoach,
     private val ttsEngine: NativeTtsEngine,
+    private val coachAudioPlayer: CachedCoachAudioPlayer,
     private val ghostRunnersProvider: () -> List<GhostRunner>,
     private val onCheckpoint: (RunCheckpointEntity) -> Unit
 ) {
@@ -26,7 +27,6 @@ class CheckpointManager(
         force: Boolean = false
     ) {
         if (!force && elapsedSeconds - lastCheckpointElapsedSeconds < CHECKPOINT_INTERVAL_SECONDS) return
-        if (sample.distanceMeters <= 0.0) return
 
         val distanceKm = sample.distanceMeters / 1000.0
         val paceSecondsPerKm = if (distanceKm > 0.0) (elapsedSeconds / distanceKm).roundToInt() else null
@@ -58,7 +58,7 @@ class CheckpointManager(
         scope.launch {
             val id = dao.insert(checkpoint)
             val saved = checkpoint.copy(id = id)
-            cue?.message?.let { ttsEngine.speak(it) }
+            cue?.let { coachAudioPlayer.playCategory(it.category, it.fallbackText) }
             onCheckpoint(saved)
         }
     }

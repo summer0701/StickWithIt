@@ -6,7 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
@@ -88,6 +91,7 @@ class RunningPlugin : Plugin() {
             putExtra(RunningForegroundService.EXTRA_SESSION_ID, options.getString("sessionId", "native-${System.currentTimeMillis()}"))
             putExtra(RunningForegroundService.EXTRA_TARGET_DISTANCE_METERS, options.optDouble("targetDistanceMeters", 0.0))
             putExtra(RunningForegroundService.EXTRA_GHOST_RUNNERS_JSON, options.optString("ghostRunnersJson", "[]"))
+            putExtra(RunningForegroundService.EXTRA_VOICE_TYPE, options.optString("voiceType", "type2"))
         }
         ContextCompat.startForegroundService(context, intent)
         call.resolve()
@@ -120,6 +124,72 @@ class RunningPlugin : Plugin() {
         }
         ContextCompat.startForegroundService(context, intent)
         call.resolve()
+    }
+
+    @PluginMethod
+    fun playCoachAudio(call: PluginCall) {
+        val file = call.getString("file", "")
+        val fallbackText = call.getString("fallbackText", "")
+        val voiceType = call.getString("voiceType", "type2")
+        val intent = Intent(context, RunningForegroundService::class.java).apply {
+            action = RunningForegroundService.ACTION_PLAY_COACH_AUDIO
+            putExtra(RunningForegroundService.EXTRA_FILE, file)
+            putExtra(RunningForegroundService.EXTRA_TEXT, fallbackText)
+            putExtra(RunningForegroundService.EXTRA_VOICE_TYPE, voiceType)
+        }
+        ContextCompat.startForegroundService(context, intent)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun setCoachVoiceType(call: PluginCall) {
+        val voiceType = call.getString("voiceType", "type2")
+        val intent = Intent(context, RunningForegroundService::class.java).apply {
+            action = RunningForegroundService.ACTION_COACH_VOICE_TYPE
+            putExtra(RunningForegroundService.EXTRA_VOICE_TYPE, voiceType)
+        }
+        ContextCompat.startForegroundService(context, intent)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun updateTargetDistance(call: PluginCall) {
+        val targetDistanceMeters = call.data.optDouble("targetDistanceMeters", 0.0)
+        val intent = Intent(context, RunningForegroundService::class.java).apply {
+            action = RunningForegroundService.ACTION_UPDATE_TARGET_DISTANCE
+            putExtra(RunningForegroundService.EXTRA_TARGET_DISTANCE_METERS, targetDistanceMeters)
+        }
+        ContextCompat.startForegroundService(context, intent)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun openBatteryOptimizationSettings(call: PluginCall) {
+        try {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val packageName = context.packageName
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            } else {
+                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            call.resolve()
+        } catch (error: Exception) {
+            try {
+                val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(fallbackIntent)
+                call.resolve()
+            } catch (fallbackError: Exception) {
+                call.reject("배터리 최적화 설정 화면을 열지 못했습니다.", fallbackError)
+            }
+        }
     }
 
     @PluginMethod

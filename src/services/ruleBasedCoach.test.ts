@@ -6,18 +6,24 @@ describe('ruleBasedCoach', () => {
     {
       id: 'yesterday',
       started_at: '2026-06-27T00:00:00Z',
+      ended_at: '2026-06-27T00:30:00Z',
+      status: 'completed',
       total_elapsed_seconds: 1800,
       total_distance_meters: 5000,
     },
     {
       id: 'best',
       started_at: '2026-06-25T00:00:00Z',
+      ended_at: '2026-06-25T00:25:00Z',
+      status: 'completed',
       total_elapsed_seconds: 1500,
       total_distance_meters: 5000,
     },
     {
       id: 'slow',
       started_at: '2026-06-20T00:00:00Z',
+      ended_at: '2026-06-20T00:40:00Z',
+      status: 'completed',
       total_elapsed_seconds: 2400,
       total_distance_meters: 5000,
     },
@@ -51,18 +57,18 @@ describe('ruleBasedCoach', () => {
     expect(comparisons.find((ghost) => ghost.key === 'slowGhost')?.deltaMeters).toBe(70);
   });
 
-  it('speaks about a meaningful ghost instead of a plain average', () => {
+  it('returns category cues instead of dynamic spoken sentences', () => {
     const cue = ruleBasedCoach({
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1050, pace_seconds_per_km: 286 },
       recentRuns,
       recentCheckpoints,
     });
 
-    expect(cue.type).toBe('ghost');
-    expect(cue.message).toMatch(/어제|최고기록|평균|최근|끝까지/);
+    expect(cue.category).toBe('close');
+    expect(cue.fallbackText).toBe('거의 따라잡았어. 지금부터 집중하자.');
   });
 
-  it('returns finish push inside the last kilometer', () => {
+  it('returns one kilometer cue inside the last kilometer', () => {
     const cue = ruleBasedCoach({
       currentCheckpoint: { elapsed_seconds: 1200, distance_meters: 4200, pace_seconds_per_km: 286 },
       recentRuns: [],
@@ -70,11 +76,11 @@ describe('ruleBasedCoach', () => {
       targetDistanceMeters: 5000,
     });
 
-    expect(cue.type).toBe('finish_push');
+    expect(cue.category).toBe('one_km_left');
   });
 
-  it('does not repeat an identical spoken message', () => {
-    const spokenMessages = rememberSpokenMessage([], '어제의 나를 방금 잡았다. 오늘의 너가 과거의 너들을 하나씩 넘어서고 있다.');
+  it('does not repeat an identical fallback phrase when alternatives exist', () => {
+    const spokenMessages = rememberSpokenMessage([], '거의 따라잡았어. 지금부터 집중하자.');
     const cue = ruleBasedCoach({
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1030, pace_seconds_per_km: 291 },
       recentRuns,
@@ -82,6 +88,21 @@ describe('ruleBasedCoach', () => {
       spokenMessages,
     });
 
-    expect(cue.message).not.toBe('어제의 나를 방금 잡았다. 오늘의 너가 과거의 너들을 하나씩 넘어서고 있다.');
+    expect(cue.fallbackText).not.toBe('거의 따라잡았어. 지금부터 집중하자.');
+  });
+
+  it('uses only completed runs as ghost candidates', () => {
+    const ghosts = buildGhostRunners([
+      ...recentRuns,
+      {
+        id: 'running',
+        started_at: '2026-06-28T00:00:00Z',
+        status: 'running',
+        total_elapsed_seconds: 100,
+        total_distance_meters: 1000,
+      },
+    ], recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+
+    expect(ghosts.some((ghost) => ghost.sourceRunId === 'running')).toBe(false);
   });
 });

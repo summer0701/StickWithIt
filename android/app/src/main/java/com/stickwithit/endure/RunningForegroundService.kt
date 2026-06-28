@@ -23,6 +23,7 @@ class RunningForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var database: RunDatabase
     private lateinit var ttsEngine: NativeTtsEngine
+    private lateinit var coachAudioPlayer: CachedCoachAudioPlayer
     private lateinit var coach: RuleBasedCoach
     private var locationTracker: LocationTracker? = null
     private var checkpointManager: CheckpointManager? = null
@@ -39,8 +40,10 @@ class RunningForegroundService : Service() {
         super.onCreate()
         database = RunDatabase.get(this)
         ttsEngine = NativeTtsEngine(this)
+        coachAudioPlayer = CachedCoachAudioPlayer(this, ttsEngine)
         coach = RuleBasedCoach()
         ttsEngine.init()
+        coachAudioPlayer.preload()
         acquireWakeLock()
     }
 
@@ -50,6 +53,21 @@ class RunningForegroundService : Service() {
             ACTION_PAUSE -> paused = true
             ACTION_RESUME -> paused = false
             ACTION_SPEAK -> intent.getStringExtra(EXTRA_TEXT)?.let { ttsEngine.speak(it) }
+            ACTION_PLAY_COACH_AUDIO -> {
+                val file = intent.getStringExtra(EXTRA_FILE)
+                val fallbackText = intent.getStringExtra(EXTRA_TEXT)
+                coachAudioPlayer.setVoiceType(intent.getStringExtra(EXTRA_VOICE_TYPE))
+                if (file.isNullOrBlank()) {
+                    fallbackText?.let { ttsEngine.speak(it) }
+                } else {
+                    coachAudioPlayer.playFile(file, fallbackText)
+                }
+            }
+            ACTION_COACH_VOICE_TYPE -> coachAudioPlayer.setVoiceType(intent.getStringExtra(EXTRA_VOICE_TYPE))
+            ACTION_UPDATE_TARGET_DISTANCE -> {
+                targetDistanceMeters = intent.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, targetDistanceMeters)
+                broadcastDebug("target_distance_updated:$targetDistanceMeters")
+            }
             ACTION_TTS_ENABLED -> ttsEngine.setEnabled(intent.getBooleanExtra(EXTRA_TTS_ENABLED, true))
             else -> startRun(intent)
         }
@@ -59,6 +77,7 @@ class RunningForegroundService : Service() {
     override fun onDestroy() {
         checkpointTickerJob?.cancel()
         locationTracker?.stop()
+        coachAudioPlayer.release()
         ttsEngine.shutdown()
         wakeLock?.takeIf { it.isHeld }?.release()
         scope.cancel()
@@ -71,6 +90,7 @@ class RunningForegroundService : Service() {
         sessionId = intent?.getStringExtra(EXTRA_SESSION_ID).orEmpty().ifBlank { "native-${System.currentTimeMillis()}" }
         targetDistanceMeters = intent?.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, 0.0) ?: 0.0
         ghostRunners = GhostRunnerParser.parse(intent?.getStringExtra(EXTRA_GHOST_RUNNERS_JSON))
+        coachAudioPlayer.setVoiceType(intent?.getStringExtra(EXTRA_VOICE_TYPE))
         startedAtMillis = System.currentTimeMillis()
         paused = false
 
@@ -82,6 +102,7 @@ class RunningForegroundService : Service() {
             scope = scope,
             coach = coach,
             ttsEngine = ttsEngine,
+            coachAudioPlayer = coachAudioPlayer,
             ghostRunnersProvider = { ghostRunners },
             onCheckpoint = { broadcastCheckpoint(it) }
         )
@@ -99,7 +120,8 @@ class RunningForegroundService : Service() {
         ).also { it.start() }
         startCheckpointTicker()
 
-        ttsEngine.speak("좋아. 러닝을 시작했어. 화면이 꺼져도 음성 코칭을 계속할게.")
+        coachAudioPlayer.playCategory("start", "달리기 시작. 오늘도 과거의 너와 경쟁한다.")
+        broadcastDebug("coach_start_audio_requested")
         broadcastDebug("run_started:$sessionId")
     }
 
@@ -110,7 +132,7 @@ class RunningForegroundService : Service() {
             checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds(), sample, targetDistanceMeters, force = true)
         }
         locationTracker?.stop()
-        ttsEngine.speak("러닝을 종료했어. 오늘도 끝까지 버텼다.")
+        coachAudioPlayer.playCategory("completed", "러닝 완료. 오늘도 끝까지 버텼다.")
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -207,6 +229,9 @@ class RunningForegroundService : Service() {
         const val ACTION_PAUSE = "com.stickwithit.endure.RUN_PAUSE"
         const val ACTION_RESUME = "com.stickwithit.endure.RUN_RESUME"
         const val ACTION_SPEAK = "com.stickwithit.endure.RUN_SPEAK"
+        const val ACTION_PLAY_COACH_AUDIO = "com.stickwithit.endure.RUN_PLAY_COACH_AUDIO"
+        const val ACTION_COACH_VOICE_TYPE = "com.stickwithit.endure.RUN_COACH_VOICE_TYPE"
+        const val ACTION_UPDATE_TARGET_DISTANCE = "com.stickwithit.endure.RUN_UPDATE_TARGET_DISTANCE"
         const val ACTION_TTS_ENABLED = "com.stickwithit.endure.RUN_TTS_ENABLED"
         const val ACTION_STATE = "com.stickwithit.endure.RUN_STATE"
         const val ACTION_CHECKPOINT = "com.stickwithit.endure.RUN_CHECKPOINT"
@@ -214,6 +239,8 @@ class RunningForegroundService : Service() {
         const val EXTRA_SESSION_ID = "sessionId"
         const val EXTRA_TARGET_DISTANCE_METERS = "targetDistanceMeters"
         const val EXTRA_GHOST_RUNNERS_JSON = "ghostRunnersJson"
+        const val EXTRA_VOICE_TYPE = "voiceType"
+        const val EXTRA_FILE = "file"
         const val EXTRA_TEXT = "text"
         const val EXTRA_TTS_ENABLED = "ttsEnabled"
     }

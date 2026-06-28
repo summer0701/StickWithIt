@@ -28,12 +28,17 @@ export type RunningPluginApi = {
     sessionId: string;
     targetDistanceMeters: number;
     useNativeTts: boolean;
+    voiceType?: string;
     ghostRunnersJson?: string;
   }): Promise<void>;
   stopRun(): Promise<void>;
   pauseRun(): Promise<void>;
   resumeRun(): Promise<void>;
   speak(options: { text: string }): Promise<void>;
+  playCoachAudio(options: { key?: string; category?: string; file: string; voiceType?: string; fallbackText?: string }): Promise<void>;
+  setCoachVoiceType(options: { voiceType: string }): Promise<void>;
+  updateTargetDistance(options: { targetDistanceMeters: number }): Promise<void>;
+  openBatteryOptimizationSettings(): Promise<void>;
   setTtsEnabled(options: { enabled: boolean }): Promise<void>;
   getRunState(): Promise<{ unsyncedCount: number; unsyncedCheckpoints: NativeCheckpoint[] }>;
   markCheckpointsSynced(options: { ids: number[] }): Promise<void>;

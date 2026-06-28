@@ -105,6 +105,7 @@ export default function App() {
         <RunPage
           user={user}
           targetDistanceKm={targetDistanceKm}
+          onTargetChange={setTargetDistanceKm}
           onCancel={() => setPage('home')}
           onComplete={(result) => {
             setLatestResult(result);

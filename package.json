@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest run src/lib",
+    "tts:generate": "python scripts/generate-edge-tts-cache.py",
     "cap:sync": "npm run build && npx cap sync android",
     "cap:open:android": "npx cap open android"
   },

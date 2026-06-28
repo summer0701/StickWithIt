@@ -4,7 +4,7 @@ import { isTestUserId } from '../lib/testAuth';
 
 export async function loadRecentRunHistory(userId, limit = 5) {
   if (isTestUserId(userId)) {
-    return { recentRuns: readLocalRuns(userId).slice(0, limit), recentCheckpoints: [], error: null };
+    return { recentRuns: readLocalRuns(userId).filter(isCompletedRun).slice(0, limit), recentCheckpoints: [], error: null };
   }
 
   const query = supabase
@@ -43,6 +43,12 @@ export async function loadRecentRunHistory(userId, limit = 5) {
     recentCheckpoints: recentCheckpoints ?? [],
     error: checkpointsError ?? null,
   };
+}
+
+export function isCompletedRun(run) {
+  if (!run) return false;
+  if (run.status === 'completed') return true;
+  return run.status == null && Boolean(run.ended_at);
 }
 
 async function loadRecentRunHistoryWithoutStatus(userId, limit) {
