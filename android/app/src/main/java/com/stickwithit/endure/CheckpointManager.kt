@@ -9,8 +9,7 @@ class CheckpointManager(
     private val scope: CoroutineScope,
     private val coach: RuleBasedCoach,
     private val ttsEngine: NativeTtsEngine,
-    private val recentAverageSpeedKmhProvider: () -> Double?,
-    private val recentBestSpeedKmhProvider: () -> Double?,
+    private val ghostRunnersProvider: () -> List<GhostRunner>,
     private val onCheckpoint: (RunCheckpointEntity) -> Unit
 ) {
     companion object {
@@ -33,21 +32,13 @@ class CheckpointManager(
         val paceSecondsPerKm = if (distanceKm > 0.0) (elapsedSeconds / distanceKm).roundToInt() else null
         val elapsedHours = elapsedSeconds / 3600.0
         val averageSpeedKmh = if (elapsedHours > 0.0) distanceKm / elapsedHours else 0.0
-        val recentAverageDistanceMeters = recentAverageSpeedKmhProvider()?.takeIf { it > 0.0 }?.let {
-            it * elapsedHours * 1000.0
-        }
-        val recentBestDeltaSeconds = recentBestSpeedKmhProvider()?.takeIf { it > 0.0 && sample.distanceMeters > 0.0 }?.let {
-            val bestElapsedAtDistance = (sample.distanceMeters / 1000.0) / it * 3600.0
-            (bestElapsedAtDistance - elapsedSeconds).toInt()
-        }
         val cue = coach.createCue(
             elapsedSeconds = elapsedSeconds,
             distanceMeters = sample.distanceMeters,
             paceSecondsPerKm = paceSecondsPerKm,
             speedKmh = averageSpeedKmh,
             targetDistanceMeters = targetDistanceMeters,
-            recentAverageDistanceMeters = recentAverageDistanceMeters,
-            recentBestDeltaSeconds = recentBestDeltaSeconds
+            ghostRunners = ghostRunnersProvider()
         )
 
         val checkpoint = RunCheckpointEntity(

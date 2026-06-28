@@ -12,6 +12,7 @@ data class CoachCue(
 class RuleBasedCoach {
     private var lastSpokenAtMillis = 0L
     private val recentMessages = ArrayDeque<String>()
+    private val previousGhostDeltas = mutableMapOf<String, Double>()
     private val minimumSpeakGapMillis = 55_000L
 
     fun createCue(
@@ -20,8 +21,7 @@ class RuleBasedCoach {
         paceSecondsPerKm: Int?,
         speedKmh: Double,
         targetDistanceMeters: Double,
-        recentAverageDistanceMeters: Double?,
-        recentBestDeltaSeconds: Int?,
+        ghostRunners: List<GhostRunner>,
         nowMillis: Long = System.currentTimeMillis()
     ): CoachCue? {
         if (nowMillis - lastSpokenAtMillis < minimumSpeakGapMillis) return null
@@ -32,10 +32,8 @@ class RuleBasedCoach {
         val paceText = paceSecondsPerKm?.let { formatPace(it) }
         val type = when {
             targetDistanceMeters > 0 && remainingMeters in 0.0..1000.0 -> "finish_push"
-            recentBestDeltaSeconds != null && recentBestDeltaSeconds > 5 -> "ahead"
-            recentBestDeltaSeconds != null && recentBestDeltaSeconds < -5 -> "behind"
             targetDistanceMeters > 0 && distanceMeters >= targetDistanceMeters * 0.8 -> "milestone"
-            recentAverageDistanceMeters != null && distanceMeters >= recentAverageDistanceMeters -> "ahead"
+            ghostRunners.isNotEmpty() -> "ghost"
             paceSecondsPerKm != null && speedKmh > 0 -> "checkpoint"
             else -> "neutral"
         }
@@ -47,26 +45,13 @@ class RuleBasedCoach {
                 "끝이 보인다. 호흡 하나만 더 붙잡고 밀어붙이자.",
                 "이제 남은 건 버티는 힘이야. 오늘의 너를 증명할 시간이다."
             )
-            "ahead" -> listOf(
-                "어제의 너보다 ${recentBestDeltaSeconds ?: 0}초 빠르다. 계속 밀어붙여.",
-                "좋아, 지금 최근 기록 평균보다 앞서고 있어. 이 페이스 유지해!",
-                "지금 흐름 좋다. 무리하지 말고 이 리듬 그대로 가져가자.",
-                "방금 과거의 너를 넘어서는 페이스야. 오늘 진짜 잘하고 있어.",
-                "앞서고 있어. 욕심내지 말고 정확하게 한 걸음씩 가자."
-            )
-            "behind" -> listOf(
-                "괜찮아. 아직 충분히 따라잡을 수 있어. 호흡만 유지하자.",
-                "조금 늦어도 끝난 건 아니야. 어깨 힘 빼고 다시 리듬 잡자.",
-                "지금은 회복 구간이야. 보폭보다 호흡을 먼저 안정시키자.",
-                "흔들려도 괜찮아. 다음 1분만 다시 집중하자.",
-                "뒤처진 만큼 급하게 뛰지 마. 리듬을 되찾으면 충분히 따라간다."
-            )
             "milestone" -> listOf(
                 "목표의 80퍼센트를 넘었어. 여기서부터 진짜 승부야.",
                 "거의 다 왔어. 지금부터는 몸보다 마음이 먼저 달린다.",
                 "마지막 구간에 들어왔어. 자세 낮추고 리듬 유지하자.",
                 "여기까지 온 것만으로도 강해졌어. 이제 마무리하자."
             )
+            "ghost" -> listOf(createGhostMessage(elapsedSeconds, distanceMeters, ghostRunners))
             "checkpoint" -> listOf(
                 "좋아, ${elapsedMinutes}분 지났어. 지금 ${roundedDistance}미터 달렸어.",
                 "${elapsedMinutes}분 통과. 현재 거리 ${roundedDistance}미터, 계속 일정하게 가자.",
@@ -76,18 +61,98 @@ class RuleBasedCoach {
                     ?: "${elapsedMinutes}분 지났어. 지금 흐름을 기억해."
             )
             else -> listOf(
+                "지금 너는 5명의 과거의 너와 달리고 있다.",
                 "좋아. 지금처럼 호흡을 일정하게 유지하자.",
                 "어깨 힘 빼고 시선은 앞으로. 리듬만 잃지 마.",
                 "잘하고 있어. 다음 1분도 지금처럼 차분하게 가자.",
                 "지금은 꾸준함이 이기는 구간이야. 계속 가자.",
                 "발은 가볍게, 호흡은 길게. 끝까지 버티자."
             )
-        }.filterNotNull()
+        }
 
         val message = pickMessage(candidates, elapsedMinutes, roundedDistance)
         lastSpokenAtMillis = nowMillis
         remember(message)
         return CoachCue(type, message, priorityFor(type))
+    }
+
+    private fun createGhostMessage(
+        elapsedSeconds: Int,
+        currentDistanceMeters: Double,
+        ghostRunners: List<GhostRunner>
+    ): String {
+        val comparisons = ghostRunners.mapNotNull { ghost ->
+            val ghostDistance = distanceAtElapsed(ghost, elapsedSeconds) ?: return@mapNotNull null
+            GhostComparison(
+                ghost = ghost,
+                ghostDistanceMeters = ghostDistance,
+                deltaMeters = currentDistanceMeters - ghostDistance
+            )
+        }
+        if (comparisons.isEmpty()) return "지금 너는 5명의 과거의 너와 달리고 있다. 오늘의 너를 계속 밀고 가자."
+
+        val passed = comparisons
+            .filter { comparison ->
+                val previous = previousGhostDeltas[comparison.ghost.key]
+                (previous != null && previous < 0.0 && comparison.deltaMeters >= 0.0) ||
+                    comparison.deltaMeters in 0.0..15.0
+            }
+            .minByOrNull { abs(it.deltaMeters) }
+        if (passed != null) {
+            rememberGhostDeltas(comparisons)
+            return "${passed.ghost.label}를 방금 잡았다. 오늘의 너가 과거의 너들을 하나씩 넘어서고 있다."
+        }
+
+        val passedBy = comparisons
+            .filter { comparison ->
+                val previous = previousGhostDeltas[comparison.ghost.key]
+                (previous != null && previous >= 0.0 && comparison.deltaMeters < 0.0) ||
+                    comparison.deltaMeters in -15.0..0.0
+            }
+            .minByOrNull { abs(it.deltaMeters) }
+        if (passedBy != null) {
+            rememberGhostDeltas(comparisons)
+            return "${passedBy.ghost.label}가 바로 앞 ${abs(passedBy.deltaMeters).roundToInt()}미터다. 다음 1분 안에 잡을 수 있어."
+        }
+
+        val closest = comparisons.minByOrNull { abs(it.deltaMeters) }
+        val selected = closest
+            ?: comparisons.firstOrNull { it.ghost.key == "bestGhost" }
+            ?: comparisons.firstOrNull { it.ghost.key == "yesterdayGhost" }
+            ?: comparisons.firstOrNull { it.ghost.key == "averageGhost" }
+            ?: comparisons.first()
+
+        rememberGhostDeltas(comparisons)
+        return buildGhostLine(selected)
+    }
+
+    private fun buildGhostLine(comparison: GhostComparison): String {
+        val meters = abs(comparison.deltaMeters).roundToInt()
+        if (comparison.deltaMeters >= 0.0) {
+            return when (comparison.ghost.key) {
+                "slowGhost" -> "끝까지 버틴 나는 ${meters}미터 뒤에 있어. 오늘 컨디션 좋다."
+                "averageGhost" -> "평균 페이스의 너는 ${meters}미터 뒤에 있다. 오늘의 네가 앞선다."
+                else -> "${comparison.ghost.label}는 ${meters}미터 뒤에 있어. 오늘의 네가 앞선다."
+            }
+        }
+
+        return when {
+            comparison.ghost.key == "bestGhost" -> "최고기록의 너는 아직 ${meters}미터 앞에 있어. 하지만 격차가 줄고 있다."
+            meters <= 30 -> "${comparison.ghost.label}가 바로 앞 ${meters}미터다. 다음 1분 안에 잡을 수 있어."
+            else -> "${comparison.ghost.label}는 아직 ${meters}미터 앞에 있어. 리듬을 지키면 따라간다."
+        }
+    }
+
+    private fun distanceAtElapsed(ghost: GhostRunner, elapsedSeconds: Int): Double? {
+        if (ghost.checkpoints.isNotEmpty()) {
+            return ghost.checkpoints.minByOrNull { abs(it.elapsedSeconds - elapsedSeconds) }?.distanceMeters
+        }
+        if (ghost.totalElapsedSeconds <= 0.0 || ghost.totalDistanceMeters <= 0.0) return null
+        return minOf(ghost.totalDistanceMeters, ghost.totalDistanceMeters / ghost.totalElapsedSeconds * elapsedSeconds)
+    }
+
+    private fun rememberGhostDeltas(comparisons: List<GhostComparison>) {
+        comparisons.forEach { previousGhostDeltas[it.ghost.key] = it.deltaMeters }
     }
 
     private fun pickMessage(candidates: List<String>, elapsedMinutes: Int, roundedDistance: Int): String {
@@ -111,8 +176,7 @@ class RuleBasedCoach {
         when (type) {
             "finish_push" -> 100
             "milestone" -> 90
-            "ahead" -> 80
-            "behind" -> 70
+            "ghost" -> 80
             "checkpoint" -> 40
             else -> 20
         }

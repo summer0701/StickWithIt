@@ -30,8 +30,7 @@ class RunningForegroundService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var sessionId: String = ""
     private var targetDistanceMeters: Double = 0.0
-    private var recentAverageSpeedKmh: Double? = null
-    private var recentBestSpeedKmh: Double? = null
+    private var ghostRunners: List<GhostRunner> = emptyList()
     private var startedAtMillis: Long = 0L
     private var paused = false
     private var lastSample: LocationSample? = null
@@ -71,8 +70,7 @@ class RunningForegroundService : Service() {
     private fun startRun(intent: Intent?) {
         sessionId = intent?.getStringExtra(EXTRA_SESSION_ID).orEmpty().ifBlank { "native-${System.currentTimeMillis()}" }
         targetDistanceMeters = intent?.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, 0.0) ?: 0.0
-        recentAverageSpeedKmh = intent?.getDoubleExtra(EXTRA_RECENT_AVERAGE_SPEED_KMH, 0.0)?.takeIf { it > 0.0 }
-        recentBestSpeedKmh = intent?.getDoubleExtra(EXTRA_RECENT_BEST_SPEED_KMH, 0.0)?.takeIf { it > 0.0 }
+        ghostRunners = GhostRunnerParser.parse(intent?.getStringExtra(EXTRA_GHOST_RUNNERS_JSON))
         startedAtMillis = System.currentTimeMillis()
         paused = false
 
@@ -84,8 +82,7 @@ class RunningForegroundService : Service() {
             scope = scope,
             coach = coach,
             ttsEngine = ttsEngine,
-            recentAverageSpeedKmhProvider = { recentAverageSpeedKmh },
-            recentBestSpeedKmhProvider = { recentBestSpeedKmh },
+            ghostRunnersProvider = { ghostRunners },
             onCheckpoint = { broadcastCheckpoint(it) }
         )
         locationTracker?.stop()
@@ -216,8 +213,7 @@ class RunningForegroundService : Service() {
         const val ACTION_DEBUG = "com.stickwithit.endure.RUN_DEBUG"
         const val EXTRA_SESSION_ID = "sessionId"
         const val EXTRA_TARGET_DISTANCE_METERS = "targetDistanceMeters"
-        const val EXTRA_RECENT_AVERAGE_SPEED_KMH = "recentAverageSpeedKmh"
-        const val EXTRA_RECENT_BEST_SPEED_KMH = "recentBestSpeedKmh"
+        const val EXTRA_GHOST_RUNNERS_JSON = "ghostRunnersJson"
         const val EXTRA_TEXT = "text"
         const val EXTRA_TTS_ENABLED = "ttsEnabled"
     }

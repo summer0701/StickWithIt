@@ -28,8 +28,7 @@ export type RunningPluginApi = {
     sessionId: string;
     targetDistanceMeters: number;
     useNativeTts: boolean;
-    recentAverageSpeedKmh?: number;
-    recentBestSpeedKmh?: number;
+    ghostRunnersJson?: string;
   }): Promise<void>;
   stopRun(): Promise<void>;
   pauseRun(): Promise<void>;

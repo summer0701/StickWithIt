@@ -87,8 +87,7 @@ class RunningPlugin : Plugin() {
             action = RunningForegroundService.ACTION_START
             putExtra(RunningForegroundService.EXTRA_SESSION_ID, options.getString("sessionId", "native-${System.currentTimeMillis()}"))
             putExtra(RunningForegroundService.EXTRA_TARGET_DISTANCE_METERS, options.optDouble("targetDistanceMeters", 0.0))
-            putExtra(RunningForegroundService.EXTRA_RECENT_AVERAGE_SPEED_KMH, options.optDouble("recentAverageSpeedKmh", 0.0))
-            putExtra(RunningForegroundService.EXTRA_RECENT_BEST_SPEED_KMH, options.optDouble("recentBestSpeedKmh", 0.0))
+            putExtra(RunningForegroundService.EXTRA_GHOST_RUNNERS_JSON, options.optString("ghostRunnersJson", "[]"))
         }
         ContextCompat.startForegroundService(context, intent)
         call.resolve()

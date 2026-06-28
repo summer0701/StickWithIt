@@ -12,7 +12,7 @@ import {
   saveRunCheckpoint,
   isValidUuid,
 } from '../services/runRecorder';
-import { rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
+import { buildGhostRunners, rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
 import { speakCoachMessage } from '../services/ttsAdapter';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
@@ -246,7 +246,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
           sessionId: run.id,
           targetDistanceMeters,
           useNativeTts: true,
-          ...buildNativeComparisonOptions(recentRuns),
+          ghostRunnersJson: JSON.stringify(buildGhostRunners(recentRuns, recentCheckpoints)),
         });
         setStatus('running');
         setCoachMessage('Native 음성 코칭이 시작됐습니다. 화면이 꺼져도 안내가 계속됩니다.');
@@ -532,24 +532,6 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       )}
     </main>
   );
-}
-
-function buildNativeComparisonOptions(recentRuns) {
-  const speeds = recentRuns
-    .slice(0, 5)
-    .map((run) => {
-      const distanceMeters = Number(run.total_distance_meters ?? Number(run.actual_distance_km || 0) * 1000);
-      const elapsedSeconds = Number(run.total_elapsed_seconds ?? run.duration_seconds);
-      if (!distanceMeters || !elapsedSeconds) return null;
-      return (distanceMeters / 1000) / (elapsedSeconds / 3600);
-    })
-    .filter((value) => Number.isFinite(value) && value > 0);
-
-  if (speeds.length === 0) return {};
-  return {
-    recentAverageSpeedKmh: speeds.reduce((sum, value) => sum + value, 0) / speeds.length,
-    recentBestSpeedKmh: Math.max(...speeds),
-  };
 }
 
 function HudStat({ label, value, unit, accent, highlight }) {
