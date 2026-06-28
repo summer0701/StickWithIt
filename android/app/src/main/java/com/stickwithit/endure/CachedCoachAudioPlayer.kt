@@ -59,8 +59,8 @@ class CachedCoachAudioPlayer(
             val assetPath = selectedVoiceFile(file).removePrefix("/").let {
                 if (it.startsWith("public/")) it else "public/$it"
             }
-            val descriptor = context.assets.openFd(assetPath)
             mediaPlayer?.release()
+            mediaPlayer = null
             if (!audioFocusManager.requestFocus()) error("Audio focus was not granted.")
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
@@ -69,7 +69,9 @@ class CachedCoachAudioPlayer(
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
-                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                context.assets.openFd(assetPath).use { descriptor ->
+                    setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                }
                 setOnCompletionListener {
                     it.release()
                     if (mediaPlayer === it) mediaPlayer = null

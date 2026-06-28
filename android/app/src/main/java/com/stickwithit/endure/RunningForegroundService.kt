@@ -18,6 +18,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class RunningForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -35,6 +36,7 @@ class RunningForegroundService : Service() {
     private var startedAtMillis: Long = 0L
     private var paused = false
     private var lastSample: LocationSample? = null
+    private var lastElapsedCoachSeconds = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -49,6 +51,7 @@ class RunningForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            ACTION_START -> startRun(intent)
             ACTION_STOP -> stopRun()
             ACTION_PAUSE -> paused = true
             ACTION_RESUME -> paused = false
@@ -69,7 +72,12 @@ class RunningForegroundService : Service() {
                 broadcastDebug("target_distance_updated:$targetDistanceMeters")
             }
             ACTION_TTS_ENABLED -> ttsEngine.setEnabled(intent.getBooleanExtra(EXTRA_TTS_ENABLED, true))
-            else -> startRun(intent)
+            null -> {
+                broadcastDebug("service_restart_ignored")
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
+            else -> broadcastDebug("unknown_action_ignored:${intent.action}")
         }
         return START_STICKY
     }
@@ -93,6 +101,7 @@ class RunningForegroundService : Service() {
         coachAudioPlayer.setVoiceType(intent?.getStringExtra(EXTRA_VOICE_TYPE))
         startedAtMillis = System.currentTimeMillis()
         paused = false
+        lastElapsedCoachSeconds = 0
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
@@ -143,10 +152,34 @@ class RunningForegroundService : Service() {
             while (isActive) {
                 delay(5_000L)
                 if (paused) continue
-                val sample = lastSample ?: continue
-                checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds(), sample, targetDistanceMeters)
+                val elapsedSeconds = elapsedSeconds()
+                val sample = lastSample
+                if (sample == null) {
+                    maybePlayElapsedCoachCue(elapsedSeconds)
+                    continue
+                }
+                checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds, sample, targetDistanceMeters)
             }
         }
+    }
+
+    private suspend fun maybePlayElapsedCoachCue(elapsedSeconds: Int) {
+        if (elapsedSeconds - lastElapsedCoachSeconds < CheckpointManager.CHECKPOINT_INTERVAL_SECONDS) return
+
+        val cue = coach.createCue(
+            elapsedSeconds = elapsedSeconds,
+            distanceMeters = 0.0,
+            paceSecondsPerKm = null,
+            speedKmh = 0.0,
+            targetDistanceMeters = targetDistanceMeters,
+            ghostRunners = ghostRunners
+        ) ?: return
+
+        lastElapsedCoachSeconds = elapsedSeconds
+        withContext(Dispatchers.Main) {
+            coachAudioPlayer.playCategory(cue.category, cue.fallbackText)
+        }
+        broadcastDebug("coach_elapsed_audio_requested:${cue.category}")
     }
 
     private fun elapsedSeconds(): Int =

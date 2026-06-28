@@ -1,7 +1,9 @@
 package com.stickwithit.endure
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 class CheckpointManager(
@@ -56,10 +58,14 @@ class CheckpointManager(
 
         lastCheckpointElapsedSeconds = elapsedSeconds
         scope.launch {
+            withContext(Dispatchers.Main) {
+                cue?.let { coachAudioPlayer.playCategory(it.category, it.fallbackText) }
+            }
             val id = dao.insert(checkpoint)
             val saved = checkpoint.copy(id = id)
-            cue?.let { coachAudioPlayer.playCategory(it.category, it.fallbackText) }
-            onCheckpoint(saved)
+            withContext(Dispatchers.Main) {
+                onCheckpoint(saved)
+            }
         }
     }
 }

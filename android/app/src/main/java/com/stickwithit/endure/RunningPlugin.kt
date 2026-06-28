@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @CapacitorPlugin(name = "RunningPlugin")
 class RunningPlugin : Plugin() {
@@ -73,7 +74,7 @@ class RunningPlugin : Plugin() {
     }
 
     override fun handleOnDestroy() {
-        receiver?.let { context.unregisterReceiver(it) }
+        receiver?.let { runCatching { context.unregisterReceiver(it) } }
         receiver = null
         super.handleOnDestroy()
     }
@@ -206,25 +207,35 @@ class RunningPlugin : Plugin() {
     @PluginMethod
     fun getRunState(call: PluginCall) {
         scope.launch {
-            val checkpoints = database.checkpointDao().listUnsynced()
-            val payload = JSObject()
-            payload.put("unsyncedCount", database.checkpointDao().countUnsynced())
-            payload.put("unsyncedCheckpoints", JSArray(checkpoints.map { checkpoint ->
+            runCatching {
+                val checkpoints = database.checkpointDao().listUnsynced()
                 JSObject().apply {
-                    put("id", checkpoint.id)
-                    put("session_id", checkpoint.sessionId)
-                    put("elapsed_seconds", checkpoint.elapsedSeconds)
-                    put("distance_meters", checkpoint.distanceMeters)
-                    put("pace_seconds_per_km", checkpoint.paceSecondsPerKm)
-                    put("speed_kmh", checkpoint.speedKmh)
-                    put("latitude", checkpoint.latitude)
-                    put("longitude", checkpoint.longitude)
-                    put("spoken_text", checkpoint.spokenText)
-                    put("created_at", checkpoint.createdAt)
-                    put("synced", checkpoint.synced)
+                    put("unsyncedCount", database.checkpointDao().countUnsynced())
+                    put("unsyncedCheckpoints", JSArray(checkpoints.map { checkpoint ->
+                        JSObject().apply {
+                            put("id", checkpoint.id)
+                            put("session_id", checkpoint.sessionId)
+                            put("elapsed_seconds", checkpoint.elapsedSeconds)
+                            put("distance_meters", checkpoint.distanceMeters)
+                            put("pace_seconds_per_km", checkpoint.paceSecondsPerKm)
+                            put("speed_kmh", checkpoint.speedKmh)
+                            put("latitude", checkpoint.latitude)
+                            put("longitude", checkpoint.longitude)
+                            put("spoken_text", checkpoint.spokenText)
+                            put("created_at", checkpoint.createdAt)
+                            put("synced", checkpoint.synced)
+                        }
+                    }))
                 }
-            }))
-            call.resolve(payload)
+            }.onSuccess { payload ->
+                withContext(Dispatchers.Main) {
+                    call.resolve(payload)
+                }
+            }.onFailure { error ->
+                withContext(Dispatchers.Main) {
+                    call.reject("Failed to read native run state.", error.asException())
+                }
+            }
         }
     }
 
@@ -232,12 +243,24 @@ class RunningPlugin : Plugin() {
     fun markCheckpointsSynced(call: PluginCall) {
         val ids = call.getArray("ids")?.toList<Long>() ?: emptyList()
         scope.launch {
-            database.checkpointDao().markSynced(ids)
-            call.resolve()
+            runCatching {
+                database.checkpointDao().markSynced(ids)
+            }.onSuccess {
+                withContext(Dispatchers.Main) {
+                    call.resolve()
+                }
+            }.onFailure { error ->
+                withContext(Dispatchers.Main) {
+                    call.reject("Failed to mark native checkpoints synced.", error.asException())
+                }
+            }
         }
     }
 
     private fun sendAction(action: String) {
         context.startService(Intent(context, RunningForegroundService::class.java).apply { this.action = action })
     }
+
+    private fun Throwable.asException(): Exception =
+        this as? Exception ?: Exception(this)
 }
