@@ -3,6 +3,7 @@ import { Trophy, Play, BarChart3 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatDuration, formatPace } from '../lib/pace';
 import { readLocalRuns } from '../lib/localRuns';
+import { isTestUserId } from '../lib/testAuth';
 
 const quickTargets = [1, 3, 5, 10];
 
@@ -12,6 +13,10 @@ export default function HomePage({ user, targetDistanceKm, onTargetChange, onSta
 
   useEffect(() => {
     const localRuns = readLocalRuns(user.id);
+    if (isTestUserId(user.id)) {
+      setRuns(localRuns.slice(0, 5));
+      return;
+    }
 
     supabase
       .from('runs')

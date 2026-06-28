@@ -25,6 +25,24 @@ export function createTestSession() {
   };
 }
 
+export function isTestUserId(userId: unknown) {
+  return userId === TEST_ACCOUNT.id;
+}
+
+export function isTestUser(user: unknown) {
+  return Boolean(
+    user &&
+      typeof user === 'object' &&
+      'id' in user &&
+      isTestUserId(user.id) &&
+      'app_metadata' in user &&
+      user.app_metadata &&
+      typeof user.app_metadata === 'object' &&
+      'provider' in user.app_metadata &&
+      user.app_metadata.provider === 'local-test',
+  );
+}
+
 export function readTestSession() {
   if (typeof window === 'undefined') return null;
 

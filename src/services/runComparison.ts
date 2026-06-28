@@ -1,6 +1,12 @@
 import { supabase } from '../lib/supabaseClient';
+import { readLocalRuns } from '../lib/localRuns';
+import { isTestUserId } from '../lib/testAuth';
 
 export async function loadRecentRunHistory(userId, limit = 5) {
+  if (isTestUserId(userId)) {
+    return { recentRuns: readLocalRuns(userId).slice(0, limit), recentCheckpoints: [], error: null };
+  }
+
   const query = supabase
     .from('runs')
     .select('*')

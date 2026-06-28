@@ -17,6 +17,7 @@ import { FaDumbbell } from 'react-icons/fa6';
 import { GiJumpAcross, GiMuscleUp, GiPlanks, GiWeightLiftingUp } from 'react-icons/gi';
 import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
+import { isTestUserId } from '../lib/testAuth';
 import heroImage from '../assets/iron-five-hero.webp';
 
 type HomePageProps = {
@@ -137,6 +138,7 @@ export default function HomePage({
   useEffect(() => {
     const localRuns = readLocalRuns(user.id);
     setRecentRunsCount(localRuns.length);
+    if (isTestUserId(user.id)) return;
 
     async function loadRunCount() {
       try {

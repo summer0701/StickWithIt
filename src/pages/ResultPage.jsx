@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Medal, Home, BarChart3 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatDuration, formatPace, formatSignedSeconds } from '../lib/pace';
+import { readLocalRuns } from '../lib/localRuns';
+import { isTestUserId } from '../lib/testAuth';
 
 export default function ResultPage({ user, result, onHome, onRanking }) {
   const [isPersonalBest, setIsPersonalBest] = useState(false);
@@ -9,6 +11,15 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
   useEffect(() => {
     async function checkBest() {
       if (!result?.run) return;
+
+      if (isTestUserId(user.id)) {
+        const bestRun = readLocalRuns(user.id)
+          .filter((run) => Number(run.target_distance_km) === Number(result.run.target_distance_km))
+          .sort((a, b) => a.duration_seconds - b.duration_seconds)[0];
+        setIsPersonalBest(bestRun?.id === result.run.id);
+        return;
+      }
+
       const { data } = await supabase
         .from('runs')
         .select('duration_seconds')

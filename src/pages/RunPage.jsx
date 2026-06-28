@@ -315,6 +315,7 @@ export default function RunPage({ user, targetDistanceKm, onCancel, onComplete }
       endedAt,
       totalDistanceMeters,
       totalElapsedSeconds,
+      targetDistanceKm: Number(targetDistanceKm),
     });
 
     setSaving(false);
