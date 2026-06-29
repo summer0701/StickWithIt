@@ -4,6 +4,7 @@ import {
   clampPaceChange,
   createGhostPackFromBase,
   generateNaturalGhost,
+  ghostPackRouteToRunner,
   normalizeGhostDistance,
   replaceGeneratedGhostSmoothly,
   smoothRandomVariation,
@@ -43,6 +44,14 @@ describe('naturalGhostPack', () => {
     });
     expect(ghosts[0].route.at(-1).distance).toBeCloseTo(baseGhost.route.at(-1).distance * 1.05, 3);
     expect(ghosts[4].route.at(-1).distance).toBeCloseTo(baseGhost.route.at(-1).distance * 0.92, 3);
+  });
+
+  it('keeps a zero-second checkpoint for second-by-second interpolation', () => {
+    const runner = ghostPackRouteToRunner(createGhostPackFromBase(baseGhost)[0]);
+
+    expect(runner.checkpoints[0]).toEqual({ elapsedSeconds: 0, distanceMeters: 0 });
+    expect(runner.checkpoints[1].elapsedSeconds).toBe(60);
+    expect(runner.checkpoints[1].distanceMeters).toBeGreaterThan(0);
   });
 
   it('smooths seeded random variation and changes when seed changes', () => {

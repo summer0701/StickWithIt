@@ -181,7 +181,7 @@ export function ghostPackRouteToRunner(ghost) {
     totalDistanceMeters: last.distance,
     totalElapsedSeconds: Math.max(1, Number(last.minute) * 60),
     checkpoints: route
-      .filter((point) => point.minute > 0)
+      .filter((point) => point.minute >= 0)
       .map((point) => ({
         elapsedSeconds: Math.round(Number(point.minute) * 60),
         distanceMeters: point.distance,

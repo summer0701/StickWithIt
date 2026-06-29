@@ -64,9 +64,15 @@ class RuleBasedCoach {
         )
     }
 
-    fun completedCue(): NativeTtsCue {
+    fun completedCue(
+        elapsedSeconds: Int = 0,
+        distanceMeters: Double = 0.0,
+        ghostRunners: List<GhostRunner> = emptyList()
+    ): NativeTtsCue {
+        val comparisons = compareGhosts(elapsedSeconds, distanceMeters, ghostRunners)
+        val rank = comparisons.takeIf { it.isNotEmpty() }?.let { rankFromComparisons(it) } ?: previousRank
         lastSpokenAtMillis = System.currentTimeMillis()
-        return rememberAndBuild("completed", immediate = true, rank = previousRank ?: 6)
+        return rememberAndBuild("completed", immediate = true, rank = rank)
     }
 
     private fun decideCategory(
@@ -184,7 +190,11 @@ class RuleBasedCoach {
         if (after.elapsedSeconds == elapsedSeconds) return after.distanceMeters
 
         val before = sorted.lastOrNull { it.elapsedSeconds < elapsedSeconds }
-            ?: return after.distanceMeters
+            ?: return when {
+                elapsedSeconds <= 0 -> 0.0
+                after.elapsedSeconds <= 0 -> after.distanceMeters
+                else -> after.distanceMeters * (elapsedSeconds.toDouble() / after.elapsedSeconds.toDouble())
+            }
         val span = (after.elapsedSeconds - before.elapsedSeconds).toDouble()
         if (span <= 0.0) return before.distanceMeters
 

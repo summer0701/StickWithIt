@@ -403,7 +403,11 @@ function distanceAtInterpolatedElapsed(points, elapsedSeconds) {
   if (after.elapsedSeconds === elapsedSeconds) return after.distanceMeters;
 
   const before = [...points].reverse().find((point) => point.elapsedSeconds < elapsedSeconds);
-  if (!before) return after.distanceMeters;
+  if (!before) {
+    if (elapsedSeconds <= 0) return 0;
+    if (after.elapsedSeconds <= 0) return after.distanceMeters;
+    return after.distanceMeters * (elapsedSeconds / after.elapsedSeconds);
+  }
 
   const span = after.elapsedSeconds - before.elapsedSeconds;
   if (span <= 0) return before.distanceMeters;

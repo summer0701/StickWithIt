@@ -3129,6 +3129,284 @@ button {
   white-space: normal;
 }
 
+.result-screen {
+  position: relative;
+  height: calc(100dvh - 57px);
+  width: min(100%, 620px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 22px 18px calc(104px + var(--app-safe-area-inset-bottom));
+  color: #fff;
+  background:
+    radial-gradient(circle at 90% 35%, rgba(255, 77, 46, 0.16), transparent 20%),
+    radial-gradient(circle at 8% 20%, rgba(122, 38, 255, 0.12), transparent 22%),
+    linear-gradient(180deg, #050608 0%, #090b10 48%, #050608 100%);
+  scrollbar-width: none;
+}
+
+.result-screen::-webkit-scrollbar {
+  display: none;
+}
+
+.result-screen::before {
+  position: fixed;
+  inset: 90px 0 auto;
+  z-index: 0;
+  height: 44dvh;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 8% 40%, rgba(255, 77, 46, 0.2) 0 5px, transparent 6px),
+    radial-gradient(circle at 72% 18%, rgba(255, 77, 46, 0.28) 0 7px, transparent 8px),
+    radial-gradient(circle at 90% 70%, rgba(160, 91, 255, 0.36) 0 10px, transparent 11px),
+    radial-gradient(circle at 28% 72%, rgba(255, 255, 255, 0.08) 0 4px, transparent 5px);
+  filter: blur(0.2px);
+  opacity: 0.8;
+}
+
+.personal-best-hero,
+.result-summary-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.personal-best-hero {
+  display: grid;
+  grid-template-columns: 0.72fr 1.28fr;
+  align-items: center;
+  min-height: 290px;
+  gap: 16px;
+  padding: 20px 0 10px;
+}
+
+.result-medal-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.result-medal-wrap::after {
+  position: absolute;
+  inset: 12% 2% 4%;
+  z-index: -1;
+  content: "";
+  background: radial-gradient(circle, rgba(255, 77, 46, 0.34), transparent 58%);
+  filter: blur(18px);
+}
+
+.result-medal-art {
+  width: min(34vw, 178px);
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(255, 76, 44, 0.42));
+}
+
+.result-hero-copy {
+  min-width: 0;
+}
+
+.result-hero-copy .eyebrow {
+  color: #ff563d;
+  font-size: clamp(1rem, 4.5vw, 1.48rem);
+  font-weight: 900;
+}
+
+.result-hero-copy h1 {
+  margin: 8px 0 16px;
+  color: #fff;
+  font-size: clamp(2.25rem, 11vw, 4.2rem);
+  line-height: 1.14;
+  letter-spacing: 0;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #18bd74;
+  font-size: clamp(1.05rem, 4.8vw, 1.5rem);
+  font-weight: 900;
+}
+
+.save-status.error {
+  color: #ff6b5b;
+}
+
+.result-summary-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045)),
+    rgba(18, 21, 27, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 60px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.result-metric-card {
+  position: relative;
+  min-height: 158px;
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 10% 10%, var(--metric-glow), transparent 38%),
+    rgba(10, 13, 18, 0.58);
+  box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.025);
+}
+
+.result-metric-card.orange {
+  --metric-color: #ff684d;
+  --metric-glow: rgba(255, 104, 77, 0.22);
+}
+
+.result-metric-card.green {
+  --metric-color: #43e889;
+  --metric-glow: rgba(67, 232, 137, 0.2);
+}
+
+.result-metric-card.blue {
+  --metric-color: #347cff;
+  --metric-glow: rgba(52, 124, 255, 0.22);
+}
+
+.result-metric-card.purple {
+  --metric-color: #a566ff;
+  --metric-glow: rgba(165, 102, 255, 0.22);
+}
+
+.result-metric-card.yellow {
+  --metric-color: #ffc542;
+  --metric-glow: rgba(255, 197, 66, 0.2);
+}
+
+.result-metric-card.pink {
+  --metric-color: #ff6ca8;
+  --metric-glow: rgba(255, 108, 168, 0.2);
+}
+
+.result-metric-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(235, 238, 247, 0.72);
+  font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+  font-weight: 900;
+}
+
+.result-metric-head svg {
+  flex: 0 0 auto;
+  color: var(--metric-color);
+  filter: drop-shadow(0 0 10px var(--metric-color));
+}
+
+.result-metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 14px 0 0;
+  color: #fff;
+}
+
+.result-metric-value strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.95rem, 8vw, 3rem);
+  line-height: 1;
+}
+
+.result-metric-value em {
+  color: rgba(255, 255, 255, 0.82);
+  font-style: normal;
+  font-size: clamp(0.96rem, 3.8vw, 1.24rem);
+  font-weight: 900;
+}
+
+.result-metric-description {
+  margin: 10px 0 0;
+  color: rgba(223, 229, 242, 0.58);
+  font-size: clamp(0.9rem, 3.6vw, 1.12rem);
+  font-weight: 900;
+}
+
+.result-metric-card.purple .result-metric-description {
+  color: rgba(223, 229, 242, 0.68);
+}
+
+.result-sparkline {
+  width: 100%;
+  height: 42px;
+  margin-top: 12px;
+  overflow: visible;
+}
+
+.result-sparkline path {
+  fill: none;
+  stroke: var(--metric-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px var(--metric-color));
+}
+
+.result-sparkline.distance path {
+  stroke: rgba(255, 104, 77, 0.34);
+}
+
+.result-sparkline circle {
+  fill: #fff;
+  stroke: #ff684d;
+  stroke-width: 3;
+}
+
+.result-progress {
+  height: 9px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.result-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd259, #ffae2f);
+  box-shadow: 0 0 12px rgba(255, 197, 66, 0.5);
+}
+
+.result-share-button {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 0 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background:
+    linear-gradient(112deg, rgba(37, 77, 103, 0.6), rgba(92, 42, 97, 0.58), rgba(117, 58, 36, 0.58)),
+    rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: clamp(1.2rem, 5vw, 1.6rem);
+  font-weight: 900;
+  text-align: left;
+}
+
+.result-share-button svg:last-child {
+  color: rgba(255, 255, 255, 0.62);
+}
+
 .section-header {
   display: flex;
   align-items: center;

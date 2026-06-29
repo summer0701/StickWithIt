@@ -143,7 +143,7 @@ function scaleGhostCheckpoints(runner: GhostRunnerLike, targetDistanceMeters: nu
 
   return checkpoints
     .map((checkpoint: any) => ({
-      elapsedSeconds: Math.max(1, Math.round((Number(checkpoint.elapsedSeconds) / sourceElapsedSeconds) * targetElapsedSeconds)),
+      elapsedSeconds: Math.max(0, Math.round((Number(checkpoint.elapsedSeconds) / sourceElapsedSeconds) * targetElapsedSeconds)),
       distanceMeters: Number(((Math.max(0, Number(checkpoint.distanceMeters) || 0) / sourceDistanceMeters) * targetDistanceMeters).toFixed(3)),
     }))
     .filter((checkpoint) => Number.isFinite(checkpoint.elapsedSeconds) && Number.isFinite(checkpoint.distanceMeters));

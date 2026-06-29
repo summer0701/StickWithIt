@@ -177,4 +177,24 @@ describe('ruleBasedCoach', () => {
     expect(ghosts[0].totalDistanceMeters).toBeGreaterThan(ghosts[1].totalDistanceMeters);
     expect(ghosts[4].totalDistanceMeters).toBeLessThan(ghosts[1].totalDistanceMeters);
   });
+
+  it('interpolates generated ghost distance per second before the first minute', () => {
+    const ghosts = buildGhostRunners([recentRuns[0]], recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+    const afterOneSecond = buildGhostRaceSnapshot({
+      currentDistanceMeters: 0,
+      elapsedSeconds: 1,
+      targetDistanceMeters: 5000,
+      ghosts,
+    }).ghosts.find((ghost) => ghost.key === 'bestGhost');
+    const afterOneMinute = buildGhostRaceSnapshot({
+      currentDistanceMeters: 0,
+      elapsedSeconds: 60,
+      targetDistanceMeters: 5000,
+      ghosts,
+    }).ghosts.find((ghost) => ghost.key === 'bestGhost');
+
+    expect(afterOneSecond?.distanceMeters).toBeGreaterThan(0);
+    expect(afterOneSecond?.distanceMeters).toBeLessThan(20);
+    expect(afterOneMinute?.distanceMeters).toBeGreaterThan(afterOneSecond?.distanceMeters ?? 0);
+  });
 });

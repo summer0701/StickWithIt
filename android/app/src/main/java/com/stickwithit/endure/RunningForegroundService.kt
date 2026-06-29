@@ -143,7 +143,13 @@ class RunningForegroundService : Service() {
             checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds(), sample, targetDistanceMeters, force = true)
         }
         locationTracker?.stop()
-        ttsEngine.speak(coach.completedCue())
+        ttsEngine.speak(
+            coach.completedCue(
+                elapsedSeconds = elapsedSeconds(),
+                distanceMeters = sample?.distanceMeters ?: 0.0,
+                ghostRunners = ghostRunners
+            )
+        )
         stopForeground(STOP_FOREGROUND_REMOVE)
         scope.launch {
             delay(2_500L)

@@ -157,7 +157,7 @@ object GhostTtsCatalog {
         seconds: Int? = null,
         rank: Int? = null
     ): NativeTtsCue {
-        val source = phrases[category] ?: phrases.getValue("current_rank")
+        val source = completedPhrasesForRank(category, phrases[category] ?: phrases.getValue("current_rank"), rank)
         val eligible = source.filter { hasRequiredVariables(it, ghostName, distance, seconds, rank) }
             .ifEmpty { phrases.getValue("current_rank").filter { hasRequiredVariables(it, ghostName, distance, seconds, rank) } }
         val selected = eligible.filterNot { recentTexts.contains(render(it, ghostName, distance, seconds, rank)) }
@@ -190,6 +190,15 @@ object GhostTtsCatalog {
         if (template.contains("{seconds}") && seconds == null) return false
         if (template.contains("{rank}") && rank == null) return false
         return true
+    }
+
+    private fun completedPhrasesForRank(category: String, source: List<String>, rank: Int?): List<String> {
+        if (category != "completed") return source
+        return source.filter { template ->
+            val isFirstPlacePhrase = template.contains("1위") || template.contains("모든 고스트")
+            val isPersonalBestPhrase = template.contains("최고 기록")
+            !isPersonalBestPhrase && (rank == 1 || !isFirstPlacePhrase)
+        }
     }
 
     private fun <T> List<T>.random(): T = this[Random.nextInt(size)]

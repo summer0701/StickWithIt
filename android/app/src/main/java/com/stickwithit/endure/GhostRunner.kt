@@ -37,7 +37,7 @@ object GhostRunnerParser {
                         val checkpoint = checkpointItems.optJSONObject(checkpointIndex) ?: return@mapNotNull null
                         val elapsedSeconds = checkpoint.optDouble("elapsedSeconds", 0.0).toInt()
                         val distanceMeters = checkpoint.optDouble("distanceMeters", 0.0)
-                        if (elapsedSeconds <= 0 || distanceMeters < 0.0) return@mapNotNull null
+                        if (elapsedSeconds < 0 || distanceMeters < 0.0) return@mapNotNull null
                         GhostCheckpoint(elapsedSeconds, distanceMeters)
                     }.sortedBy { it.elapsedSeconds }
                 } ?: emptyList()
