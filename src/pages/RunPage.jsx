@@ -24,6 +24,7 @@ import {
 } from '../services/runRecorder';
 import { buildGhostRaceSnapshot, buildGhostRunners, rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
 import { playCoachCue, preloadCoachAudio } from '../lib/coachAudioPlayer';
+import { ghostDisplayName, readGhostSettings } from '../lib/ghostSettings';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
@@ -57,6 +58,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   const [holdProgress, setHoldProgress] = useState(0);
   const [recentRuns, setRecentRuns] = useState([]);
   const [ghostRunners, setGhostRunners] = useState([]);
+  const [ghostSettings, setGhostSettings] = useState(() => readGhostSettings(user.id));
 
   const runRef = useRef(null);
   const trackerRef = useRef(null);
@@ -116,6 +118,10 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   useEffect(() => {
     setTargetDistanceInput(normalizedTargetDistanceKm.toFixed(1));
   }, [normalizedTargetDistanceKm]);
+
+  useEffect(() => {
+    setGhostSettings(readGhostSettings(user.id));
+  }, [user.id]);
 
   useEffect(() => {
     elapsedRef.current = elapsedSeconds;
@@ -179,7 +185,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
     setGhostRunners([]);
     previousGhostDeltasRef.current = {};
     ensureRecentRunHistory();
-  }, [normalizedTargetDistanceKm, user.id]);
+  }, [ghostSettings, normalizedTargetDistanceKm, user.id]);
 
   useEffect(() => {
     if (autoStartRequestedRef.current) return;
@@ -230,7 +236,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
       runHistoryPromiseRef.current = loadRecentRunHistory(user.id, 5, targetKm)
         .then(({ recentRuns: runs, recentCheckpoints: checkpoints }) => {
           setRecentRuns(runs);
-          const ghosts = buildGhostRunners(runs, checkpoints);
+          const ghosts = buildGhostRunners(runs, checkpoints, new Date(), ghostSettings, targetKm);
           ghostRunnersRef.current = ghosts;
           setGhostRunners(ghosts);
           return { recentRuns: runs, recentCheckpoints: checkpoints, ghostRunners: ghosts };
@@ -712,7 +718,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
       </section>
 
       {hudPanel === 'ghost' ? (
-        <GhostRaceBoard snapshot={ghostRaceSnapshot} targetDistanceKm={normalizedTargetDistanceKm} />
+        <GhostRaceBoard snapshot={ghostRaceSnapshot} targetDistanceKm={normalizedTargetDistanceKm} ghostSettings={ghostSettings} />
       ) : (
         <section className="hud-stats-card" aria-label="러닝 실시간 기록">
           <HudStat label="거리" value={distanceKm.toFixed(2)} unit="km" highlight />
@@ -838,7 +844,7 @@ function HudStat({ label, value, unit, accent, highlight }) {
   );
 }
 
-function GhostRaceBoard({ snapshot, targetDistanceKm }) {
+function GhostRaceBoard({ snapshot, targetDistanceKm, ghostSettings }) {
   const entries = snapshot.entries;
   const current = snapshot.current;
   const hasGhosts = snapshot.ghosts.length > 0;
@@ -854,7 +860,7 @@ function GhostRaceBoard({ snapshot, targetDistanceKm }) {
       <div className="ghost-track-lane">
         <div className="ghost-track-base" />
         {entries.map((entry) => {
-          const displayName = entry.isCurrent ? '나 (현재)' : (entry.label ?? ghostShortLabel(entry.key));
+          const displayName = entry.isCurrent ? '나 (현재)' : (entry.label ?? ghostDisplayName(entry.key, ghostSettings));
 
           return (
             <button
@@ -865,7 +871,7 @@ function GhostRaceBoard({ snapshot, targetDistanceKm }) {
               onClick={() => setSelectedGhost({ ...entry, displayName })}
               aria-label={`${displayName} ${entry.distanceKm.toFixed(2)} km`}
             >
-              <span className="ghost-marker-label">{entry.isCurrent ? '나' : ghostShortLabel(entry.key)}</span>
+              <span className="ghost-marker-label">{entry.isCurrent ? '나' : ghostDisplayName(entry.key, ghostSettings)}</span>
               <b>{entry.distanceKm.toFixed(2)} km</b>
               <i aria-hidden="true" />
             </button>
@@ -884,7 +890,7 @@ function GhostRaceBoard({ snapshot, targetDistanceKm }) {
           entries.map((entry) => (
             <div key={entry.key} className={`ghost-rank-item ${entry.isCurrent ? 'current' : ''} ${ghostColorClass(entry.key)}`}>
               <span>{entry.rank}위</span>
-              <strong>{entry.isCurrent ? '나 (현재)' : ghostShortLabel(entry.key)}</strong>
+              <strong>{entry.isCurrent ? '나 (현재)' : (entry.label ?? ghostDisplayName(entry.key, ghostSettings))}</strong>
               <b>{entry.distanceKm.toFixed(2)} km</b>
               <em>{formatGhostGap(entry.deltaFromCurrentKm)}</em>
             </div>
@@ -910,9 +916,9 @@ function GhostRaceBoard({ snapshot, targetDistanceKm }) {
 function ghostShortLabel(key) {
   return {
     bestGhost: 'G1',
-    yesterdayGhost: 'G2',
-    averageGhost: 'G3',
-    recentGhost: 'G4',
+    averageGhost: 'G2',
+    stableGhost: 'G3',
+    chaserGhost: 'G4',
     slowGhost: 'G5',
   }[key] ?? 'G';
 }
@@ -920,9 +926,9 @@ function ghostShortLabel(key) {
 function ghostColorClass(key) {
   return {
     bestGhost: 'gold',
-    yesterdayGhost: 'violet',
     averageGhost: 'blue',
-    recentGhost: 'cyan',
+    stableGhost: 'violet',
+    chaserGhost: 'cyan',
     slowGhost: 'teal',
     current: 'current',
   }[key] ?? '';

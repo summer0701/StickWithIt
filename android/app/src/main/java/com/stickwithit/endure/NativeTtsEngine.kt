@@ -10,7 +10,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class NativeTtsEngine(private val context: Context) {
-    private val pendingMessages = ConcurrentLinkedQueue<String>()
+    private val pendingMessages = ConcurrentLinkedQueue<NativeTtsCue>()
     private val audioFocusManager = AudioFocusManager(context)
     private var textToSpeech: TextToSpeech? = null
     @Volatile private var ready = false
@@ -21,8 +21,8 @@ class NativeTtsEngine(private val context: Context) {
         textToSpeech = TextToSpeech(context.applicationContext) { status ->
             ready = status == TextToSpeech.SUCCESS
             if (ready) {
-                setLanguage(Locale.KOREAN)
-                setSpeechRate(1.0f)
+                setLanguage(Locale.KOREA)
+                setSpeechRate(1.1f)
                 setPitch(1.0f)
                 textToSpeech?.setAudioAttributes(
                     AudioAttributes.Builder()
@@ -46,23 +46,37 @@ class NativeTtsEngine(private val context: Context) {
     }
 
     fun speak(text: String) {
+        val profile = GhostTtsCatalog.profileFor("encouragement")
+        speak(
+            NativeTtsCue(
+                category = "encouragement",
+                text = text,
+                priority = 35,
+                speechRate = profile.speechRate,
+                pitch = profile.pitch,
+                immediate = false
+            )
+        )
+    }
+
+    fun speak(cue: NativeTtsCue) {
         if (!enabled) return
-        if (text.isBlank()) return
+        if (cue.text.isBlank()) return
         if (!ready) {
-            pendingMessages.offer(text)
+            pendingMessages.offer(cue)
             init()
             return
         }
 
         if (!audioFocusManager.requestFocus()) {
-            pendingMessages.offer(text)
+            pendingMessages.offer(cue)
             return
         }
 
-        val params = Bundle().apply {
-            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UUID.randomUUID().toString())
-        }
-        textToSpeech?.speak(text, TextToSpeech.QUEUE_ADD, params, UUID.randomUUID().toString())
+        setSpeechRate(cue.speechRate)
+        setPitch(cue.pitch)
+        val utteranceId = UUID.randomUUID().toString()
+        textToSpeech?.speak(cue.text, if (cue.immediate) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, Bundle(), utteranceId)
     }
 
     fun stop() {
@@ -90,7 +104,10 @@ class NativeTtsEngine(private val context: Context) {
     fun isReady(): Boolean = ready
 
     fun setLanguage(locale: Locale) {
-        textToSpeech?.language = locale
+        val result = textToSpeech?.setLanguage(locale)
+        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+            textToSpeech?.setLanguage(Locale.KOREAN)
+        }
     }
 
     fun setSpeechRate(rate: Float) {

@@ -114,7 +114,6 @@ class RunningForegroundService : Service() {
             scope = scope,
             coach = coach,
             ttsEngine = ttsEngine,
-            coachAudioPlayer = coachAudioPlayer,
             ghostRunnersProvider = { ghostRunners },
             onCheckpoint = { broadcastCheckpoint(it) }
         )
@@ -132,8 +131,8 @@ class RunningForegroundService : Service() {
         ).also { it.start() }
         startCheckpointTicker()
 
-        coachAudioPlayer.playCategory("start", "고스트 런 시작. 오늘의 상대는 어제의 나다.")
-        broadcastDebug("coach_start_audio_requested")
+        ttsEngine.speak(coach.startCue(ghostRunners))
+        broadcastDebug("coach_start_tts_requested")
         broadcastDebug("run_started:$sessionId")
     }
 
@@ -144,9 +143,12 @@ class RunningForegroundService : Service() {
             checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds(), sample, targetDistanceMeters, force = true)
         }
         locationTracker?.stop()
-        coachAudioPlayer.playCategory("completed", "러닝 완료. 오늘도 과거의 나를 이겼다.")
+        ttsEngine.speak(coach.completedCue())
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        scope.launch {
+            delay(2_500L)
+            stopSelf()
+        }
     }
 
     private fun startCheckpointTicker() {
@@ -180,9 +182,9 @@ class RunningForegroundService : Service() {
 
         lastElapsedCoachSeconds = elapsedSeconds
         withContext(Dispatchers.Main) {
-            coachAudioPlayer.playCategory(cue.category, cue.fallbackText)
+            ttsEngine.speak(cue)
         }
-        broadcastDebug("coach_elapsed_audio_requested:${cue.category}")
+        broadcastDebug("coach_elapsed_tts_requested:${cue.category}")
     }
 
     private fun elapsedSeconds(): Int =

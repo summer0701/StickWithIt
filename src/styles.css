@@ -1699,6 +1699,708 @@ button {
   font-size: 0.82rem;
 }
 
+.my-page {
+  --my-bg: #020817;
+  --my-panel: rgba(8, 14, 34, 0.82);
+  --my-border: rgba(111, 132, 183, 0.28);
+  --my-muted: rgba(207, 217, 244, 0.66);
+  min-height: calc(100dvh - var(--bottom-nav-height));
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 18px 14px calc(var(--bottom-nav-height) + 34px);
+  color: #f8fbff;
+  background:
+    radial-gradient(circle at 78% 12%, rgba(32, 116, 255, 0.16), transparent 30%),
+    radial-gradient(circle at 4% 70%, rgba(163, 91, 255, 0.12), transparent 30%),
+    linear-gradient(180deg, #010714 0%, #020817 52%, #03091b 100%);
+}
+
+.my-page-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 4px 10px;
+}
+
+.my-page-header span {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.my-page-header h1 {
+  margin: 24px 0 0;
+  font-size: clamp(2rem, 9vw, 3.15rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.my-logout-button,
+.my-hero-settings,
+.ghost-settings-heading button,
+.ghost-setting-card-title button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(111, 132, 183, 0.38);
+  border-radius: 8px;
+  background: rgba(11, 18, 42, 0.82);
+  color: #f8fbff;
+  box-shadow: inset 0 0 22px rgba(71, 113, 255, 0.08);
+}
+
+.my-logout-button {
+  gap: 9px;
+  min-width: 118px;
+  min-height: 52px;
+  padding: 0 16px;
+  font-weight: 900;
+}
+
+.my-hero-card,
+.ghost-settings-panel,
+.ghost-settings-summary {
+  border: 1px solid var(--my-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(16, 25, 57, 0.86), rgba(3, 8, 22, 0.9) 62%),
+    var(--my-panel);
+  box-shadow: inset 0 0 54px rgba(75, 108, 255, 0.09), 0 20px 44px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+}
+
+.my-hero-card {
+  position: relative;
+  min-height: 190px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38%;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 28px 26px;
+  overflow: hidden;
+}
+
+.my-hero-copy {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.my-hero-copy span,
+.ghost-settings-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #9aff7c;
+  font-weight: 900;
+}
+
+.my-hero-copy h2 {
+  margin: 0;
+  font-size: clamp(2rem, 10vw, 3.2rem);
+  line-height: 1;
+}
+
+.my-hero-copy p,
+.ghost-settings-heading p,
+.ghost-settings-summary span {
+  margin: 0;
+  color: var(--my-muted);
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.my-ghost-mascot {
+  width: min(180px, 100%);
+  justify-self: center;
+  filter: drop-shadow(0 0 22px rgba(154, 255, 124, 0.36));
+  opacity: 0.96;
+}
+
+.my-hero-settings {
+  position: absolute;
+  top: 26px;
+  right: 28px;
+  width: 56px;
+  height: 56px;
+  background: rgba(28, 55, 137, 0.76);
+  color: #eff6ff;
+}
+
+.ghost-settings-panel {
+  display: grid;
+  gap: 22px;
+  padding: 26px 20px;
+}
+
+.ghost-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ghost-settings-heading > div {
+  display: grid;
+  gap: 8px;
+}
+
+.ghost-settings-heading span {
+  color: #dff4ff;
+  font-size: 1.35rem;
+}
+
+.ghost-settings-heading button {
+  min-height: 52px;
+  gap: 8px;
+  padding: 0 18px;
+  color: #9aff7c;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ghost-slot-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(72px, 1fr));
+  gap: 12px;
+}
+
+.ghost-slot-tab {
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  border: 1px solid rgba(111, 132, 183, 0.28);
+  border-radius: 8px;
+  background: rgba(8, 14, 34, 0.86);
+  color: var(--accent, #9aa7c2);
+  font-weight: 1000;
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--accent, #9aa7c2) 12%, transparent);
+}
+
+.ghost-slot-tab.active {
+  border-color: color-mix(in srgb, var(--accent, #9aff7c) 78%, white 8%);
+  background:
+    radial-gradient(circle at 45% 34%, color-mix(in srgb, var(--accent, #9aff7c) 23%, transparent), transparent 58%),
+    rgba(8, 16, 35, 0.9);
+  box-shadow: inset 0 0 34px color-mix(in srgb, var(--accent, #9aff7c) 22%, transparent), 0 0 22px color-mix(in srgb, var(--accent, #9aff7c) 16%, transparent);
+}
+
+.ghost-slot-tab.green,
+.ghost-setting-card.green {
+  --accent: #5cff8e;
+}
+
+.ghost-slot-tab.purple,
+.ghost-setting-card.purple {
+  --accent: #a768ff;
+}
+
+.ghost-slot-tab.blue,
+.ghost-setting-card.blue {
+  --accent: #6099ff;
+}
+
+.ghost-slot-tab.orange,
+.ghost-setting-card.orange {
+  --accent: #ffa63f;
+}
+
+.ghost-slot-tab.gray,
+.ghost-setting-card.gray {
+  --accent: #8793ad;
+}
+
+.ghost-settings-list {
+  display: grid;
+  gap: 18px;
+}
+
+.ghost-setting-card {
+  border: 1px solid rgba(111, 132, 183, 0.28);
+  border-radius: 8px;
+  background: rgba(8, 14, 34, 0.9);
+}
+
+.ghost-setting-card.expanded {
+  display: grid;
+  gap: 22px;
+  padding: 28px 20px;
+  border-color: color-mix(in srgb, var(--accent) 72%, white 8%);
+  background:
+    radial-gradient(circle at 5% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 42%),
+    rgba(8, 14, 34, 0.92);
+  box-shadow: inset 0 0 42px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.ghost-setting-card.collapsed {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  color: #f8fbff;
+  text-align: left;
+}
+
+.ghost-setting-card.collapsed span,
+.ghost-setting-card-title b {
+  display: inline-grid;
+  min-width: 48px;
+  min-height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 24%, rgba(10, 16, 38, 0.9));
+  color: var(--accent);
+  font-weight: 1000;
+}
+
+.ghost-setting-card.collapsed strong {
+  font-size: 1.55rem;
+}
+
+.ghost-setting-card-title {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ghost-setting-card-title > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
+
+.ghost-setting-card-title strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.8rem, 8vw, 2.6rem);
+  line-height: 1;
+}
+
+.ghost-setting-card-title span {
+  grid-column: 2;
+  color: var(--my-muted);
+  font-weight: 800;
+}
+
+.ghost-setting-card-title button {
+  width: 56px;
+  height: 56px;
+}
+
+.ghost-setting-card label {
+  display: grid;
+  gap: 10px;
+  color: var(--my-muted);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.ghost-setting-card input {
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid rgba(111, 132, 183, 0.34);
+  border-radius: 8px;
+  background: rgba(7, 12, 31, 0.72);
+  color: #fff;
+  font: inherit;
+  font-size: 1.16rem;
+  font-weight: 900;
+  padding: 0 18px;
+}
+
+.speed-input-shell {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgba(111, 132, 183, 0.34);
+  border-radius: 8px;
+  background: rgba(7, 12, 31, 0.72);
+  padding: 0 18px;
+}
+
+.speed-input-shell svg {
+  color: rgba(207, 217, 244, 0.72);
+}
+
+.speed-input-shell input {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 2rem;
+}
+
+.speed-input-shell small {
+  color: rgba(207, 217, 244, 0.78);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.speed-graph {
+  display: grid;
+  gap: 8px;
+  padding: 16px 14px 12px;
+  border: 1px solid rgba(111, 132, 183, 0.28);
+  border-radius: 8px;
+  background: rgba(4, 9, 24, 0.58);
+}
+
+.speed-graph > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(207, 217, 244, 0.76);
+  font-weight: 800;
+}
+
+.speed-graph > div:first-child strong {
+  color: var(--accent);
+}
+
+.speed-graph svg {
+  width: 100%;
+  height: 118px;
+}
+
+.speed-graph polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 52%, transparent));
+}
+
+.speed-graph circle {
+  fill: #071021;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.speed-graph-minutes {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  color: rgba(207, 217, 244, 0.54);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.ghost-settings-summary {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+}
+
+.ghost-settings-summary strong {
+  color: #9aff7c;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .my-page {
+    padding-inline: 14px;
+  }
+
+  .my-hero-card {
+    grid-template-columns: 1fr minmax(94px, 32%);
+    padding: 24px 18px;
+  }
+
+  .my-hero-settings {
+    width: 48px;
+    height: 48px;
+    right: 18px;
+    top: 18px;
+  }
+
+  .ghost-settings-panel {
+    padding: 22px 16px;
+  }
+
+  .ghost-slot-tabs {
+    grid-template-columns: repeat(5, minmax(58px, 1fr));
+    gap: 8px;
+  }
+
+  .ghost-slot-tab {
+    min-height: 86px;
+  }
+
+  .ghost-slot-tab svg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.fitness-shell:has(.my-page) {
+  padding-bottom: 0;
+}
+
+.my-page {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  gap: 11px;
+  padding: 12px 12px calc(var(--bottom-nav-height) + 18px);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.my-page::-webkit-scrollbar {
+  display: none;
+}
+
+.my-page-header {
+  gap: 11px;
+  padding: 0 3px 6px;
+}
+
+.my-page-header span {
+  font-size: 0.68rem;
+}
+
+.my-page-header h1 {
+  margin-top: 14px;
+  font-size: clamp(1.2rem, 5.4vw, 1.9rem);
+}
+
+.my-logout-button {
+  min-width: 82px;
+  min-height: 32px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 0.76rem;
+}
+
+.my-logout-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.my-hero-card {
+  min-height: 114px;
+  gap: 8px;
+  padding: 17px;
+}
+
+.my-hero-copy {
+  gap: 9px;
+}
+
+.my-hero-copy span,
+.ghost-settings-heading span {
+  gap: 7px;
+  font-size: 0.88rem;
+}
+
+.my-hero-copy span svg,
+.ghost-settings-heading span svg {
+  width: 16px;
+  height: 16px;
+}
+
+.my-hero-copy h2 {
+  font-size: clamp(1.2rem, 6vw, 1.9rem);
+}
+
+.my-hero-copy p,
+.ghost-settings-heading p,
+.ghost-settings-summary span {
+  font-size: clamp(0.72rem, 2.4vw, 0.86rem);
+  line-height: 1.38;
+}
+
+.my-ghost-mascot {
+  width: min(108px, 100%);
+}
+
+.my-hero-settings {
+  top: 16px;
+  right: 17px;
+  width: 34px;
+  height: 34px;
+}
+
+.my-hero-settings svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ghost-settings-panel {
+  gap: 13px;
+  padding: 16px 12px;
+}
+
+.ghost-settings-heading {
+  gap: 9px;
+}
+
+.ghost-settings-heading > div {
+  gap: 5px;
+}
+
+.ghost-settings-heading button {
+  min-height: 32px;
+  gap: 5px;
+  padding: 0 11px;
+  font-size: 0.74rem;
+}
+
+.ghost-settings-heading button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ghost-slot-tabs {
+  gap: 7px;
+  grid-template-columns: repeat(5, minmax(46px, 1fr));
+}
+
+.ghost-slot-tab {
+  min-height: 58px;
+  gap: 4px;
+  font-size: 0.76rem;
+}
+
+.ghost-slot-tab svg {
+  width: 21px;
+  height: 21px;
+}
+
+.ghost-settings-list {
+  gap: 11px;
+}
+
+.ghost-setting-card.expanded {
+  gap: 13px;
+  padding: 17px 12px;
+}
+
+.ghost-setting-card.collapsed {
+  min-height: 50px;
+  gap: 10px;
+  padding: 0 12px;
+}
+
+.ghost-setting-card.collapsed span,
+.ghost-setting-card-title b {
+  min-width: 30px;
+  min-height: 26px;
+  font-size: 0.78rem;
+}
+
+.ghost-setting-card.collapsed strong {
+  font-size: 0.96rem;
+}
+
+.ghost-setting-card.collapsed svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ghost-setting-card-title {
+  gap: 10px;
+}
+
+.ghost-setting-card-title > div {
+  gap: 5px 9px;
+}
+
+.ghost-setting-card-title strong {
+  font-size: clamp(1.08rem, 4.8vw, 1.56rem);
+}
+
+.ghost-setting-card-title span {
+  font-size: 0.78rem;
+}
+
+.ghost-setting-card-title button {
+  width: 34px;
+  height: 34px;
+}
+
+.ghost-setting-card-title button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ghost-setting-card label {
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.ghost-setting-card input {
+  min-height: 38px;
+  font-size: 0.86rem;
+  padding: 0 11px;
+}
+
+.speed-input-shell {
+  min-height: 41px;
+  gap: 8px;
+  padding: 0 11px;
+}
+
+.speed-input-shell svg {
+  width: 19px;
+  height: 19px;
+}
+
+.speed-input-shell input {
+  font-size: 1.2rem;
+}
+
+.speed-input-shell small {
+  font-size: 0.78rem;
+}
+
+.speed-graph {
+  gap: 5px;
+  padding: 10px 9px 8px;
+}
+
+.speed-graph > div:first-child {
+  gap: 8px;
+  font-size: 0.76rem;
+}
+
+.speed-graph svg {
+  height: 72px;
+}
+
+.speed-graph polyline {
+  stroke-width: 2.5;
+}
+
+.speed-graph circle {
+  r: 2.4;
+  stroke-width: 2;
+}
+
+.speed-graph-minutes {
+  font-size: 0.6rem;
+}
+
+.ghost-settings-summary {
+  gap: 4px;
+  padding: 10px 11px;
+  font-size: 0.78rem;
+}
+
 .route-card {
   position: relative;
   display: flex;

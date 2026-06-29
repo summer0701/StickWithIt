@@ -39,20 +39,20 @@ describe('ruleBasedCoach', () => {
     const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
 
     expect(ghosts.map((ghost) => ghost.key)).toEqual([
-      'yesterdayGhost',
       'bestGhost',
       'averageGhost',
-      'recentGhost',
+      'stableGhost',
+      'chaserGhost',
       'slowGhost',
     ]);
-    expect(ghosts[0].label).toBe('어제의 나');
+    expect(ghosts[0].label).toBe('G1');
   });
 
   it('compares each ghost at the closest checkpoint time', () => {
     const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
     const comparisons = compareGhosts({ elapsed_seconds: 300, distance_meters: 1050 }, ghosts);
 
-    expect(comparisons.find((ghost) => ghost.key === 'yesterdayGhost')?.deltaMeters).toBe(20);
+    expect(comparisons.find((ghost) => ghost.key === 'chaserGhost')?.deltaMeters).toBe(20);
     expect(comparisons.find((ghost) => ghost.key === 'bestGhost')?.deltaMeters).toBe(-70);
     expect(comparisons.find((ghost) => ghost.key === 'slowGhost')?.deltaMeters).toBe(70);
   });
@@ -67,8 +67,8 @@ describe('ruleBasedCoach', () => {
     });
 
     expect(snapshot.entries[0].key).toBe('bestGhost');
-    expect(snapshot.entries[0].label).toBe('최고 기록의 나');
-    expect(snapshot.current.rank).toBe(3);
+    expect(snapshot.entries[0].label).toBe('G1');
+    expect(snapshot.current.rank).toBe(2);
     expect(snapshot.ghosts.find((ghost) => ghost.key === 'slowGhost')?.deltaFromCurrentMeters).toBe(-70);
     expect(snapshot.current.progressPercent).toBe(21);
   });
@@ -81,8 +81,8 @@ describe('ruleBasedCoach', () => {
     });
 
     expect(cue.category).toBe('close');
-    expect(cue.ghostLabel).toBe('어제의 나');
-    expect(cue.comparisonText).toContain('어제의 나');
+    expect(cue.ghostLabel).toBe('G4');
+    expect(cue.comparisonText).toContain('G4');
   });
 
   it('returns priority cues when no past ghost is close', () => {
@@ -93,7 +93,7 @@ describe('ruleBasedCoach', () => {
     });
 
     expect(cue.category).toBe('behind');
-    expect(cue.ghostLabel).toBe('최고 기록의 나');
+    expect(cue.ghostLabel).toBe('G1');
   });
 
   it('returns personal record cues when ahead of the best ghost', () => {
@@ -104,7 +104,7 @@ describe('ruleBasedCoach', () => {
     });
 
     expect(cue.category).toBe('personal_record');
-    expect(cue.ghostLabel).toBe('최고 기록의 나');
+    expect(cue.ghostLabel).toBe('G1');
   });
 
   it('returns overtake cues when the selected ghost delta crosses ahead', () => {
@@ -155,5 +155,20 @@ describe('ruleBasedCoach', () => {
     ], recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
 
     expect(ghosts.some((ghost) => ghost.sourceRunId === 'running')).toBe(false);
+  });
+
+  it('generates five natural ghosts from a single completed run', () => {
+    const ghosts = buildGhostRunners([recentRuns[0]], recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+
+    expect(ghosts.map((ghost) => ghost.key)).toEqual([
+      'bestGhost',
+      'averageGhost',
+      'stableGhost',
+      'chaserGhost',
+      'slowGhost',
+    ]);
+    expect(ghosts).toHaveLength(5);
+    expect(ghosts[0].totalDistanceMeters).toBeGreaterThan(ghosts[1].totalDistanceMeters);
+    expect(ghosts[4].totalDistanceMeters).toBeLessThan(ghosts[1].totalDistanceMeters);
   });
 });

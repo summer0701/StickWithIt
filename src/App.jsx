@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
+import MyPage from './pages/MyPage';
 import { supabase } from './lib/supabaseClient';
 import { clearTestSession, readTestSession } from './lib/testAuth';
 
@@ -80,7 +81,7 @@ export default function App() {
 
   return (
     <div className="app-shell fitness-shell">
-      {page !== 'run' && page !== 'home' && (
+      {page !== 'run' && page !== 'home' && page !== 'my' && (
         <header className="topbar fitness-topbar">
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}
@@ -122,7 +123,8 @@ export default function App() {
         />
       )}
       {page === 'ranking' && <RankingPage onBack={() => setPage('home')} />}
-      {['challenge', 'history', 'my'].includes(page) && (
+      {page === 'my' && <MyPage user={user} onSignOut={handleSignOut} />}
+      {['challenge', 'history'].includes(page) && (
         <PlaceholderPage title={pageTitle} onHome={() => setPage('home')} />
       )}
 

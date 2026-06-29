@@ -1,22 +1,24 @@
 import { runningCoachPhrases } from '../data/runningCoachPhrases';
+import { applyGhostSettingsToRunners, defaultGhostSettings } from '../lib/ghostSettings';
+import { createGhostPackFromBase, ghostPackRouteToRunner } from '../lib/naturalGhostPack';
 
 const DEFAULT_RECENT_LIMIT = 12;
 const CLOSE_GHOST_METERS = 30;
 const GHOST_EVENT_METERS = 10;
 
 const GHOST_LABELS = {
-  yesterdayGhost: '어제의 나',
-  bestGhost: '최고 기록의 나',
-  averageGhost: '평균 페이스의 나',
-  recentGhost: '최근 기록의 나',
-  slowGhost: '끝까지 버틴 나',
+  bestGhost: '베스트 고스트',
+  averageGhost: '평균 고스트',
+  stableGhost: '안정 고스트',
+  chaserGhost: '추격 고스트',
+  slowGhost: '워스트 고스트',
 };
 
 const GHOST_PRIORITY = [
   'bestGhost',
-  'yesterdayGhost',
   'averageGhost',
-  'recentGhost',
+  'stableGhost',
+  'chaserGhost',
   'slowGhost',
 ];
 
@@ -75,30 +77,51 @@ export function ruleBasedCoach({
   return buildCue(checkpoint.elapsed_seconds < 300 ? 'warmup' : 'encouragement', spokenMessages);
 }
 
-export function buildGhostRunners(recentRuns = [], recentCheckpoints = [], now = new Date()) {
+export function buildGhostRunners(
+  recentRuns = [],
+  recentCheckpoints = [],
+  now = new Date(),
+  ghostSettings = defaultGhostSettings(),
+  targetDistanceKm = null,
+) {
   const runs = recentRuns
     .filter(isCompletedRun)
     .map((run) => normalizeRun(run, recentCheckpoints))
     .filter(Boolean)
     .slice(0, 5);
 
-  if (runs.length === 0) return [];
+  if (runs.length === 0) {
+    return applyGhostSettingsToRunners({ runners: [], settings: ghostSettings, targetDistanceKm });
+  }
+
+  if (runs.length === 1) {
+    const generatedRunners = createGhostPackFromBase(runToBaseGhost(runs[0])).map(ghostPackRouteToRunner);
+    return applyGhostSettingsToRunners({
+      runners: generatedRunners,
+      settings: ghostSettings,
+      targetDistanceKm,
+    });
+  }
 
   const byStartedAtDesc = [...runs].sort((a, b) => b.startedAtMs - a.startedAtMs);
   const byPaceAsc = [...runs].sort((a, b) => a.paceSecondsPerKm - b.paceSecondsPerKm);
-  const yesterdayRun = runs.find((run) => isYesterday(run.startedAt, now)) ?? byStartedAtDesc[0];
   const bestRun = byPaceAsc[0];
   const slowRun = byPaceAsc[byPaceAsc.length - 1];
-  const recentRun = byStartedAtDesc.find((run) => run.id !== yesterdayRun?.id) ?? byStartedAtDesc[0];
+  const chaserRun = byStartedAtDesc[0];
   const averageGhost = buildAverageGhost(runs);
+  const stableGhost = buildStableGhost(runs);
 
-  return [
-    ghostFromRun('yesterdayGhost', yesterdayRun),
-    ghostFromRun('bestGhost', bestRun),
-    averageGhost,
-    ghostFromRun('recentGhost', recentRun),
-    ghostFromRun('slowGhost', slowRun),
-  ].filter(Boolean);
+  return applyGhostSettingsToRunners({
+    runners: [
+      ghostFromRun('bestGhost', bestRun),
+      averageGhost,
+      stableGhost,
+      ghostFromRun('chaserGhost', chaserRun),
+      ghostFromRun('slowGhost', slowRun),
+    ].filter(Boolean),
+    settings: ghostSettings,
+    targetDistanceKm,
+  });
 }
 
 function isCompletedRun(run) {
@@ -320,6 +343,25 @@ function ghostFromRun(key, run) {
   };
 }
 
+function runToBaseGhost(run) {
+  const checkpoints = run.checkpoints?.length
+    ? [{ elapsedSeconds: 0, distanceMeters: 0 }, ...run.checkpoints]
+    : [
+        { elapsedSeconds: 0, distanceMeters: 0 },
+        { elapsedSeconds: run.totalElapsedSeconds, distanceMeters: run.totalDistanceMeters },
+      ];
+
+  return {
+    id: run.id,
+    name: '기준 고스트',
+    type: 'real',
+    route: checkpoints.map((checkpoint) => ({
+      minute: Number(checkpoint.elapsedSeconds) / 60,
+      distance: Number(checkpoint.distanceMeters),
+    })),
+  };
+}
+
 function buildAverageGhost(runs) {
   const totalElapsedSeconds = runs.reduce((sum, run) => sum + run.totalElapsedSeconds, 0);
   const totalDistanceMeters = runs.reduce((sum, run) => sum + run.totalDistanceMeters, 0);
@@ -331,6 +373,15 @@ function buildAverageGhost(runs) {
     totalDistanceMeters: combinedSpeedMetersPerSecond * averageElapsedSeconds,
     totalElapsedSeconds: averageElapsedSeconds,
     checkpoints: [],
+  };
+}
+
+function buildStableGhost(runs) {
+  const averageGhost = buildAverageGhost(runs);
+  return {
+    ...averageGhost,
+    key: 'stableGhost',
+    label: GHOST_LABELS.stableGhost,
   };
 }
 

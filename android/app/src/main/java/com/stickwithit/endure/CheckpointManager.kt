@@ -11,7 +11,6 @@ class CheckpointManager(
     private val scope: CoroutineScope,
     private val coach: RuleBasedCoach,
     private val ttsEngine: NativeTtsEngine,
-    private val coachAudioPlayer: CachedCoachAudioPlayer,
     private val ghostRunnersProvider: () -> List<GhostRunner>,
     private val onCheckpoint: (RunCheckpointEntity) -> Unit
 ) {
@@ -45,7 +44,7 @@ class CheckpointManager(
             cue?.let {
                 scope.launch {
                     withContext(Dispatchers.Main) {
-                        coachAudioPlayer.playCategory(it.category, it.fallbackText)
+                        ttsEngine.speak(it)
                     }
                 }
             }
@@ -68,7 +67,7 @@ class CheckpointManager(
         lastCheckpointElapsedSeconds = elapsedSeconds
         scope.launch {
             withContext(Dispatchers.Main) {
-                cue?.let { coachAudioPlayer.playCategory(it.category, it.fallbackText) }
+                cue?.let { ttsEngine.speak(it) }
             }
             val id = dao.insert(checkpoint)
             val saved = checkpoint.copy(id = id)
