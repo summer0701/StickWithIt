@@ -3,37 +3,21 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 import { speakCoachMessage } from '../services/ttsAdapter';
 
 const MANIFEST_URL = '/tts-cache/manifest.json';
-const PRELOAD_CATEGORIES = ['start', 'ahead', 'behind', 'finish_push', 'one_km_left'];
-const PRELOAD_LIMIT = 10;
+const PRELOAD_CATEGORIES = ['start', 'warmup', 'ahead', 'behind', 'close', 'overtake', 'overtaken', 'finish_push', 'one_km_left'];
+const PRELOAD_LIMIT = 24;
 const RECENT_LIMIT = 8;
-export const COACH_VOICE_TYPES = ['type2', 'type1'];
-export const COACH_VOICE_STORAGE_KEY = 'stickwithit:coach-voice-type';
+const SYNTHETIC_CATEGORY_ITEM_COUNT = 10;
 
 let manifestPromise = null;
 let manifest = null;
 const audioByKey = new Map();
 const recentKeys = [];
 
-export function getCoachVoiceType() {
-  if (typeof window === 'undefined') return COACH_VOICE_TYPES[0];
-  const stored = window.localStorage.getItem(COACH_VOICE_STORAGE_KEY);
-  return COACH_VOICE_TYPES.includes(stored) ? stored : COACH_VOICE_TYPES[0];
-}
-
-export function setCoachVoiceType(voiceType) {
-  const nextVoiceType = COACH_VOICE_TYPES.includes(voiceType) ? voiceType : COACH_VOICE_TYPES[0];
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(COACH_VOICE_STORAGE_KEY, nextVoiceType);
-  }
-  audioByKey.clear();
-  return nextVoiceType;
-}
-
 export function preloadCoachAudio(categories = PRELOAD_CATEGORIES) {
   return loadCoachManifest()
     .then((loadedManifest) => {
       const items = selectItemsByCategories(loadedManifest, categories).slice(0, PRELOAD_LIMIT);
-      items.forEach((item) => ensureAudio(audioCacheKey(item), selectedVoiceFile(item.file)));
+      items.forEach((item) => ensureAudio(audioCacheKey(item), audioFile(item.file)));
       return true;
     })
     .catch((error) => {
@@ -55,8 +39,7 @@ export async function playCoachCue(category, fallbackText) {
         await RunningPlugin.playCoachAudio({
           key: item.key,
           category: item.category,
-          file: selectedVoiceFile(item.file),
-          voiceType: getCoachVoiceType(),
+          file: audioFile(item.file),
           fallbackText: fallbackText || item.text,
         });
         rememberKey(item.key);
@@ -103,10 +86,22 @@ function selectItemsByCategories(loadedManifest, categories) {
 
 function pickManifestItem(loadedManifest, category) {
   const items = selectItemsByCategories(loadedManifest, [category]);
-  if (items.length === 0) return null;
+  const candidates = items.length > 0 ? items : synthesizeCategoryItems(category);
 
-  const fresh = items.find((item) => !recentKeys.includes(item.key));
-  return fresh ?? items[Math.floor(Math.random() * items.length)];
+  const fresh = candidates.find((item) => !recentKeys.includes(item.key));
+  return fresh ?? candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function synthesizeCategoryItems(category) {
+  return Array.from({ length: SYNTHETIC_CATEGORY_ITEM_COUNT }, (_, index) => {
+    const key = `${category}_${String(index + 1).padStart(3, '0')}`;
+    return {
+      key,
+      category,
+      text: '',
+      file: `/tts-cache/${key}.mp3`,
+    };
+  });
 }
 
 function ensureAudio(key, file) {
@@ -121,7 +116,7 @@ function playWebAudio(item) {
   if (typeof Audio === 'undefined') return Promise.resolve(false);
 
   const key = audioCacheKey(item);
-  const audio = ensureAudio(key, selectedVoiceFile(item.file)) ?? audioByKey.get(key);
+  const audio = ensureAudio(key, audioFile(item.file)) ?? audioByKey.get(key);
   if (!audio) return Promise.resolve(false);
 
   audio.currentTime = 0;
@@ -138,14 +133,13 @@ function playWebAudio(item) {
 }
 
 function audioCacheKey(item) {
-  return `${getCoachVoiceType()}:${item.key}`;
+  return item.key;
 }
 
-function selectedVoiceFile(file) {
-  const voiceType = getCoachVoiceType();
+function audioFile(file) {
   const fileName = String(file ?? '').split('/').filter(Boolean).pop();
   if (!fileName) return file;
-  return `/tts-cache/${voiceType}/${fileName}`;
+  return `/tts-cache/${fileName}`;
 }
 
 function rememberKey(key) {

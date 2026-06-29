@@ -28,8 +28,6 @@ class CheckpointManager(
         targetDistanceMeters: Double,
         force: Boolean = false
     ) {
-        if (!force && elapsedSeconds - lastCheckpointElapsedSeconds < CHECKPOINT_INTERVAL_SECONDS) return
-
         val distanceKm = sample.distanceMeters / 1000.0
         val paceSecondsPerKm = if (distanceKm > 0.0) (elapsedSeconds / distanceKm).roundToInt() else null
         val elapsedHours = elapsedSeconds / 3600.0
@@ -42,6 +40,17 @@ class CheckpointManager(
             targetDistanceMeters = targetDistanceMeters,
             ghostRunners = ghostRunnersProvider()
         )
+
+        if (!force && elapsedSeconds - lastCheckpointElapsedSeconds < CHECKPOINT_INTERVAL_SECONDS) {
+            cue?.let {
+                scope.launch {
+                    withContext(Dispatchers.Main) {
+                        coachAudioPlayer.playCategory(it.category, it.fallbackText)
+                    }
+                }
+            }
+            return
+        }
 
         val checkpoint = RunCheckpointEntity(
             sessionId = sessionId,

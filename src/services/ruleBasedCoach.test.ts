@@ -57,7 +57,7 @@ describe('ruleBasedCoach', () => {
     expect(comparisons.find((ghost) => ghost.key === 'slowGhost')?.deltaMeters).toBe(70);
   });
 
-  it('returns category cues instead of dynamic spoken sentences', () => {
+  it('returns close cues for the nearest past ghost', () => {
     const cue = ruleBasedCoach({
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1050, pace_seconds_per_km: 286 },
       recentRuns,
@@ -65,7 +65,42 @@ describe('ruleBasedCoach', () => {
     });
 
     expect(cue.category).toBe('close');
-    expect(cue.fallbackText).toBe('거의 따라잡았어. 지금부터 집중하자.');
+    expect(cue.ghostLabel).toBe('어제의 나');
+    expect(cue.comparisonText).toContain('어제의 나');
+  });
+
+  it('returns priority cues when no past ghost is close', () => {
+    const cue = ruleBasedCoach({
+      currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1070, pace_seconds_per_km: 280 },
+      recentRuns,
+      recentCheckpoints,
+    });
+
+    expect(cue.category).toBe('behind');
+    expect(cue.ghostLabel).toBe('최고 기록의 나');
+  });
+
+  it('returns personal record cues when ahead of the best ghost', () => {
+    const cue = ruleBasedCoach({
+      currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1160, pace_seconds_per_km: 260 },
+      recentRuns,
+      recentCheckpoints,
+    });
+
+    expect(cue.category).toBe('personal_record');
+    expect(cue.ghostLabel).toBe('최고 기록의 나');
+  });
+
+  it('returns overtake cues when the selected ghost delta crosses ahead', () => {
+    const cue = ruleBasedCoach({
+      currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1160, pace_seconds_per_km: 260 },
+      recentRuns,
+      recentCheckpoints,
+      previousGhostDeltas: { bestGhost: -20 },
+    });
+
+    expect(cue.category).toBe('overtake');
+    expect(cue.nextGhostDeltas.bestGhost).toBe(40);
   });
 
   it('returns one kilometer cue inside the last kilometer', () => {
@@ -80,7 +115,7 @@ describe('ruleBasedCoach', () => {
   });
 
   it('does not repeat an identical fallback phrase when alternatives exist', () => {
-    const spokenMessages = rememberSpokenMessage([], '거의 따라잡았어. 지금부터 집중하자.');
+    const spokenMessages = rememberSpokenMessage([], '3초 차이다. 거의 붙었다.');
     const cue = ruleBasedCoach({
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1030, pace_seconds_per_km: 291 },
       recentRuns,
@@ -88,7 +123,7 @@ describe('ruleBasedCoach', () => {
       spokenMessages,
     });
 
-    expect(cue.fallbackText).not.toBe('거의 따라잡았어. 지금부터 집중하자.');
+    expect(cue.fallbackText).not.toBe('3초 차이다. 거의 붙었다.');
   });
 
   it('uses only completed runs as ghost candidates', () => {

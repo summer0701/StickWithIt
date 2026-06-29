@@ -73,7 +73,19 @@ async def generate_all(items, voice, force):
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    dialogues_path = OUTPUT_DIR / "tts-dialogues.txt"
+    dialogues_path.write_text(
+        "\n".join(f"{item['key']}.mp3, {item['text']}" for item in items) + "\n",
+        encoding="utf-8",
+    )
+    script_path = OUTPUT_DIR / "ghost-run-tts-script-v1.txt"
+    script_path.write_text(
+        "\n\n".join(f"{item['key']}.mp3\n{item['text']}" for item in items) + "\n",
+        encoding="utf-8",
+    )
     print(f"wrote {manifest_path.relative_to(ROOT)}")
+    print(f"wrote {dialogues_path.relative_to(ROOT)}")
+    print(f"wrote {script_path.relative_to(ROOT)}")
 
 
 def parse_args():

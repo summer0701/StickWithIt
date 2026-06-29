@@ -59,14 +59,12 @@ class RunningForegroundService : Service() {
             ACTION_PLAY_COACH_AUDIO -> {
                 val file = intent.getStringExtra(EXTRA_FILE)
                 val fallbackText = intent.getStringExtra(EXTRA_TEXT)
-                coachAudioPlayer.setVoiceType(intent.getStringExtra(EXTRA_VOICE_TYPE))
                 if (file.isNullOrBlank()) {
                     fallbackText?.let { ttsEngine.speak(it) }
                 } else {
                     coachAudioPlayer.playFile(file, fallbackText)
                 }
             }
-            ACTION_COACH_VOICE_TYPE -> coachAudioPlayer.setVoiceType(intent.getStringExtra(EXTRA_VOICE_TYPE))
             ACTION_UPDATE_TARGET_DISTANCE -> {
                 targetDistanceMeters = intent.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, targetDistanceMeters)
                 broadcastDebug("target_distance_updated:$targetDistanceMeters")
@@ -98,7 +96,6 @@ class RunningForegroundService : Service() {
         sessionId = intent?.getStringExtra(EXTRA_SESSION_ID).orEmpty().ifBlank { "native-${System.currentTimeMillis()}" }
         targetDistanceMeters = intent?.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, 0.0) ?: 0.0
         ghostRunners = GhostRunnerParser.parse(intent?.getStringExtra(EXTRA_GHOST_RUNNERS_JSON))
-        coachAudioPlayer.setVoiceType(intent?.getStringExtra(EXTRA_VOICE_TYPE))
         startedAtMillis = System.currentTimeMillis()
         paused = false
         lastElapsedCoachSeconds = 0
@@ -129,7 +126,7 @@ class RunningForegroundService : Service() {
         ).also { it.start() }
         startCheckpointTicker()
 
-        coachAudioPlayer.playCategory("start", "달리기 시작. 오늘도 과거의 너와 경쟁한다.")
+        coachAudioPlayer.playCategory("start", "고스트 런 시작. 오늘의 상대는 어제의 나다.")
         broadcastDebug("coach_start_audio_requested")
         broadcastDebug("run_started:$sessionId")
     }
@@ -141,7 +138,7 @@ class RunningForegroundService : Service() {
             checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds(), sample, targetDistanceMeters, force = true)
         }
         locationTracker?.stop()
-        coachAudioPlayer.playCategory("completed", "러닝 완료. 오늘도 끝까지 버텼다.")
+        coachAudioPlayer.playCategory("completed", "러닝 완료. 오늘도 과거의 나를 이겼다.")
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -263,7 +260,6 @@ class RunningForegroundService : Service() {
         const val ACTION_RESUME = "com.stickwithit.endure.RUN_RESUME"
         const val ACTION_SPEAK = "com.stickwithit.endure.RUN_SPEAK"
         const val ACTION_PLAY_COACH_AUDIO = "com.stickwithit.endure.RUN_PLAY_COACH_AUDIO"
-        const val ACTION_COACH_VOICE_TYPE = "com.stickwithit.endure.RUN_COACH_VOICE_TYPE"
         const val ACTION_UPDATE_TARGET_DISTANCE = "com.stickwithit.endure.RUN_UPDATE_TARGET_DISTANCE"
         const val ACTION_TTS_ENABLED = "com.stickwithit.endure.RUN_TTS_ENABLED"
         const val ACTION_STATE = "com.stickwithit.endure.RUN_STATE"
@@ -272,7 +268,6 @@ class RunningForegroundService : Service() {
         const val EXTRA_SESSION_ID = "sessionId"
         const val EXTRA_TARGET_DISTANCE_METERS = "targetDistanceMeters"
         const val EXTRA_GHOST_RUNNERS_JSON = "ghostRunnersJson"
-        const val EXTRA_VOICE_TYPE = "voiceType"
         const val EXTRA_FILE = "file"
         const val EXTRA_TEXT = "text"
         const val EXTRA_TTS_ENABLED = "ttsEnabled"

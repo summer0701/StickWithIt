@@ -13,14 +13,15 @@ import {
   isValidUuid,
 } from '../services/runRecorder';
 import { buildGhostRunners, rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
-import { COACH_VOICE_TYPES, getCoachVoiceType, playCoachCue, preloadCoachAudio, setCoachVoiceType } from '../lib/coachAudioPlayer';
+import { playCoachCue, preloadCoachAudio } from '../lib/coachAudioPlayer';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
 const CHECKPOINT_INTERVAL_SECONDS = 60;
+const COACH_INTERVAL_SECONDS = 15;
 const FINISH_HOLD_MS = 3000;
 const HOLD_RING_CIRCUMFERENCE = 264;
-const START_COACH_TEXT = '달리기 시작. 오늘도 과거의 너와 경쟁한다.';
+const START_COACH_TEXT = '고스트 런 시작. 오늘의 상대는 어제의 나다.';
 
 export default function RunPage({ user, targetDistanceKm, onTargetChange, onCancel, onComplete }) {
   const normalizedTargetDistanceKm = Math.max(0.1, Number(targetDistanceKm) || 10);
@@ -31,7 +32,6 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [batteryGuideOpen, setBatteryGuideOpen] = useState(false);
-  const [coachVoiceType, setCoachVoiceTypeState] = useState(() => getCoachVoiceType());
   const [targetDistanceInput, setTargetDistanceInput] = useState(() => normalizedTargetDistanceKm.toFixed(1));
   const [distanceMeters, setDistanceMeters] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -49,7 +49,11 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   const startedAtRef = useRef(new Date());
   const lastPointRef = useRef(null);
   const lastCheckpointAtRef = useRef(0);
+  const lastCoachAtRef = useRef(0);
   const spokenMessagesRef = useRef([]);
+  const previousGhostDeltasRef = useRef({});
+  const ghostRunnersRef = useRef([]);
+  const runHistoryPromiseRef = useRef(null);
   const statusRef = useRef(status);
   const distanceRef = useRef(0);
   const elapsedRef = useRef(0);
@@ -92,10 +96,10 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   useEffect(() => {
     setQueuedCount(readCheckpointQueue().length);
     preloadCoachAudio();
-    loadRecentRunHistory(user.id).then(({ recentRuns: runs, recentCheckpoints: checkpoints }) => {
-      setRecentRuns(runs);
-      setRecentCheckpoints(checkpoints);
-    });
+    runHistoryPromiseRef.current = null;
+    ghostRunnersRef.current = [];
+    previousGhostDeltasRef.current = {};
+    ensureRecentRunHistory();
   }, [user.id]);
 
   useEffect(() => {
@@ -138,15 +142,22 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
     };
   }, []);
 
-  async function selectCoachVoiceType(nextVoiceType) {
-    const selectedVoiceType = setCoachVoiceType(nextVoiceType);
-    setCoachVoiceTypeState(selectedVoiceType);
-    await preloadCoachAudio(['start', 'ahead', 'behind', 'finish_push', 'one_km_left']);
-    if (Capacitor.isNativePlatform()) {
-      RunningPlugin.setCoachVoiceType({ voiceType: selectedVoiceType }).catch((error) => {
-        console.debug('[RunPage] Native coach voice type update failed.', error);
-      });
+  async function ensureRecentRunHistory() {
+    if (!runHistoryPromiseRef.current) {
+      runHistoryPromiseRef.current = loadRecentRunHistory(user.id, 5)
+        .then(({ recentRuns: runs, recentCheckpoints: checkpoints }) => {
+          setRecentRuns(runs);
+          setRecentCheckpoints(checkpoints);
+          const ghosts = buildGhostRunners(runs, checkpoints);
+          ghostRunnersRef.current = ghosts;
+          return { recentRuns: runs, recentCheckpoints: checkpoints, ghostRunners: ghosts };
+        })
+        .catch((error) => {
+          console.debug('[RunPage] Failed to load ghost run history.', error);
+          return { recentRuns: [], recentCheckpoints: [], ghostRunners: [] };
+        });
     }
+    return runHistoryPromiseRef.current;
   }
 
   function applyTargetDistance() {
@@ -208,7 +219,9 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   const saveCheckpointAndCoach = useCallback(async (point, force = false) => {
     if (!runRef.current || !point) return;
     const elapsed = Math.max(1, elapsedRef.current);
-    if (!force && elapsed - lastCheckpointAtRef.current < CHECKPOINT_INTERVAL_SECONDS) return;
+    const shouldSaveCheckpoint = force || elapsed - lastCheckpointAtRef.current >= CHECKPOINT_INTERVAL_SECONDS;
+    const shouldCoach = force || elapsed - lastCoachAtRef.current >= COACH_INTERVAL_SECONDS;
+    if (!shouldSaveCheckpoint && !shouldCoach) return;
 
     const checkpoint = buildCheckpoint({
       runId: runRef.current.id,
@@ -218,30 +231,37 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
       point,
     });
 
-    console.debug('[RunPage] Saving checkpoint.', checkpoint);
-    const result = await saveRunCheckpoint(checkpoint);
-    lastCheckpointAtRef.current = elapsed;
-    setQueuedCount(readCheckpointQueue().length);
+    let result = { queued: false };
+    if (shouldSaveCheckpoint) {
+      console.debug('[RunPage] Saving checkpoint.', checkpoint);
+      result = await saveRunCheckpoint(checkpoint);
+      lastCheckpointAtRef.current = elapsed;
+      setQueuedCount(readCheckpointQueue().length);
+    }
 
-    const cue = ruleBasedCoach({
-      currentCheckpoint: checkpoint,
-      recentRuns,
-      recentCheckpoints,
-      targetDistanceMeters,
-      spokenMessages: spokenMessagesRef.current,
-    });
+    if (shouldCoach) {
+      const cue = ruleBasedCoach({
+        currentCheckpoint: checkpoint,
+        ghostRunners: ghostRunnersRef.current,
+        targetDistanceMeters,
+        spokenMessages: spokenMessagesRef.current,
+        previousGhostDeltas: previousGhostDeltasRef.current,
+      });
+      if (cue.nextGhostDeltas) previousGhostDeltasRef.current = cue.nextGhostDeltas;
 
-    const cueText = cue.fallbackText ?? cue.message;
-    setCoachMessage(cueText);
-    if (cue.priority > 1) {
-      const spoken = await playCoachCue(cue.category, cueText);
-      if (spoken) spokenMessagesRef.current = rememberSpokenMessage(spokenMessagesRef.current, cueText);
+      const cueText = cue.comparisonText ?? cue.fallbackText ?? cue.message;
+      setCoachMessage(cueText);
+      lastCoachAtRef.current = elapsed;
+      if (cue.priority > 1) {
+        const spoken = await playCoachCue(cue.category, cueText);
+        if (spoken) spokenMessagesRef.current = rememberSpokenMessage(spokenMessagesRef.current, cueText);
+      }
     }
 
     if (result.queued) {
       setGpsMessage('네트워크 장애로 체크포인트를 로컬 큐에 저장했습니다.');
     }
-  }, [recentCheckpoints, recentRuns, targetDistanceMeters, user.id]);
+  }, [targetDistanceMeters, user.id]);
 
   useEffect(() => {
     if (status !== 'running' || usingNativeRunRef.current) return undefined;
@@ -257,7 +277,8 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
       startedAtRef.current = new Date();
       const run = await createRunRecord({ userId: user.id, startedAt: startedAtRef.current, targetDistanceMeters });
       runRef.current = run;
-      await preloadCoachAudio(['start', 'ahead', 'behind', 'finish_push', 'one_km_left']);
+      const { ghostRunners } = await ensureRecentRunHistory();
+      await preloadCoachAudio();
 
       if (Capacitor.isNativePlatform()) {
         usingNativeRunRef.current = true;
@@ -306,8 +327,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
           sessionId: run.id,
           targetDistanceMeters,
           useNativeTts: true,
-          voiceType: coachVoiceType,
-          ghostRunnersJson: JSON.stringify(buildGhostRunners(recentRuns, recentCheckpoints)),
+          ghostRunnersJson: JSON.stringify(ghostRunners),
         });
         setStatus('running');
         setCoachMessage(START_COACH_TEXT);
@@ -461,22 +481,6 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
           </button>
           {settingsOpen && (
             <div className="hud-settings-menu">
-              <div className="hud-settings-section" role="group" aria-label="음성 가이드">
-                <span>음성 가이드</span>
-                <div className="hud-settings-choice">
-                  {COACH_VOICE_TYPES.map((voiceType) => (
-                    <button
-                      key={voiceType}
-                      type="button"
-                      className={coachVoiceType === voiceType ? 'active' : ''}
-                      onClick={() => selectCoachVoiceType(voiceType)}
-                      aria-pressed={coachVoiceType === voiceType}
-                    >
-                      {voiceType}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <div className="hud-settings-section" role="group" aria-label="목표 거리">
                 <span>목표 거리</span>
                 <div className="hud-target-control">

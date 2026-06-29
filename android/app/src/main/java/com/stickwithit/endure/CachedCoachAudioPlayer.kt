@@ -21,21 +21,16 @@ class CachedCoachAudioPlayer(
     private val recentKeys = ArrayDeque<String>()
     private var manifestItems: List<CachedCoachAudioItem> = emptyList()
     private var mediaPlayer: MediaPlayer? = null
-    private var voiceType: String = DEFAULT_VOICE_TYPE
 
     fun preload() {
         if (manifestItems.isNotEmpty()) return
         manifestItems = runCatching { readManifestItems() }.getOrDefault(emptyList())
     }
 
-    fun setVoiceType(nextVoiceType: String?) {
-        voiceType = sanitizeVoiceType(nextVoiceType)
-        recentKeys.clear()
-    }
-
     fun playCategory(category: String, fallbackText: String?) {
         preload()
-        val candidates = manifestItems.filter { it.category == category }
+        val manifestCandidates = manifestItems.filter { it.category == category }
+        val candidates = manifestCandidates.ifEmpty { syntheticCategoryItems(category) }
         val item = candidates.firstOrNull { !recentKeys.contains(it.key) } ?: candidates.randomOrNull()
         if (item == null) {
             fallbackText?.let { fallbackTts.speak(it) }
@@ -56,7 +51,7 @@ class CachedCoachAudioPlayer(
 
     private fun playFile(file: String, fallbackText: String?, recentKey: String) {
         runCatching {
-            val assetPath = selectedVoiceFile(file).removePrefix("/").let {
+            val assetPath = audioFile(file).removePrefix("/").let {
                 if (it.startsWith("public/")) it else "public/$it"
             }
             mediaPlayer?.release()
@@ -108,6 +103,17 @@ class CachedCoachAudioPlayer(
         }.toList()
     }
 
+    private fun syntheticCategoryItems(category: String): List<CachedCoachAudioItem> =
+        (1..10).map { index ->
+            val key = "${category}_${index.toString().padStart(3, '0')}"
+            CachedCoachAudioItem(
+                key = key,
+                category = category,
+                text = "",
+                file = "/tts-cache/$key.mp3"
+            )
+        }
+
     private fun remember(key: String) {
         recentKeys.addLast(key)
         while (recentKeys.size > 8) recentKeys.removeFirst()
@@ -116,19 +122,9 @@ class CachedCoachAudioPlayer(
     private fun <T> List<T>.randomOrNull(): T? =
         if (isEmpty()) null else this[Random.nextInt(size)]
 
-    private fun selectedVoiceFile(file: String): String {
+    private fun audioFile(file: String): String {
         val normalized = file.removePrefix("/")
-        if (normalized.startsWith("tts-cache/type1/") || normalized.startsWith("tts-cache/type2/")) {
-            return "/$normalized"
-        }
         val fileName = normalized.substringAfterLast("/")
-        return "/tts-cache/$voiceType/$fileName"
-    }
-
-    private fun sanitizeVoiceType(value: String?): String =
-        if (value == "type1" || value == "type2") value else DEFAULT_VOICE_TYPE
-
-    companion object {
-        private const val DEFAULT_VOICE_TYPE = "type2"
+        return "/tts-cache/$fileName"
     }
 }

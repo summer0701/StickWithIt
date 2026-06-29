@@ -3,183 +3,488 @@
   "items": {
     "start_001": {
       "category": "start",
-      "text": "달리기 시작. 오늘도 과거의 너와 경쟁한다.",
+      "text": "고스트 런 시작. 오늘의 상대는 어제의 나다.",
       "file": "/tts-cache/start_001.mp3"
     },
     "start_002": {
       "category": "start",
-      "text": "좋아. 처음 1분은 힘을 아끼면서 리듬부터 잡자.",
+      "text": "출발. 처음 1킬로미터는 몸을 깨우는 시간이다.",
       "file": "/tts-cache/start_002.mp3"
     },
     "start_003": {
       "category": "start",
-      "text": "출발했어. 끝까지 버텨라.",
+      "text": "고스트가 먼저 출발했다. 침착하게 따라가자.",
       "file": "/tts-cache/start_003.mp3"
+    },
+    "start_004": {
+      "category": "start",
+      "text": "오늘은 과거의 나를 이기는 날이다.",
+      "file": "/tts-cache/start_004.mp3"
+    },
+    "start_005": {
+      "category": "start",
+      "text": "좋아. 첫걸음부터 리듬을 만들자.",
+      "file": "/tts-cache/start_005.mp3"
     },
     "warmup_001": {
       "category": "warmup",
-      "text": "좋아. 지금 리듬 괜찮아.",
+      "text": "아직 몸을 푸는 구간이다. 서두르지 마.",
       "file": "/tts-cache/warmup_001.mp3"
     },
     "warmup_002": {
       "category": "warmup",
-      "text": "호흡은 길게, 발은 가볍게.",
+      "text": "호흡은 길게. 발걸음은 가볍게.",
       "file": "/tts-cache/warmup_002.mp3"
     },
     "warmup_003": {
       "category": "warmup",
-      "text": "초반은 차분하게. 몸을 천천히 깨우자.",
+      "text": "초반은 아끼는 사람이 후반에 웃는다.",
       "file": "/tts-cache/warmup_003.mp3"
+    },
+    "warmup_004": {
+      "category": "warmup",
+      "text": "리듬만 만들면 충분하다.",
+      "file": "/tts-cache/warmup_004.mp3"
+    },
+    "warmup_005": {
+      "category": "warmup",
+      "text": "지금은 편하게 달려도 된다.",
+      "file": "/tts-cache/warmup_005.mp3"
     },
     "ahead_001": {
       "category": "ahead",
-      "text": "어제의 너보다 앞서고 있어. 이 페이스 유지해.",
+      "text": "좋아. 고스트보다 3초 앞서고 있다.",
       "file": "/tts-cache/ahead_001.mp3"
     },
     "ahead_002": {
       "category": "ahead",
-      "text": "조금 앞서고 있어. 지금 흐름 좋아.",
+      "text": "5초 리드다. 이 페이스를 유지하자.",
       "file": "/tts-cache/ahead_002.mp3"
     },
     "ahead_003": {
       "category": "ahead",
-      "text": "꽤 앞서고 있어. 욕심내지 말고 유지하자.",
+      "text": "20미터 앞섰다. 흔들리지 마.",
       "file": "/tts-cache/ahead_003.mp3"
+    },
+    "ahead_004": {
+      "category": "ahead",
+      "text": "10초 앞이다. 욕심내지 말고 유지하자.",
+      "file": "/tts-cache/ahead_004.mp3"
+    },
+    "ahead_005": {
+      "category": "ahead",
+      "text": "50미터 차이를 만들었다. 아주 좋다.",
+      "file": "/tts-cache/ahead_005.mp3"
+    },
+    "ahead_006": {
+      "category": "ahead",
+      "text": "과거의 나를 앞질렀다. 그대로 간다.",
+      "file": "/tts-cache/ahead_006.mp3"
+    },
+    "ahead_007": {
+      "category": "ahead",
+      "text": "이 흐름이면 오늘 기록이 바뀐다.",
+      "file": "/tts-cache/ahead_007.mp3"
+    },
+    "ahead_008": {
+      "category": "ahead",
+      "text": "리드를 지키고 있다. 지금 리듬이 좋다.",
+      "file": "/tts-cache/ahead_008.mp3"
     },
     "behind_001": {
       "category": "behind",
-      "text": "조금 뒤처졌어. 호흡부터 다시 잡자.",
+      "text": "고스트보다 3초 뒤다. 금방 따라간다.",
       "file": "/tts-cache/behind_001.mp3"
     },
     "behind_002": {
       "category": "behind",
-      "text": "아직 충분히 따라갈 수 있어.",
+      "text": "5초 차이다. 아직 충분하다.",
       "file": "/tts-cache/behind_002.mp3"
     },
     "behind_003": {
       "category": "behind",
-      "text": "괜찮아. 리듬을 되찾으면 다시 붙을 수 있어.",
+      "text": "20미터 앞서 있다. 리듬을 되찾자.",
       "file": "/tts-cache/behind_003.mp3"
+    },
+    "behind_004": {
+      "category": "behind",
+      "text": "10초 차이는 금방 줄일 수 있다.",
+      "file": "/tts-cache/behind_004.mp3"
+    },
+    "behind_005": {
+      "category": "behind",
+      "text": "50미터 정도다. 포기하기엔 너무 가깝다.",
+      "file": "/tts-cache/behind_005.mp3"
+    },
+    "behind_006": {
+      "category": "behind",
+      "text": "조금만 더 밀면 다시 붙는다.",
+      "file": "/tts-cache/behind_006.mp3"
+    },
+    "behind_007": {
+      "category": "behind",
+      "text": "호흡부터 정리하자.",
+      "file": "/tts-cache/behind_007.mp3"
+    },
+    "behind_008": {
+      "category": "behind",
+      "text": "아직 승부는 끝나지 않았다.",
+      "file": "/tts-cache/behind_008.mp3"
     },
     "close_001": {
       "category": "close",
-      "text": "거의 따라잡았어. 지금부터 집중하자.",
+      "text": "3초 차이다. 거의 붙었다.",
       "file": "/tts-cache/close_001.mp3"
     },
     "close_002": {
       "category": "close",
-      "text": "차이가 거의 없어. 한 번만 더 밀어붙여.",
+      "text": "10미터 앞이다. 잡을 수 있다.",
       "file": "/tts-cache/close_002.mp3"
     },
     "close_003": {
       "category": "close",
-      "text": "바로 앞이야. 흔들리지 말고 따라가자.",
+      "text": "거의 나란히 달리고 있다.",
       "file": "/tts-cache/close_003.mp3"
+    },
+    "close_004": {
+      "category": "close",
+      "text": "지금이 추월할 기회다.",
+      "file": "/tts-cache/close_004.mp3"
+    },
+    "close_005": {
+      "category": "close",
+      "text": "한 번만 더 밀면 앞선다.",
+      "file": "/tts-cache/close_005.mp3"
+    },
+    "close_006": {
+      "category": "close",
+      "text": "고스트가 바로 눈앞이다.",
+      "file": "/tts-cache/close_006.mp3"
+    },
+    "close_007": {
+      "category": "close",
+      "text": "지금 추월해 보자.",
+      "file": "/tts-cache/close_007.mp3"
+    },
+    "close_008": {
+      "category": "close",
+      "text": "거의 따라잡았다.",
+      "file": "/tts-cache/close_008.mp3"
+    },
+    "overtake_001": {
+      "category": "overtake",
+      "text": "좋아! 방금 고스트를 추월했다.",
+      "file": "/tts-cache/overtake_001.mp3"
+    },
+    "overtake_002": {
+      "category": "overtake",
+      "text": "과거의 나를 넘어섰다.",
+      "file": "/tts-cache/overtake_002.mp3"
+    },
+    "overtake_003": {
+      "category": "overtake",
+      "text": "이제 네가 앞이다.",
+      "file": "/tts-cache/overtake_003.mp3"
+    },
+    "overtake_004": {
+      "category": "overtake",
+      "text": "역전 성공. 그대로 유지하자.",
+      "file": "/tts-cache/overtake_004.mp3"
+    },
+    "overtake_005": {
+      "category": "overtake",
+      "text": "멋진 추월이다.",
+      "file": "/tts-cache/overtake_005.mp3"
+    },
+    "overtake_006": {
+      "category": "overtake",
+      "text": "좋아. 리드를 만들자.",
+      "file": "/tts-cache/overtake_006.mp3"
+    },
+    "overtaken_001": {
+      "category": "overtaken",
+      "text": "고스트에게 다시 추월당했다.",
+      "file": "/tts-cache/overtaken_001.mp3"
+    },
+    "overtaken_002": {
+      "category": "overtaken",
+      "text": "아직 5초 차이다.",
+      "file": "/tts-cache/overtaken_002.mp3"
+    },
+    "overtaken_003": {
+      "category": "overtaken",
+      "text": "금방 따라잡을 수 있다.",
+      "file": "/tts-cache/overtaken_003.mp3"
+    },
+    "overtaken_004": {
+      "category": "overtaken",
+      "text": "리듬만 되찾으면 된다.",
+      "file": "/tts-cache/overtaken_004.mp3"
+    },
+    "overtaken_005": {
+      "category": "overtaken",
+      "text": "아직 기회는 충분하다.",
+      "file": "/tts-cache/overtaken_005.mp3"
+    },
+    "overtaken_006": {
+      "category": "overtaken",
+      "text": "포기하기엔 너무 이르다.",
+      "file": "/tts-cache/overtaken_006.mp3"
     },
     "halfway_001": {
       "category": "halfway",
-      "text": "절반을 넘었어. 지금부터 버티는 사람이 이긴다.",
+      "text": "절반을 넘었다.",
       "file": "/tts-cache/halfway_001.mp3"
     },
     "halfway_002": {
       "category": "halfway",
-      "text": "반 이상 왔어. 페이스를 안정적으로 가져가자.",
+      "text": "이제부터 진짜 승부다.",
       "file": "/tts-cache/halfway_002.mp3"
     },
     "halfway_003": {
       "category": "halfway",
-      "text": "중간 지점 통과. 아직 힘은 남아 있어.",
+      "text": "반 이상 왔다.",
       "file": "/tts-cache/halfway_003.mp3"
     },
-    "one_km_left_001": {
-      "category": "one_km_left",
-      "text": "마지막 1킬로미터야. 지금부터가 진짜 승부다.",
-      "file": "/tts-cache/one_km_left_001.mp3"
+    "halfway_004": {
+      "category": "halfway",
+      "text": "여기서 버티는 사람이 이긴다.",
+      "file": "/tts-cache/halfway_004.mp3"
     },
-    "one_km_left_002": {
-      "category": "one_km_left",
-      "text": "1킬로미터 남았어. 여기서 포기하면 안 돼.",
-      "file": "/tts-cache/one_km_left_002.mp3"
-    },
-    "one_km_left_003": {
-      "category": "one_km_left",
-      "text": "마지막 구간이야. 자세 무너지지 않게 버텨.",
-      "file": "/tts-cache/one_km_left_003.mp3"
-    },
-    "finish_push_001": {
-      "category": "finish_push",
-      "text": "끝이 보인다. 마지막까지 밀어붙여.",
-      "file": "/tts-cache/finish_push_001.mp3"
-    },
-    "finish_push_002": {
-      "category": "finish_push",
-      "text": "지금부터 마무리야. 한 걸음만 더 버텨.",
-      "file": "/tts-cache/finish_push_002.mp3"
-    },
-    "finish_push_003": {
-      "category": "finish_push",
-      "text": "마지막 힘을 꺼낼 시간이야.",
-      "file": "/tts-cache/finish_push_003.mp3"
+    "halfway_005": {
+      "category": "halfway",
+      "text": "지금 페이스를 유지하자.",
+      "file": "/tts-cache/halfway_005.mp3"
     },
     "personal_record_001": {
       "category": "personal_record",
-      "text": "개인 기록이 보인다. 이 페이스면 충분해.",
+      "text": "개인 최고 기록보다 5초 빠르다.",
       "file": "/tts-cache/personal_record_001.mp3"
     },
     "personal_record_002": {
       "category": "personal_record",
-      "text": "오늘 기록 좋다. 끝까지 유지해.",
+      "text": "이대로면 새로운 기록이다.",
       "file": "/tts-cache/personal_record_002.mp3"
     },
     "personal_record_003": {
       "category": "personal_record",
-      "text": "새 기록에 가까워지고 있어. 흔들리지 마.",
+      "text": "10초 단축 페이스다.",
       "file": "/tts-cache/personal_record_003.mp3"
+    },
+    "personal_record_004": {
+      "category": "personal_record",
+      "text": "오늘 기록이 정말 좋다.",
+      "file": "/tts-cache/personal_record_004.mp3"
+    },
+    "personal_record_005": {
+      "category": "personal_record",
+      "text": "끝까지 유지하면 최고 기록이다.",
+      "file": "/tts-cache/personal_record_005.mp3"
+    },
+    "personal_record_006": {
+      "category": "personal_record",
+      "text": "오늘의 네가 가장 빠르다.",
+      "file": "/tts-cache/personal_record_006.mp3"
     },
     "tired_001": {
       "category": "tired",
-      "text": "힘든 구간이야. 어깨 힘 빼고 호흡을 길게 가져가.",
+      "text": "힘든 건 정상이다.",
       "file": "/tts-cache/tired_001.mp3"
     },
     "tired_002": {
       "category": "tired",
-      "text": "다리가 무거워도 리듬은 놓치지 마.",
+      "text": "어깨 힘을 빼자.",
       "file": "/tts-cache/tired_002.mp3"
     },
     "tired_003": {
       "category": "tired",
-      "text": "지금 힘든 건 정상이다. 한 번 더 버텨.",
+      "text": "다리가 무거워도 괜찮다.",
       "file": "/tts-cache/tired_003.mp3"
+    },
+    "tired_004": {
+      "category": "tired",
+      "text": "호흡을 길게 가져가.",
+      "file": "/tts-cache/tired_004.mp3"
+    },
+    "tired_005": {
+      "category": "tired",
+      "text": "리듬만 잃지 말자.",
+      "file": "/tts-cache/tired_005.mp3"
+    },
+    "tired_006": {
+      "category": "tired",
+      "text": "지금 버티면 다시 살아난다.",
+      "file": "/tts-cache/tired_006.mp3"
     },
     "slow_down_001": {
       "category": "slow_down",
-      "text": "호흡이 거칠면 살짝 늦춰도 괜찮아.",
+      "text": "호흡이 거칠다. 조금만 늦추자.",
       "file": "/tts-cache/slow_down_001.mp3"
     },
     "slow_down_002": {
       "category": "slow_down",
-      "text": "무리하지 말고 자세부터 다시 세우자.",
+      "text": "속도보다 리듬이 중요하다.",
       "file": "/tts-cache/slow_down_002.mp3"
     },
     "slow_down_003": {
       "category": "slow_down",
-      "text": "속도보다 완주가 먼저야. 안정적으로 가자.",
+      "text": "잠깐 회복하자.",
       "file": "/tts-cache/slow_down_003.mp3"
+    },
+    "slow_down_004": {
+      "category": "slow_down",
+      "text": "조금만 천천히 가도 괜찮다.",
+      "file": "/tts-cache/slow_down_004.mp3"
+    },
+    "slow_down_005": {
+      "category": "slow_down",
+      "text": "리듬을 다시 만들자.",
+      "file": "/tts-cache/slow_down_005.mp3"
+    },
+    "one_km_left_001": {
+      "category": "one_km_left",
+      "text": "1킬로미터 남았다.",
+      "file": "/tts-cache/one_km_left_001.mp3"
+    },
+    "one_km_left_002": {
+      "category": "one_km_left",
+      "text": "1000미터 남았다.",
+      "file": "/tts-cache/one_km_left_002.mp3"
+    },
+    "one_km_left_003": {
+      "category": "one_km_left",
+      "text": "이제부터가 진짜 시작이다.",
+      "file": "/tts-cache/one_km_left_003.mp3"
+    },
+    "one_km_left_004": {
+      "category": "one_km_left",
+      "text": "마지막 1킬로미터다.",
+      "file": "/tts-cache/one_km_left_004.mp3"
+    },
+    "one_km_left_005": {
+      "category": "one_km_left",
+      "text": "끝까지 버텨 보자.",
+      "file": "/tts-cache/one_km_left_005.mp3"
+    },
+    "one_km_left_006": {
+      "category": "one_km_left",
+      "text": "고스트를 잡을 마지막 기회다.",
+      "file": "/tts-cache/one_km_left_006.mp3"
+    },
+    "finish_push_001": {
+      "category": "finish_push",
+      "text": "500미터 남았다.",
+      "file": "/tts-cache/finish_push_001.mp3"
+    },
+    "finish_push_002": {
+      "category": "finish_push",
+      "text": "300미터 남았다.",
+      "file": "/tts-cache/finish_push_002.mp3"
+    },
+    "finish_push_003": {
+      "category": "finish_push",
+      "text": "200미터다. 조금만 더.",
+      "file": "/tts-cache/finish_push_003.mp3"
+    },
+    "finish_push_004": {
+      "category": "finish_push",
+      "text": "100미터 남았다.",
+      "file": "/tts-cache/finish_push_004.mp3"
+    },
+    "finish_push_005": {
+      "category": "finish_push",
+      "text": "50미터다. 끝까지 밀자.",
+      "file": "/tts-cache/finish_push_005.mp3"
+    },
+    "finish_push_006": {
+      "category": "finish_push",
+      "text": "결승선이 보인다.",
+      "file": "/tts-cache/finish_push_006.mp3"
+    },
+    "finish_push_007": {
+      "category": "finish_push",
+      "text": "팔을 더 크게 흔들자.",
+      "file": "/tts-cache/finish_push_007.mp3"
+    },
+    "finish_push_008": {
+      "category": "finish_push",
+      "text": "마지막까지 간다.",
+      "file": "/tts-cache/finish_push_008.mp3"
+    },
+    "encouragement_001": {
+      "category": "encouragement",
+      "text": "좋아. 지금 리듬이 정말 좋다.",
+      "file": "/tts-cache/encouragement_001.mp3"
+    },
+    "encouragement_002": {
+      "category": "encouragement",
+      "text": "한 걸음씩만 가면 된다.",
+      "file": "/tts-cache/encouragement_002.mp3"
+    },
+    "encouragement_003": {
+      "category": "encouragement",
+      "text": "오늘의 네가 어제보다 강하다.",
+      "file": "/tts-cache/encouragement_003.mp3"
+    },
+    "encouragement_004": {
+      "category": "encouragement",
+      "text": "포기하지 마. 아직 끝나지 않았다.",
+      "file": "/tts-cache/encouragement_004.mp3"
+    },
+    "encouragement_005": {
+      "category": "encouragement",
+      "text": "리듬만 유지하면 충분하다.",
+      "file": "/tts-cache/encouragement_005.mp3"
+    },
+    "encouragement_006": {
+      "category": "encouragement",
+      "text": "좋아. 계속 밀어붙이자.",
+      "file": "/tts-cache/encouragement_006.mp3"
+    },
+    "encouragement_007": {
+      "category": "encouragement",
+      "text": "호흡이 안정적이다. 그대로 간다.",
+      "file": "/tts-cache/encouragement_007.mp3"
+    },
+    "encouragement_008": {
+      "category": "encouragement",
+      "text": "오늘 기록이 기대된다.",
+      "file": "/tts-cache/encouragement_008.mp3"
+    },
+    "encouragement_009": {
+      "category": "encouragement",
+      "text": "지금처럼만 달리면 된다.",
+      "file": "/tts-cache/encouragement_009.mp3"
+    },
+    "encouragement_010": {
+      "category": "encouragement",
+      "text": "끝까지 버티는 사람이 승리한다.",
+      "file": "/tts-cache/encouragement_010.mp3"
     },
     "completed_001": {
       "category": "completed",
-      "text": "러닝 완료. 오늘도 끝까지 버텼다.",
+      "text": "러닝 완료. 오늘도 과거의 나를 이겼다.",
       "file": "/tts-cache/completed_001.mp3"
     },
     "completed_002": {
       "category": "completed",
-      "text": "끝냈어. 오늘의 너는 어제보다 강해졌다.",
+      "text": "완주 성공. 정말 잘했다.",
       "file": "/tts-cache/completed_002.mp3"
     },
     "completed_003": {
       "category": "completed",
-      "text": "완주 성공. 이 기록은 네가 만든 거야.",
+      "text": "오늘의 기록이 내일의 고스트가 된다.",
       "file": "/tts-cache/completed_003.mp3"
+    },
+    "completed_004": {
+      "category": "completed",
+      "text": "끝까지 버텼다. 이것이 오늘의 승리다.",
+      "file": "/tts-cache/completed_004.mp3"
+    },
+    "completed_005": {
+      "category": "completed",
+      "text": "고스트 런 종료. 다음에는 더 강한 너를 만난다.",
+      "file": "/tts-cache/completed_005.mp3"
     }
   }
 }

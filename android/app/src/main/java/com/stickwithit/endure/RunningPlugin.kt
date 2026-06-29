@@ -92,7 +92,6 @@ class RunningPlugin : Plugin() {
             putExtra(RunningForegroundService.EXTRA_SESSION_ID, options.getString("sessionId", "native-${System.currentTimeMillis()}"))
             putExtra(RunningForegroundService.EXTRA_TARGET_DISTANCE_METERS, options.optDouble("targetDistanceMeters", 0.0))
             putExtra(RunningForegroundService.EXTRA_GHOST_RUNNERS_JSON, options.optString("ghostRunnersJson", "[]"))
-            putExtra(RunningForegroundService.EXTRA_VOICE_TYPE, options.optString("voiceType", "type2"))
         }
         ContextCompat.startForegroundService(context, intent)
         call.resolve()
@@ -131,23 +130,10 @@ class RunningPlugin : Plugin() {
     fun playCoachAudio(call: PluginCall) {
         val file = call.getString("file", "")
         val fallbackText = call.getString("fallbackText", "")
-        val voiceType = call.getString("voiceType", "type2")
         val intent = Intent(context, RunningForegroundService::class.java).apply {
             action = RunningForegroundService.ACTION_PLAY_COACH_AUDIO
             putExtra(RunningForegroundService.EXTRA_FILE, file)
             putExtra(RunningForegroundService.EXTRA_TEXT, fallbackText)
-            putExtra(RunningForegroundService.EXTRA_VOICE_TYPE, voiceType)
-        }
-        ContextCompat.startForegroundService(context, intent)
-        call.resolve()
-    }
-
-    @PluginMethod
-    fun setCoachVoiceType(call: PluginCall) {
-        val voiceType = call.getString("voiceType", "type2")
-        val intent = Intent(context, RunningForegroundService::class.java).apply {
-            action = RunningForegroundService.ACTION_COACH_VOICE_TYPE
-            putExtra(RunningForegroundService.EXTRA_VOICE_TYPE, voiceType)
         }
         ContextCompat.startForegroundService(context, intent)
         call.resolve()
