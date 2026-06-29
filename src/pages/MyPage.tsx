@@ -1,4 +1,4 @@
-import { Activity, ChevronDown, Edit3, Ghost, LogOut, RotateCcw, Settings } from 'lucide-react';
+import { Activity, Edit3, Ghost, LogOut, RotateCcw, Settings } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   defaultGhostSettings,
@@ -75,82 +75,67 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
           </button>
         </div>
 
-        <div className="ghost-slot-tabs" aria-label="고스트 선택">
+        <div className="ghost-selector-menu" aria-label="고스트 선택">
           {settings.map((ghost, index) => (
             <button
-              className={`ghost-slot-tab ${ghostAccents[index]} ${selectedIndex === index ? 'active' : ''}`}
+              className={`ghost-selector-item ${ghostAccents[index]} ${selectedIndex === index ? 'active' : ''}`}
               key={ghost.key}
               type="button"
               onClick={() => setSelectedIndex(index)}
             >
-              <Ghost size={34} />
-              <strong>{ghost.defaultName}</strong>
+              <b>{ghost.defaultName}</b>
+              <span>{ghost.description}</span>
+              <strong>{ghostDisplayName(ghost.key, settings)}</strong>
             </button>
           ))}
         </div>
 
         <div className="ghost-settings-list">
-          {settings.map((ghost, index) => {
-            const displayName = ghostDisplayName(ghost.key, settings);
-            const active = selectedIndex === index;
-
-            return active ? (
-              <article className={`ghost-setting-card expanded ${ghostAccents[index]}`} key={ghost.key}>
-                <div className="ghost-setting-card-title">
-                  <div>
-                    <b>{ghost.defaultName}</b>
-                    <strong>{displayName}</strong>
-                    <span>{ghost.description}</span>
-                  </div>
-                  <button type="button" aria-label={`${displayName} 이름 수정`}>
-                    <Edit3 size={23} />
-                  </button>
+          {selectedGhost && (
+            <article className={`ghost-setting-card expanded ${ghostAccents[selectedIndex]}`} key={selectedGhost.key}>
+              <div className="ghost-setting-card-title">
+                <div>
+                  <b>{selectedGhost.defaultName}</b>
+                  <strong>{ghostDisplayName(selectedGhost.key, settings)}</strong>
+                  <span>{selectedGhost.description}</span>
                 </div>
+                <button type="button" aria-label={`${ghostDisplayName(selectedGhost.key, settings)} 이름 수정`}>
+                  <Edit3 size={23} />
+                </button>
+              </div>
 
-                <label>
-                  이름
+              <label>
+                이름
+                <input
+                  maxLength={16}
+                  type="text"
+                  value={selectedGhost.name}
+                  placeholder={selectedGhost.defaultName}
+                  onChange={(event) => updateSetting(selectedIndex, { name: event.target.value })}
+                />
+              </label>
+
+              <label>
+                평균속도
+                <div className="speed-input-shell">
+                  <Activity size={28} aria-hidden="true" />
                   <input
-                    maxLength={16}
-                    type="text"
-                    value={ghost.name}
-                    placeholder={ghost.defaultName}
-                    onChange={(event) => updateSetting(index, { name: event.target.value })}
+                    inputMode="decimal"
+                    min="1"
+                    max="30"
+                    step="0.1"
+                    type="number"
+                    value={selectedGhost.averageSpeedKmh ?? ''}
+                    placeholder="10.5"
+                    onChange={(event) => updateSetting(selectedIndex, { averageSpeedKmh: event.target.value === '' ? null : Number(event.target.value) })}
                   />
-                </label>
+                  <small>km/h</small>
+                </div>
+              </label>
 
-                <label>
-                  평균속도
-                  <div className="speed-input-shell">
-                    <Activity size={28} aria-hidden="true" />
-                    <input
-                      inputMode="decimal"
-                      min="1"
-                      max="30"
-                      step="0.1"
-                      type="number"
-                      value={ghost.averageSpeedKmh ?? ''}
-                      placeholder="10.5"
-                      onChange={(event) => updateSetting(index, { averageSpeedKmh: event.target.value === '' ? null : Number(event.target.value) })}
-                    />
-                    <small>km/h</small>
-                  </div>
-                </label>
-
-                <SpeedGraph speedKmh={ghost.averageSpeedKmh ?? 10.5} seed={ghost.key} />
-              </article>
-            ) : (
-              <button
-                className={`ghost-setting-card collapsed ${ghostAccents[index]}`}
-                key={ghost.key}
-                type="button"
-                onClick={() => setSelectedIndex(index)}
-              >
-                <span>{ghost.defaultName}</span>
-                <strong>{displayName}</strong>
-                <ChevronDown size={26} />
-              </button>
-            );
-          })}
+              <SpeedGraph speedKmh={selectedGhost.averageSpeedKmh ?? 10.5} seed={selectedGhost.key} />
+            </article>
+          )}
         </div>
       </section>
 
