@@ -20,6 +20,16 @@ describe('ghostSettings', () => {
     expect(ghostDisplayName('slowGhost', settings)).toBe('G5');
   });
 
+  it('restores default speeds when a speed is blank', () => {
+    const settings = normalizeGhostSettings([
+      { key: 'bestGhost', averageSpeedKmh: '' },
+      { key: 'averageGhost', averageSpeedKmh: null },
+    ]);
+
+    expect(settings[0].averageSpeedKmh).toBe(12);
+    expect(settings[1].averageSpeedKmh).toBe(10.5);
+  });
+
   it('keeps names by slot when the ghost runner changes', () => {
     const settings = normalizeGhostSettings([
       { key: 'bestGhost', name: '스피드' },
@@ -45,13 +55,13 @@ describe('ghostSettings', () => {
     const settings = defaultGhostSettings();
     settings[0] = { ...settings[0], averageSpeedKmh: 12 };
     const ghosts = applyGhostSettingsToRunners({
-      runners: [{ key: 'bestGhost', totalDistanceMeters: 3000, totalElapsedSeconds: 1200, checkpoints: [{ elapsedSeconds: 60 }] }],
+      runners: [{ key: 'bestGhost', totalDistanceMeters: 3000, totalElapsedSeconds: 1200, checkpoints: [{ elapsedSeconds: 60, distanceMeters: 150 }] }],
       settings,
       targetDistanceKm: 3,
     });
 
     expect(ghosts[0].totalElapsedSeconds).toBe(900);
-    expect(ghosts[0].checkpoints).toEqual([]);
+    expect(ghosts[0].checkpoints).toEqual([{ elapsedSeconds: 45, distanceMeters: 150 }]);
   });
 
   it('creates a configured speed ghost even when no past run exists', () => {
@@ -59,9 +69,9 @@ describe('ghostSettings', () => {
     settings[1] = { ...settings[1], averageSpeedKmh: 10 };
     const ghosts = applyGhostSettingsToRunners({ runners: [], settings, targetDistanceKm: 5 });
 
-    expect(ghosts).toHaveLength(1);
-    expect(ghosts[0].key).toBe('averageGhost');
-    expect(ghosts[0].label).toBe('G2');
-    expect(ghosts[0].totalElapsedSeconds).toBe(1800);
+    expect(ghosts).toHaveLength(5);
+    expect(ghosts[1].key).toBe('averageGhost');
+    expect(ghosts[1].label).toBe('G2');
+    expect(ghosts[1].totalElapsedSeconds).toBe(1800);
   });
 });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { readLocalRuns, saveLocalRun } from './localRuns';
+import { deleteLocalRuns, readLocalRuns, saveLocalRun } from './localRuns';
 
 describe('localRuns', () => {
   beforeEach(() => {
@@ -37,5 +37,14 @@ describe('localRuns', () => {
 
     expect(readLocalRuns('user-1')).toEqual([]);
     expect(window.localStorage.getItem('stickwithit:completed-runs')).toBeNull();
+  });
+
+  it('deletes local runs for only one user', () => {
+    saveLocalRun('user-1', { id: 'one', started_at: '2026-06-27T09:00:00.000Z' });
+    saveLocalRun('user-2', { id: 'two', started_at: '2026-06-27T10:00:00.000Z' });
+
+    expect(deleteLocalRuns('user-1')).toBe(1);
+    expect(readLocalRuns('user-1')).toEqual([]);
+    expect(readLocalRuns('user-2').map((run) => run.id)).toEqual(['two']);
   });
 });

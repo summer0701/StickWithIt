@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { createTestSession, isTestCredentials, saveTestSession } from '../lib/testAuth';
+import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
 
 export default function LoginPage({ onTestLogin }) {
   const [email, setEmail] = useState('');
@@ -16,9 +16,14 @@ export default function LoginPage({ onTestLogin }) {
     const login = email.trim();
 
     if (mode === 'password' && isTestCredentials(login, password)) {
-      const testSession = createTestSession();
-      saveTestSession(testSession);
-      onTestLogin?.(testSession);
+      const response = await signInTestAccount();
+      if (response.data?.session) {
+        clearTestSession();
+      } else {
+        const testSession = createTestSession();
+        saveTestSession(testSession);
+        onTestLogin?.(testSession);
+      }
       setMessage('로그인되었습니다.');
       setSubmitting(false);
       return;
@@ -86,4 +91,18 @@ export default function LoginPage({ onTestLogin }) {
       </section>
     </main>
   );
+}
+
+async function signInTestAccount() {
+  const signIn = await supabase.auth.signInWithPassword({
+    email: TEST_ACCOUNT.email,
+    password: TEST_ACCOUNT.password,
+  });
+  if (!signIn.error) return signIn;
+
+  return supabase.auth.signUp({
+    email: TEST_ACCOUNT.email,
+    password: TEST_ACCOUNT.password,
+    options: { data: { nickname: TEST_ACCOUNT.login } },
+  });
 }

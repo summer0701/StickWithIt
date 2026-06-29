@@ -28,12 +28,13 @@ export const GHOST_SETTING_SLOTS: Array<Pick<GhostSetting, 'key' | 'defaultName'
 const STORAGE_PREFIX = 'stickWithit:ghost-settings:';
 const MIN_GHOST_SPEED_KMH = 1;
 const MAX_GHOST_SPEED_KMH = 30;
+const DEFAULT_GHOST_SPEEDS_KMH = [12, 10.5, 10, 10.8, 8.5];
 
 export function defaultGhostSettings(): GhostSetting[] {
-  return GHOST_SETTING_SLOTS.map((slot) => ({
+  return GHOST_SETTING_SLOTS.map((slot, index) => ({
     ...slot,
     name: '',
-    averageSpeedKmh: null,
+    averageSpeedKmh: DEFAULT_GHOST_SPEEDS_KMH[index] ?? 10.5,
   }));
 }
 
@@ -41,7 +42,7 @@ export function normalizeGhostSettings(value: unknown): GhostSetting[] {
   const source = Array.isArray(value) ? value : [];
   return defaultGhostSettings().map((slot, index) => {
     const item = source.find((candidate) => candidate?.key === slot.key) ?? source[index] ?? {};
-    const speed = normalizeGhostSpeed((item as Partial<GhostSetting>).averageSpeedKmh);
+    const speed = normalizeGhostSpeed((item as Partial<GhostSetting>).averageSpeedKmh, slot.averageSpeedKmh);
 
     return {
       ...slot,
@@ -113,7 +114,7 @@ export function applyGhostSettingsToRunners({
         label: ghostDisplayName(slot.key, normalizedSettings),
         totalDistanceMeters,
         totalElapsedSeconds: speedToElapsedSeconds(totalDistanceMeters, slot.averageSpeedKmh),
-        checkpoints: [],
+        checkpoints: scaleGhostCheckpoints(base, totalDistanceMeters, speedToElapsedSeconds(totalDistanceMeters, slot.averageSpeedKmh)),
         averageSpeedKmh: slot.averageSpeedKmh,
       };
     })
@@ -133,14 +134,29 @@ function speedToElapsedSeconds(distanceMeters: number, averageSpeedKmh: number |
   return Math.round((distanceMeters / 1000 / averageSpeedKmh) * 3600);
 }
 
+function scaleGhostCheckpoints(runner: GhostRunnerLike, targetDistanceMeters: number, targetElapsedSeconds: number) {
+  const checkpoints = Array.isArray(runner.checkpoints) ? runner.checkpoints : [];
+  if (checkpoints.length === 0 || targetDistanceMeters <= 0 || targetElapsedSeconds <= 0) return [];
+
+  const sourceDistanceMeters = Math.max(1, Number(runner.totalDistanceMeters) || targetDistanceMeters);
+  const sourceElapsedSeconds = Math.max(1, Number(runner.totalElapsedSeconds) || targetElapsedSeconds);
+
+  return checkpoints
+    .map((checkpoint: any) => ({
+      elapsedSeconds: Math.max(1, Math.round((Number(checkpoint.elapsedSeconds) / sourceElapsedSeconds) * targetElapsedSeconds)),
+      distanceMeters: Number(((Math.max(0, Number(checkpoint.distanceMeters) || 0) / sourceDistanceMeters) * targetDistanceMeters).toFixed(3)),
+    }))
+    .filter((checkpoint) => Number.isFinite(checkpoint.elapsedSeconds) && Number.isFinite(checkpoint.distanceMeters));
+}
+
 function normalizeGhostName(value: unknown) {
   return typeof value === 'string' ? value.trim().slice(0, 16) : '';
 }
 
-function normalizeGhostSpeed(value: unknown) {
-  if (value == null || value === '') return null;
+function normalizeGhostSpeed(value: unknown, fallback: number) {
+  if (value == null || value === '') return fallback;
   const speed = Number(value);
-  if (!Number.isFinite(speed) || speed <= 0) return null;
+  if (!Number.isFinite(speed) || speed <= 0) return fallback;
   return Math.min(MAX_GHOST_SPEED_KMH, Math.max(MIN_GHOST_SPEED_KMH, Number(speed.toFixed(1))));
 }
 

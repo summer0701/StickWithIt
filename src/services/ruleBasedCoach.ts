@@ -91,7 +91,7 @@ export function buildGhostRunners(
     .slice(0, 5);
 
   if (runs.length === 0) {
-    return applyGhostSettingsToRunners({ runners: [], settings: ghostSettings, targetDistanceKm });
+    return [];
   }
 
   if (runs.length === 1) {
@@ -310,7 +310,7 @@ function normalizeRun(run, recentCheckpoints) {
     return null;
   }
 
-  const checkpoints = recentCheckpoints
+  const rawCheckpoints = recentCheckpoints
     .filter((checkpoint) => checkpoint.run_id === id)
     .map((checkpoint) => ({
       elapsedSeconds: Number(checkpoint.elapsed_seconds),
@@ -327,7 +327,7 @@ function normalizeRun(run, recentCheckpoints) {
     totalDistanceMeters: distanceMeters,
     totalElapsedSeconds: elapsedSeconds,
     paceSecondsPerKm: elapsedSeconds / (distanceMeters / 1000),
-    checkpoints,
+    checkpoints: interpolateRunCheckpoints(rawCheckpoints, elapsedSeconds, distanceMeters),
   };
 }
 
@@ -344,12 +344,7 @@ function ghostFromRun(key, run) {
 }
 
 function runToBaseGhost(run) {
-  const checkpoints = run.checkpoints?.length
-    ? [{ elapsedSeconds: 0, distanceMeters: 0 }, ...run.checkpoints]
-    : [
-        { elapsedSeconds: 0, distanceMeters: 0 },
-        { elapsedSeconds: run.totalElapsedSeconds, distanceMeters: run.totalDistanceMeters },
-      ];
+  const checkpoints = interpolateRunCheckpoints(run.checkpoints, run.totalElapsedSeconds, run.totalDistanceMeters);
 
   return {
     id: run.id,
@@ -360,6 +355,60 @@ function runToBaseGhost(run) {
       distance: Number(checkpoint.distanceMeters),
     })),
   };
+}
+
+function interpolateRunCheckpoints(checkpoints = [], totalElapsedSeconds, totalDistanceMeters) {
+  const totalElapsed = Math.max(1, Number(totalElapsedSeconds) || 1);
+  const totalDistance = Math.max(0, Number(totalDistanceMeters) || 0);
+  const anchors = [
+    { elapsedSeconds: 0, distanceMeters: 0 },
+    ...checkpoints
+      .map((checkpoint) => ({
+        elapsedSeconds: Math.max(0, Number(checkpoint.elapsedSeconds) || 0),
+        distanceMeters: Math.max(0, Number(checkpoint.distanceMeters) || 0),
+      }))
+      .filter((checkpoint) => checkpoint.elapsedSeconds > 0 && checkpoint.elapsedSeconds < totalElapsed),
+    { elapsedSeconds: totalElapsed, distanceMeters: totalDistance },
+  ]
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds)
+    .reduce((items, checkpoint) => {
+      const previous = items[items.length - 1];
+      const distanceMeters = Math.max(previous?.distanceMeters ?? 0, checkpoint.distanceMeters);
+      if (previous && Math.abs(previous.elapsedSeconds - checkpoint.elapsedSeconds) < 1) {
+        items[items.length - 1] = { elapsedSeconds: previous.elapsedSeconds, distanceMeters };
+      } else {
+        items.push({ elapsedSeconds: checkpoint.elapsedSeconds, distanceMeters });
+      }
+      return items;
+    }, []);
+
+  const interpolated = [];
+  for (let elapsedSeconds = 0; elapsedSeconds < totalElapsed; elapsedSeconds += 60) {
+    interpolated.push({
+      elapsedSeconds,
+      distanceMeters: Number(distanceAtInterpolatedElapsed(anchors, elapsedSeconds).toFixed(3)),
+    });
+  }
+
+  if (interpolated[interpolated.length - 1]?.elapsedSeconds !== totalElapsed) {
+    interpolated.push({ elapsedSeconds: totalElapsed, distanceMeters: totalDistance });
+  }
+
+  return interpolated;
+}
+
+function distanceAtInterpolatedElapsed(points, elapsedSeconds) {
+  const after = points.find((point) => point.elapsedSeconds >= elapsedSeconds);
+  if (!after) return points[points.length - 1]?.distanceMeters ?? 0;
+  if (after.elapsedSeconds === elapsedSeconds) return after.distanceMeters;
+
+  const before = [...points].reverse().find((point) => point.elapsedSeconds < elapsedSeconds);
+  if (!before) return after.distanceMeters;
+
+  const span = after.elapsedSeconds - before.elapsedSeconds;
+  if (span <= 0) return before.distanceMeters;
+  const ratio = (elapsedSeconds - before.elapsedSeconds) / span;
+  return before.distanceMeters + (after.distanceMeters - before.distanceMeters) * ratio;
 }
 
 function buildAverageGhost(runs) {
@@ -388,20 +437,11 @@ function buildStableGhost(runs) {
 function distanceAtElapsed(ghost, elapsedSeconds) {
   const checkpoints = ghost.checkpoints ?? [];
   if (checkpoints.length > 0) {
-    return closestCheckpoint(checkpoints, elapsedSeconds)?.distanceMeters;
+    return distanceAtInterpolatedElapsed(checkpoints, elapsedSeconds);
   }
 
   if (!ghost.totalElapsedSeconds || !ghost.totalDistanceMeters) return null;
   return Math.min(ghost.totalDistanceMeters, (ghost.totalDistanceMeters / ghost.totalElapsedSeconds) * elapsedSeconds);
-}
-
-function closestCheckpoint(checkpoints, elapsedSeconds) {
-  return checkpoints.reduce((closest, checkpoint) => {
-    if (!closest) return checkpoint;
-    const currentGap = Math.abs(checkpoint.elapsedSeconds - elapsedSeconds);
-    const closestGap = Math.abs(closest.elapsedSeconds - elapsedSeconds);
-    return currentGap < closestGap ? checkpoint : closest;
-  }, null);
 }
 
 function raceEntry({ key, label, distanceMeters, targetMeters, deltaFromCurrentMeters, isCurrent }) {

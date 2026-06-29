@@ -9,7 +9,7 @@ class RuleBasedCoach {
     private var previousSpeedKmh: Double? = null
     private val recentTexts = ArrayDeque<String>()
     private val previousGhostDeltas = mutableMapOf<String, Double>()
-    private val minimumSpeakGapMillis = 45_000L
+    private val minimumSpeakGapMillis = 30_000L
 
     fun resetGhostState() {
         previousGhostDeltas.clear()
@@ -35,7 +35,7 @@ class RuleBasedCoach {
             ghostRunners = ghostRunners
         )
 
-        if (!decision.immediate && nowMillis - lastSpokenAtMillis < minimumSpeakGapMillis) return null
+        if (nowMillis - lastSpokenAtMillis < minimumSpeakGapMillis) return null
 
         lastSpokenAtMillis = nowMillis
         val cue = GhostTtsCatalog.buildCue(
@@ -54,6 +54,7 @@ class RuleBasedCoach {
 
     fun startCue(ghostRunners: List<GhostRunner> = emptyList()): NativeTtsCue {
         val target = ghostRunners.firstOrNull()
+        lastSpokenAtMillis = System.currentTimeMillis()
         return rememberAndBuild(
             category = "start",
             immediate = true,
@@ -63,8 +64,10 @@ class RuleBasedCoach {
         )
     }
 
-    fun completedCue(): NativeTtsCue =
-        rememberAndBuild("completed", immediate = true, rank = previousRank ?: 6)
+    fun completedCue(): NativeTtsCue {
+        lastSpokenAtMillis = System.currentTimeMillis()
+        return rememberAndBuild("completed", immediate = true, rank = previousRank ?: 6)
+    }
 
     private fun decideCategory(
         elapsedSeconds: Int,
@@ -168,10 +171,25 @@ class RuleBasedCoach {
 
     private fun distanceAtElapsed(ghost: GhostRunner, elapsedSeconds: Int): Double? {
         if (ghost.checkpoints.isNotEmpty()) {
-            return ghost.checkpoints.minByOrNull { abs(it.elapsedSeconds - elapsedSeconds) }?.distanceMeters
+            return distanceAtInterpolatedElapsed(ghost.checkpoints, elapsedSeconds)
         }
         if (ghost.totalElapsedSeconds <= 0.0 || ghost.totalDistanceMeters <= 0.0) return null
         return minOf(ghost.totalDistanceMeters, ghost.totalDistanceMeters / ghost.totalElapsedSeconds * elapsedSeconds)
+    }
+
+    private fun distanceAtInterpolatedElapsed(checkpoints: List<GhostCheckpoint>, elapsedSeconds: Int): Double {
+        val sorted = checkpoints.sortedBy { it.elapsedSeconds }
+        val after = sorted.firstOrNull { it.elapsedSeconds >= elapsedSeconds }
+        if (after == null) return sorted.lastOrNull()?.distanceMeters ?: 0.0
+        if (after.elapsedSeconds == elapsedSeconds) return after.distanceMeters
+
+        val before = sorted.lastOrNull { it.elapsedSeconds < elapsedSeconds }
+            ?: return after.distanceMeters
+        val span = (after.elapsedSeconds - before.elapsedSeconds).toDouble()
+        if (span <= 0.0) return before.distanceMeters
+
+        val ratio = (elapsedSeconds - before.elapsedSeconds) / span
+        return before.distanceMeters + (after.distanceMeters - before.distanceMeters) * ratio
     }
 
     private fun rememberGhostDeltas(comparisons: List<GhostComparison>) {

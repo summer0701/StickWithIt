@@ -2,8 +2,10 @@ import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
 import { isTestUserId } from '../lib/testAuth';
 import { sameTargetDistance } from '../lib/ghostRun';
+import { isAfterGhostReset, readGhostResetAt } from '../lib/ghostReset';
 
 export async function loadRecentRunHistory(userId, limit = 5, targetDistanceKm = null) {
+  const resetAt = readGhostResetAt(userId);
   const localResult = isTestUserId(userId) ? loadLocalRunHistory(userId, limit, targetDistanceKm) : null;
 
   if (!canQuerySupabase()) {
@@ -21,7 +23,7 @@ export async function loadRecentRunHistory(userId, limit = 5, targetDistanceKm =
   if (serverResult.error && localResult.recentRuns.length > 0) return localResult;
 
   return {
-    recentRuns: mergeRunsByStartedAt(serverResult.recentRuns, localResult.recentRuns).slice(0, limit),
+    recentRuns: filterRunsAfterReset(mergeRunsByStartedAt(serverResult.recentRuns, localResult.recentRuns), resetAt).slice(0, limit),
     recentCheckpoints: serverResult.recentCheckpoints,
     error: serverResult.error,
   };
@@ -49,7 +51,7 @@ async function loadServerRunHistory(userId, limit, targetDistanceKm) {
     return { recentRuns: [], recentCheckpoints: [], error: runsError };
   }
 
-  const selectedRuns = filterRunsByTarget(recentRuns ?? [], targetDistanceKm).slice(0, limit);
+  const selectedRuns = filterRunsByTarget(filterRunsAfterReset(recentRuns ?? [], readGhostResetAt(userId)), targetDistanceKm).slice(0, limit);
   const runIds = selectedRuns.map((run) => run.id);
   if (runIds.length === 0) return { recentRuns: [], recentCheckpoints: [], error: null };
 
@@ -89,7 +91,7 @@ async function loadRecentRunHistoryWithoutStatus(userId, limit, targetDistanceKm
     return { recentRuns: [], recentCheckpoints: [], error: runsError };
   }
 
-  const selectedRuns = filterRunsByTarget(recentRuns ?? [], targetDistanceKm).slice(0, limit);
+  const selectedRuns = filterRunsByTarget(filterRunsAfterReset(recentRuns ?? [], readGhostResetAt(userId)), targetDistanceKm).slice(0, limit);
   const runIds = selectedRuns.map((run) => run.id);
   if (runIds.length === 0) return { recentRuns: [], recentCheckpoints: [], error: null };
 
@@ -112,11 +114,16 @@ function filterRunsByTarget(runs, targetDistanceKm) {
 }
 
 function loadLocalRunHistory(userId, limit, targetDistanceKm) {
+  const resetAt = readGhostResetAt(userId);
   return {
-    recentRuns: filterRunsByTarget(readLocalRuns(userId).filter(isCompletedRun), targetDistanceKm).slice(0, limit),
+    recentRuns: filterRunsByTarget(filterRunsAfterReset(readLocalRuns(userId).filter(isCompletedRun), resetAt), targetDistanceKm).slice(0, limit),
     recentCheckpoints: [],
     error: null,
   };
+}
+
+function filterRunsAfterReset(runs, resetAt) {
+  return runs.filter((run) => isAfterGhostReset(run.started_at ?? run.created_at ?? run.ended_at, resetAt));
 }
 
 function mergeRunsByStartedAt(serverRuns = [], localRuns = []) {

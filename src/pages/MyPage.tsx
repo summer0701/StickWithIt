@@ -8,6 +8,7 @@ import {
   writeGhostSettings,
   type GhostSetting,
 } from '../lib/ghostSettings';
+import { readGhostResetAt, resetGhostHistory } from '../lib/ghostReset';
 import ghostMascot from '../assets/ghost-settings-mascot.webp';
 
 type MyPageProps = {
@@ -20,6 +21,7 @@ const ghostAccents = ['green', 'purple', 'blue', 'orange', 'gray'];
 export default function MyPage({ user, onSignOut }: MyPageProps) {
   const [settings, setSettings] = useState<GhostSetting[]>(() => readGhostSettings(user.id));
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [ghostResetAt, setGhostResetAt] = useState<string | null>(() => readGhostResetAt(user.id));
   const selectedGhost = settings[selectedIndex] ?? settings[0];
   const preview = useMemo(() => settings.map((item) => ghostDisplayName(item.key, settings)).join(' · '), [settings]);
 
@@ -36,6 +38,10 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
     const next = writeGhostSettings(user.id, defaultGhostSettings());
     setSettings(next);
     setSelectedIndex(0);
+  }
+
+  function resetGhostData() {
+    setGhostResetAt(resetGhostHistory(user.id));
   }
 
   return (
@@ -124,9 +130,13 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
                     max="30"
                     step="0.1"
                     type="number"
-                    value={selectedGhost.averageSpeedKmh ?? ''}
+                    required
+                    value={selectedGhost.averageSpeedKmh ?? 10.5}
                     placeholder="10.5"
-                    onChange={(event) => updateSetting(selectedIndex, { averageSpeedKmh: event.target.value === '' ? null : Number(event.target.value) })}
+                    onChange={(event) => {
+                      if (event.target.value === '') return;
+                      updateSetting(selectedIndex, { averageSpeedKmh: Number(event.target.value) });
+                    }}
                   />
                   <small>km/h</small>
                 </div>
@@ -141,6 +151,10 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
       <section className="ghost-settings-summary">
         <span>현재 표시 이름</span>
         <strong>{preview}</strong>
+        <button className="ghost-data-reset-button" type="button" onClick={resetGhostData}>
+          고스트 초기화
+        </button>
+        {ghostResetAt && <small>초기화 이후 새 러닝부터 고스트가 다시 만들어집니다.</small>}
       </section>
     </main>
   );

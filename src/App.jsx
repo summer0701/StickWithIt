@@ -7,7 +7,7 @@ import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
 import { supabase } from './lib/supabaseClient';
-import { clearTestSession, readTestSession } from './lib/testAuth';
+import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth';
 
 const bottomRoutes = [
   { id: 'home', label: 'Home', icon: Home },
@@ -25,19 +25,29 @@ export default function App() {
   const [latestResult, setLatestResult] = useState(null);
 
   useEffect(() => {
-    const testSession = readTestSession();
-    if (testSession) {
-      setSession(testSession);
-      setLoading(false);
-      return undefined;
-    }
-
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        clearTestSession();
+        setSession(data.session);
+      } else {
+        const testSession = readTestSession();
+        if (testSession) {
+          const response = await signInTestAccount();
+          if (response.data?.session) {
+            clearTestSession();
+            setSession(response.data.session);
+          } else {
+            setSession(testSession);
+          }
+        } else {
+          setSession(null);
+        }
+      }
       setLoading(false);
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (nextSession) clearTestSession();
       setSession(nextSession);
     });
 
@@ -148,6 +158,20 @@ export default function App() {
       )}
     </div>
   );
+}
+
+async function signInTestAccount() {
+  const signIn = await supabase.auth.signInWithPassword({
+    email: TEST_ACCOUNT.email,
+    password: TEST_ACCOUNT.password,
+  });
+  if (!signIn.error) return signIn;
+
+  return supabase.auth.signUp({
+    email: TEST_ACCOUNT.email,
+    password: TEST_ACCOUNT.password,
+    options: { data: { nickname: TEST_ACCOUNT.login } },
+  });
 }
 
 function PlaceholderPage({ title, onHome }) {

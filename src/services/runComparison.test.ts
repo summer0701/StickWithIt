@@ -43,6 +43,35 @@ describe('runComparison', () => {
     expect(result.recentRuns.map((run) => run.id)).toEqual(['five-k']);
   });
 
+  it('ignores local ghost runs before the reset timestamp', async () => {
+    const { resetGhostHistory } = await import('../lib/ghostReset');
+    const { loadRecentRunHistory } = await import('./runComparison');
+    resetGhostHistory(TEST_ACCOUNT.id, new Date('2026-06-28T12:00:00.000Z'));
+
+    saveLocalRun(TEST_ACCOUNT.id, {
+      id: 'before-reset',
+      status: 'completed',
+      target_distance_km: 5,
+      total_distance_meters: 5000,
+      total_elapsed_seconds: 1500,
+      started_at: '2026-06-28T11:59:59.000Z',
+      ended_at: '2026-06-28T12:25:00.000Z',
+    });
+    saveLocalRun(TEST_ACCOUNT.id, {
+      id: 'after-reset',
+      status: 'completed',
+      target_distance_km: 5,
+      total_distance_meters: 5000,
+      total_elapsed_seconds: 1480,
+      started_at: '2026-06-28T12:00:00.000Z',
+      ended_at: '2026-06-28T12:24:40.000Z',
+    });
+
+    const result = await loadRecentRunHistory(TEST_ACCOUNT.id, 5, 5);
+
+    expect(result.recentRuns.map((run) => run.id)).toEqual(['after-reset']);
+  });
+
   it('includes server runs for the test account when Supabase is available', async () => {
     const { loadRecentRunHistory } = await import('./runComparison');
     const runsQuery = createRunsQuery([

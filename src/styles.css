@@ -2189,6 +2189,23 @@ button {
   overflow-wrap: anywhere;
 }
 
+.ghost-data-reset-button {
+  justify-self: start;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 123, 123, 0.45);
+  border-radius: 12px;
+  background: rgba(255, 76, 76, 0.1);
+  color: #ffb8b8;
+  font-weight: 900;
+  padding: 10px 14px;
+}
+
+.ghost-settings-summary small {
+  color: rgba(207, 217, 244, 0.68);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 @media (max-width: 560px) {
   .my-page {
     padding-inline: 14px;
