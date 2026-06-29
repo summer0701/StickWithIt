@@ -1179,9 +1179,9 @@ button {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  gap: clamp(6px, 1.2dvh, 12px);
+  gap: clamp(4px, 0.8dvh, 8px);
   overflow: hidden;
-  padding: clamp(10px, 2dvh, 18px) 16px calc(176px + var(--app-safe-area-inset-bottom));
+  padding: clamp(7px, 1.4dvh, 12px) 14px calc(124px + var(--app-safe-area-inset-bottom));
   background:
     radial-gradient(circle at 50% 28%, rgba(21, 145, 255, 0.26), transparent 30%),
     linear-gradient(180deg, rgba(1, 9, 22, 0.22), rgba(0, 7, 17, 0.92) 52%, #020711 100%),
@@ -1209,16 +1209,16 @@ button {
 .run-hud-top {
   z-index: 40;
   display: grid;
-  grid-template-columns: 48px 1fr 48px;
+  grid-template-columns: 38px 1fr 38px;
   align-items: center;
-  gap: 12px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .run-hud-logo {
   text-align: center;
   color: #fff;
-  font-size: clamp(1.5rem, 8vw, 2.7rem);
+  font-size: clamp(1.05rem, 5.4vw, 1.9rem);
   font-weight: 1000;
   line-height: 1;
   text-shadow: 0 0 22px rgba(31, 149, 255, 0.72);
@@ -1241,14 +1241,14 @@ button {
 }
 
 .hud-icon-button {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
 }
 
 .hud-top-spacer {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
 }
 
 .hud-settings {
@@ -1346,40 +1346,40 @@ button {
 
 .ghost-race-card {
   display: grid;
-  gap: 6px;
+  gap: 3px;
   margin-top: 0;
   text-align: center;
 }
 
 .ghost-race-card h1 {
-  margin: 0 0 4px;
-  font-size: clamp(1rem, 4vw, 1.18rem);
+  margin: 0;
+  font-size: clamp(0.86rem, 3.2vw, 1rem);
 }
 
 .ghost-pace-row {
   display: grid;
-  grid-template-columns: 1fr 44px 1fr;
+  grid-template-columns: 1fr 34px 1fr;
   align-items: end;
-  gap: 10px;
+  gap: 6px;
 }
 
 .ghost-pace-row span,
 .hud-stat span {
   display: block;
   color: rgba(226, 237, 255, 0.76);
-  font-size: 0.86rem;
+  font-size: 0.72rem;
 }
 
 .ghost-pace-row strong {
   display: block;
-  margin-top: 4px;
-  font-size: clamp(1.35rem, 7vw, 2.1rem);
+  margin-top: 2px;
+  font-size: clamp(1rem, 5vw, 1.5rem);
   line-height: 1;
 }
 
 .ghost-pace-row b {
   color: rgba(230, 238, 255, 0.8);
-  font-size: 1.35rem;
+  font-size: 1rem;
 }
 
 .blue {
@@ -1433,7 +1433,7 @@ button {
 
 .ghost-race-card p {
   margin: 0;
-  font-size: clamp(1rem, 4.6vw, 1.22rem);
+  font-size: clamp(0.84rem, 3.4vw, 1rem);
   font-weight: 900;
 }
 
@@ -1697,6 +1697,96 @@ button {
 .ghost-race-summary b {
   color: #ffae35;
   font-size: 0.82rem;
+}
+
+.running-hud .ghost-race-board {
+  gap: 8px;
+  padding: 10px;
+}
+
+.running-hud .ghost-scale {
+  font-size: 0.68rem;
+}
+
+.running-hud .ghost-track-lane {
+  min-height: 66px;
+  padding: 22px 8px 16px;
+}
+
+.running-hud .ghost-track-base {
+  left: 8px;
+  right: 8px;
+  bottom: 18px;
+  height: 6px;
+}
+
+.running-hud .ghost-marker {
+  bottom: 10px;
+  width: 44px;
+  min-height: 44px;
+}
+
+.running-hud .ghost-marker i {
+  width: 10px;
+  height: 10px;
+}
+
+.running-hud .ghost-marker::before {
+  width: 14px;
+  height: 18px;
+}
+
+.running-hud .ghost-marker-label {
+  padding: 1px 5px;
+  font-size: 0.56rem;
+}
+
+.running-hud .ghost-marker b {
+  font-size: 0.56rem;
+}
+
+.running-hud .ghost-rank-list {
+  gap: 5px;
+}
+
+.running-hud .ghost-rank-item {
+  min-height: 58px;
+  gap: 1px;
+  padding: 6px 4px;
+}
+
+.running-hud .ghost-rank-item span {
+  font-size: 0.62rem;
+}
+
+.running-hud .ghost-rank-item strong {
+  font-size: 0.74rem;
+}
+
+.running-hud .ghost-rank-item b {
+  font-size: 0.68rem;
+}
+
+.running-hud .ghost-rank-item em {
+  font-size: 0.64rem;
+}
+
+.running-hud .ghost-rank-empty {
+  min-height: 54px;
+}
+
+.running-hud .ghost-race-summary {
+  gap: 6px;
+  padding-top: 0;
+  font-size: 0.68rem;
+}
+
+.running-hud .ghost-race-summary strong {
+  font-size: 0.9rem;
+}
+
+.running-hud .ghost-race-summary b {
+  font-size: 0.68rem;
 }
 
 .my-page {
@@ -2817,6 +2907,88 @@ button {
   filter: drop-shadow(0 0 8px rgba(92, 255, 156, 0.85));
 }
 
+.running-hud .route-card {
+  min-height: 86px;
+}
+
+.running-hud .route-card.focused {
+  min-height: 128px;
+}
+
+.running-hud .mini-map {
+  gap: 3px;
+  width: clamp(76px, 22vw, 92px);
+}
+
+.running-hud .mini-map b {
+  min-width: 56px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.running-hud .gps-status-stack {
+  bottom: 4px;
+  gap: 2px;
+}
+
+.running-hud .gps-status-stack small {
+  padding: 3px 7px;
+  font-size: 0.64rem;
+}
+
+.running-hud .hud-stats-card .hud-stat {
+  min-height: clamp(44px, 7dvh, 62px);
+  padding: 8px 4px;
+}
+
+.running-hud .hud-stat strong {
+  font-size: clamp(0.92rem, 4.4vw, 1.35rem);
+}
+
+.running-hud .hud-stat strong.highlight {
+  font-size: clamp(1.16rem, 5.4vw, 1.65rem);
+}
+
+.running-hud .paused-session-card {
+  bottom: calc(104px + var(--app-safe-area-inset-bottom));
+  padding: 10px 12px;
+}
+
+.running-hud .run-hud-controls {
+  gap: 10px;
+  width: min(100%, 318px);
+  padding: 8px 26px calc(24px + var(--app-safe-area-inset-bottom));
+}
+
+.running-hud .hud-action-button {
+  width: 48px;
+  height: 48px;
+}
+
+.running-hud .hud-pause-button {
+  width: 64px;
+  height: 64px;
+  border-width: 3px;
+}
+
+.running-hud .hud-pause-button svg:not(.hold-progress-ring),
+.running-hud .hud-action-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.running-hud .hud-pause-button span,
+.running-hud .hud-action-button span {
+  top: calc(100% + 5px);
+  font-size: 0.72rem;
+}
+
+.running-hud .hold-progress-ring {
+  inset: -7px;
+  width: calc(100% + 14px);
+  height: calc(100% + 14px);
+}
+
 .run-header {
   display: flex;
   align-items: center;
@@ -3002,6 +3174,12 @@ button:disabled {
 @media (min-width: 900px) {
   .ghost-rank-list {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 560px) {
+  .run-screen.running-hud {
+    padding: clamp(7px, 1.4dvh, 12px) calc((100vw - 720px) / 2 + 18px) calc(124px + var(--app-safe-area-inset-bottom));
   }
 }
 
