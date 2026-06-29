@@ -243,7 +243,7 @@ class RuleBasedCoach {
             category = category,
             immediate = immediate,
             ghostName = comparison?.ghost?.label,
-            distanceText = formatDistance(distanceMeters),
+            distanceText = distanceMeters.takeIf { it >= 1.0 }?.let { formatDistance(it) },
             seconds = seconds,
             rank = rank
         )

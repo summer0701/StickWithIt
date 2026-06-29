@@ -2351,14 +2351,21 @@ button {
 }
 
 .ghost-slot-tab {
-  min-height: 58px;
-  gap: 4px;
-  font-size: 0.76rem;
+  min-height: 78px;
+  gap: 5px;
+  font-size: 0.8rem;
 }
 
 .ghost-slot-tab svg {
-  width: 21px;
-  height: 21px;
+  width: 28px;
+  height: 28px;
+}
+
+.ghost-slot-tab strong {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ghost-settings-list {

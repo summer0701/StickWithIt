@@ -20,7 +20,7 @@ data class NativeTtsCue(
 }
 
 object GhostTtsCatalog {
-    private const val DEFAULT_GHOST_NAME = "고스트"
+    private const val DEFAULT_GHOST_NAME = "G1"
     private const val DEFAULT_DISTANCE = "바로"
     private const val DEFAULT_SECONDS = "3"
     private const val DEFAULT_RANK = 6
@@ -158,8 +158,10 @@ object GhostTtsCatalog {
         rank: Int? = null
     ): NativeTtsCue {
         val source = phrases[category] ?: phrases.getValue("current_rank")
-        val selected = source.filterNot { recentTexts.contains(render(it, ghostName, distance, seconds, rank)) }
-            .ifEmpty { source }
+        val eligible = source.filter { hasRequiredVariables(it, ghostName, distance, seconds, rank) }
+            .ifEmpty { phrases.getValue("current_rank").filter { hasRequiredVariables(it, ghostName, distance, seconds, rank) } }
+        val selected = eligible.filterNot { recentTexts.contains(render(it, ghostName, distance, seconds, rank)) }
+            .ifEmpty { eligible }
             .random()
         val profile = profileFor(category)
 
@@ -182,6 +184,13 @@ object GhostTtsCatalog {
             .replace("{distance}", distance?.takeIf { it.isNotBlank() } ?: DEFAULT_DISTANCE)
             .replace("{seconds}", (seconds ?: DEFAULT_SECONDS).toString())
             .replace("{rank}", (rank ?: DEFAULT_RANK).toString())
+
+    private fun hasRequiredVariables(template: String, ghostName: String?, distance: String?, seconds: Int?, rank: Int?): Boolean {
+        if (template.contains("{distance}") && distance.isNullOrBlank()) return false
+        if (template.contains("{seconds}") && seconds == null) return false
+        if (template.contains("{rank}") && rank == null) return false
+        return true
+    }
 
     private fun <T> List<T>.random(): T = this[Random.nextInt(size)]
 }

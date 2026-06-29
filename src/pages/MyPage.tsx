@@ -75,16 +75,15 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
           </button>
         </div>
 
-        <div className="ghost-selector-menu" aria-label="고스트 선택">
+        <div className="ghost-slot-tabs" aria-label="고스트 선택">
           {settings.map((ghost, index) => (
             <button
-              className={`ghost-selector-item ${ghostAccents[index]} ${selectedIndex === index ? 'active' : ''}`}
+              className={`ghost-slot-tab ${ghostAccents[index]} ${selectedIndex === index ? 'active' : ''}`}
               key={ghost.key}
               type="button"
               onClick={() => setSelectedIndex(index)}
             >
-              <b>{ghost.defaultName}</b>
-              <span>{ghost.description}</span>
+              <Ghost size={34} />
               <strong>{ghostDisplayName(ghost.key, settings)}</strong>
             </button>
           ))}

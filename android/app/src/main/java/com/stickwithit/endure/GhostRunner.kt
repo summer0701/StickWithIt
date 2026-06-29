@@ -29,7 +29,7 @@ object GhostRunnerParser {
             (0 until items.length()).mapNotNull { index ->
                 val item = items.optJSONObject(index) ?: return@mapNotNull null
                 val key = item.optString("key").ifBlank { return@mapNotNull null }
-                val label = item.optString("label").ifBlank { key }
+                val label = item.optString("label").ifBlank { defaultLabelForKey(key) }
                 val totalDistanceMeters = item.optDouble("totalDistanceMeters", 0.0)
                 val totalElapsedSeconds = item.optDouble("totalElapsedSeconds", 0.0)
                 val checkpoints = item.optJSONArray("checkpoints")?.let { checkpointItems ->
@@ -47,4 +47,14 @@ object GhostRunnerParser {
             }
         }.getOrDefault(emptyList())
     }
+
+    private fun defaultLabelForKey(key: String): String =
+        when (key) {
+            "bestGhost" -> "G1"
+            "averageGhost" -> "G2"
+            "stableGhost" -> "G3"
+            "chaserGhost" -> "G4"
+            "slowGhost" -> "G5"
+            else -> key
+        }
 }
