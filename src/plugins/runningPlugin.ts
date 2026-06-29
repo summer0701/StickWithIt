@@ -36,7 +36,9 @@ export type RunningPluginApi = {
   speak(options: { text: string }): Promise<void>;
   playCoachAudio(options: { key?: string; category?: string; file: string; fallbackText?: string }): Promise<void>;
   updateTargetDistance(options: { targetDistanceMeters: number }): Promise<void>;
+  updateGhostRunners(options: { ghostRunnersJson: string }): Promise<void>;
   openBatteryOptimizationSettings(): Promise<void>;
+  getBatteryOptimizationStatus(): Promise<{ isIgnoringBatteryOptimizations: boolean }>;
   setTtsEnabled(options: { enabled: boolean }): Promise<void>;
   getRunState(): Promise<{ unsyncedCount: number; unsyncedCheckpoints: NativeCheckpoint[] }>;
   markCheckpointsSynced(options: { ids: number[] }): Promise<void>;

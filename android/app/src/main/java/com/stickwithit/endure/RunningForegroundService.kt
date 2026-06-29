@@ -67,7 +67,13 @@ class RunningForegroundService : Service() {
             }
             ACTION_UPDATE_TARGET_DISTANCE -> {
                 targetDistanceMeters = intent.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, targetDistanceMeters)
+                coach.resetGhostState()
                 broadcastDebug("target_distance_updated:$targetDistanceMeters")
+            }
+            ACTION_UPDATE_GHOST_RUNNERS -> {
+                ghostRunners = GhostRunnerParser.parse(intent.getStringExtra(EXTRA_GHOST_RUNNERS_JSON))
+                coach.resetGhostState()
+                broadcastDebug("ghost_runners_updated:${ghostRunners.size}")
             }
             ACTION_TTS_ENABLED -> ttsEngine.setEnabled(intent.getBooleanExtra(EXTRA_TTS_ENABLED, true))
             null -> {
@@ -261,6 +267,7 @@ class RunningForegroundService : Service() {
         const val ACTION_SPEAK = "com.stickwithit.endure.RUN_SPEAK"
         const val ACTION_PLAY_COACH_AUDIO = "com.stickwithit.endure.RUN_PLAY_COACH_AUDIO"
         const val ACTION_UPDATE_TARGET_DISTANCE = "com.stickwithit.endure.RUN_UPDATE_TARGET_DISTANCE"
+        const val ACTION_UPDATE_GHOST_RUNNERS = "com.stickwithit.endure.RUN_UPDATE_GHOST_RUNNERS"
         const val ACTION_TTS_ENABLED = "com.stickwithit.endure.RUN_TTS_ENABLED"
         const val ACTION_STATE = "com.stickwithit.endure.RUN_STATE"
         const val ACTION_CHECKPOINT = "com.stickwithit.endure.RUN_CHECKPOINT"

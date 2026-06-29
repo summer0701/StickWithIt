@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGhostRunners, compareGhosts, rememberSpokenMessage, ruleBasedCoach } from './ruleBasedCoach';
+import { buildGhostRaceSnapshot, buildGhostRunners, compareGhosts, rememberSpokenMessage, ruleBasedCoach } from './ruleBasedCoach';
 
 describe('ruleBasedCoach', () => {
   const recentRuns = [
@@ -55,6 +55,22 @@ describe('ruleBasedCoach', () => {
     expect(comparisons.find((ghost) => ghost.key === 'yesterdayGhost')?.deltaMeters).toBe(20);
     expect(comparisons.find((ghost) => ghost.key === 'bestGhost')?.deltaMeters).toBe(-70);
     expect(comparisons.find((ghost) => ghost.key === 'slowGhost')?.deltaMeters).toBe(70);
+  });
+
+  it('builds a ranked ghost race snapshot for visual comparison', () => {
+    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+    const snapshot = buildGhostRaceSnapshot({
+      currentDistanceMeters: 1050,
+      elapsedSeconds: 300,
+      targetDistanceMeters: 5000,
+      ghosts,
+    });
+
+    expect(snapshot.entries[0].key).toBe('bestGhost');
+    expect(snapshot.entries[0].label).toBe('최고 기록의 나');
+    expect(snapshot.current.rank).toBe(3);
+    expect(snapshot.ghosts.find((ghost) => ghost.key === 'slowGhost')?.deltaFromCurrentMeters).toBe(-70);
+    expect(snapshot.current.progressPercent).toBe(21);
   });
 
   it('returns close cues for the nearest past ghost', () => {

@@ -151,6 +151,17 @@ class RunningPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun updateGhostRunners(call: PluginCall) {
+        val ghostRunnersJson = call.getString("ghostRunnersJson", "[]")
+        val intent = Intent(context, RunningForegroundService::class.java).apply {
+            action = RunningForegroundService.ACTION_UPDATE_GHOST_RUNNERS
+            putExtra(RunningForegroundService.EXTRA_GHOST_RUNNERS_JSON, ghostRunnersJson)
+        }
+        ContextCompat.startForegroundService(context, intent)
+        call.resolve()
+    }
+
+    @PluginMethod
     fun openBatteryOptimizationSettings(call: PluginCall) {
         try {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -177,6 +188,19 @@ class RunningPlugin : Plugin() {
                 call.reject("배터리 최적화 설정 화면을 열지 못했습니다.", fallbackError)
             }
         }
+    }
+
+    @PluginMethod
+    fun getBatteryOptimizationStatus(call: PluginCall) {
+        val isIgnoringBatteryOptimizations = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        } else {
+            true
+        }
+        call.resolve(JSObject().apply {
+            put("isIgnoringBatteryOptimizations", isIgnoringBatteryOptimizations)
+        })
     }
 
     @PluginMethod

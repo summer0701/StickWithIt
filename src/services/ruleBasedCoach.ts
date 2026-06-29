@@ -148,6 +148,52 @@ export function compareGhosts(checkpoint, ghosts = []) {
     .filter(Boolean);
 }
 
+export function buildGhostRaceSnapshot({
+  currentDistanceMeters = 0,
+  elapsedSeconds = 0,
+  targetDistanceMeters = 0,
+  ghosts = [],
+}) {
+  const currentDistance = Math.max(0, Number(currentDistanceMeters) || 0);
+  const targetMeters = Math.max(1, Number(targetDistanceMeters) || currentDistance || 1);
+  const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
+
+  const ghostEntries = ghosts
+    .map((ghost) => {
+      const distanceMeters = distanceAtElapsed(ghost, elapsed);
+      if (!Number.isFinite(distanceMeters)) return null;
+      return raceEntry({
+        key: ghost.key,
+        label: ghost.label,
+        distanceMeters,
+        targetMeters,
+        deltaFromCurrentMeters: distanceMeters - currentDistance,
+        isCurrent: false,
+      });
+    })
+    .filter(Boolean);
+
+  const currentEntry = raceEntry({
+    key: 'current',
+    label: '나',
+    distanceMeters: currentDistance,
+    targetMeters,
+    deltaFromCurrentMeters: 0,
+    isCurrent: true,
+  });
+
+  const ranked = [...ghostEntries, currentEntry]
+    .sort((a, b) => b.distanceMeters - a.distanceMeters)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+  return {
+    targetDistanceMeters: targetMeters,
+    entries: ranked,
+    current: ranked.find((entry) => entry.isCurrent) ?? currentEntry,
+    ghosts: ranked.filter((entry) => !entry.isCurrent),
+  };
+}
+
 export function rememberSpokenMessage(spokenMessages, message, limit = DEFAULT_RECENT_LIMIT) {
   if (!message) return spokenMessages.slice(-limit);
   return [...spokenMessages, message].slice(-limit);
@@ -305,6 +351,20 @@ function closestCheckpoint(checkpoints, elapsedSeconds) {
     const closestGap = Math.abs(closest.elapsedSeconds - elapsedSeconds);
     return currentGap < closestGap ? checkpoint : closest;
   }, null);
+}
+
+function raceEntry({ key, label, distanceMeters, targetMeters, deltaFromCurrentMeters, isCurrent }) {
+  const normalizedDistance = Math.max(0, Math.min(Number(distanceMeters) || 0, targetMeters));
+  return {
+    key,
+    label,
+    distanceMeters: normalizedDistance,
+    distanceKm: normalizedDistance / 1000,
+    progressPercent: Math.min(100, Math.max(0, (normalizedDistance / targetMeters) * 100)),
+    deltaFromCurrentMeters,
+    deltaFromCurrentKm: deltaFromCurrentMeters / 1000,
+    isCurrent,
+  };
 }
 
 function isYesterday(value, now) {

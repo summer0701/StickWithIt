@@ -17,6 +17,11 @@ class RuleBasedCoach {
     private val previousGhostDeltas = mutableMapOf<String, Double>()
     private val minimumSpeakGapMillis = 15_000L
 
+    fun resetGhostState() {
+        previousGhostDeltas.clear()
+        recentCategories.clear()
+    }
+
     fun createCue(
         elapsedSeconds: Int,
         distanceMeters: Double,

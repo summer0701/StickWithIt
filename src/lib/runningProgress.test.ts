@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   achievementRate,
   bestCompletedRunDistanceKmOnDate,
+  buildThreeDayRankingPeriod,
   buildRunningProgress,
   dateKeyForDaysAgo,
+  formatKoreanDate,
   sumCompletedRunDistanceKmOnDate,
 } from './runningProgress';
 
@@ -46,5 +48,14 @@ describe('runningProgress', () => {
     expect(bestCompletedRunDistanceKmOnDate(runs, '2026-06-27')).toBe(5.2);
     expect(sumCompletedRunDistanceKmOnDate(runs, '2026-06-28')).toBe(3.5);
     expect(dateKeyForDaysAgo(1, new Date('2026-06-28T12:00:00.000Z'))).toBe('2026-06-27');
+  });
+
+  it('builds the current three-day ranking period', () => {
+    const period = buildThreeDayRankingPeriod(new Date(2026, 5, 29, 12));
+
+    expect(formatKoreanDate(period.start)).toBe('2026.06.29 (월)');
+    expect(formatKoreanDate(period.end)).toBe('2026.07.01 (수)');
+    expect(period.title).toBe('3일 랭킹 기간');
+    expect(period.summary).toBe('2026.06.29 (월) ~ 2026.07.01 (수) · 3일 단위 랭킹');
   });
 });

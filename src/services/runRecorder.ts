@@ -2,7 +2,9 @@ import { supabase } from '../lib/supabaseClient';
 import { saveLocalRun } from '../lib/localRuns';
 import { isTestUserId } from '../lib/testAuth';
 
-const QUEUE_KEY = 'stickwithit:checkpoint-queue';
+const CHECKPOINT_QUEUE_KEY = 'stickwithit:checkpoint-queue';
+const COMPLETION_QUEUE_KEY = 'stickwithit:run-completion-queue';
+const MAX_QUEUE_ITEMS = 200;
 
 export async function createRunRecord({ userId, startedAt = new Date(), targetDistanceMeters }) {
   if (!isValidUuid(userId)) {
@@ -88,20 +90,21 @@ export async function completeRunRecord({
   const avgPace = distanceKm > 0 ? Math.round(totalElapsedSeconds / distanceKm) : null;
   const startedAtIso = toIso(startedAt);
   const endedAtIso = toIso(endedAt);
+  const completionPayload = buildRunCompletionPayload({
+    endedAtIso,
+    startedAtIso,
+    totalDistanceMeters,
+    totalElapsedSeconds,
+    avgPace,
+    distanceKm,
+  });
 
   if (isTestUserId(userId)) {
     const localRun = saveLocalRun(userId, {
       id: runId,
       user_id: userId,
-      started_at: startedAtIso,
-      ended_at: endedAtIso,
-      status: 'completed',
       target_distance_km: targetDistanceKm,
-      actual_distance_km: Number(distanceKm.toFixed(3)),
-      duration_seconds: Math.max(1, Math.round(totalElapsedSeconds)),
-      avg_pace_seconds_per_km: avgPace,
-      total_distance_meters: Number(totalDistanceMeters.toFixed(2)),
-      total_elapsed_seconds: Math.max(1, Math.round(totalElapsedSeconds)),
+      ...completionPayload,
     });
 
     return {
@@ -110,27 +113,16 @@ export async function completeRunRecord({
     };
   }
 
-  const updatePayload = {
-    ended_at: endedAtIso,
-    status: 'completed',
-    total_distance_meters: Number(totalDistanceMeters.toFixed(2)),
-    total_elapsed_seconds: Math.max(1, Math.round(totalElapsedSeconds)),
-    avg_pace_seconds_per_km: avgPace,
-    actual_distance_km: Number(distanceKm.toFixed(3)),
-    duration_seconds: Math.max(1, Math.round(totalElapsedSeconds)),
-    started_at: startedAtIso,
-  };
-
   const { data, error } = await supabase
     .from('runs')
-    .update(updatePayload)
+    .update(completionPayload)
     .eq('id', runId)
     .eq('user_id', userId)
     .select()
     .single();
 
   if (isMissingColumnError(error)) {
-    const legacyPayload = toLegacyRunPayload(updatePayload, startedAtIso, endedAtIso);
+    const legacyPayload = toLegacyRunPayload(completionPayload, startedAtIso, endedAtIso);
     const legacyResult = await supabase
       .from('runs')
       .update(legacyPayload)
@@ -140,11 +132,13 @@ export async function completeRunRecord({
       .single();
     if (!legacyResult.error) return { data: legacyResult.data, error: null };
     console.debug('[runRecorder] Failed to complete legacy run.', legacyResult.error);
+    queueRunCompletion({ runId, userId, payload: completionPayload });
     return { data: null, error: legacyResult.error };
   }
 
   if (error) {
     console.debug('[runRecorder] Failed to complete run.', error);
+    queueRunCompletion({ runId, userId, payload: completionPayload });
   }
 
   return { data, error };
@@ -167,7 +161,7 @@ export async function cancelRunRecord({ runId, userId }) {
 
 export async function flushCheckpointQueue() {
   const queued = readCheckpointQueue().filter((checkpoint) => normalizeCheckpointPayload(checkpoint));
-  if (queued.length !== readCheckpointQueue().length) writeCheckpointQueue(queued);
+  if (queued.length !== readCheckpointQueue().length) writeQueue(CHECKPOINT_QUEUE_KEY, queued);
   if (queued.length === 0) return { flushed: 0, remaining: 0 };
 
   const { error } = await supabase.from('run_checkpoints').insert(queued);
@@ -176,14 +170,49 @@ export async function flushCheckpointQueue() {
     return { flushed: 0, remaining: queued.length, error };
   }
 
-  writeCheckpointQueue([]);
+  writeQueue(CHECKPOINT_QUEUE_KEY, []);
   return { flushed: queued.length, remaining: 0, error: null };
 }
 
+export async function flushRunCompletionQueue() {
+  const queued = readRunCompletionQueue().filter(normalizeQueuedRunCompletion);
+  if (queued.length !== readRunCompletionQueue().length) writeQueue(COMPLETION_QUEUE_KEY, queued);
+  if (queued.length === 0) return { flushed: 0, remaining: 0, error: null };
+
+  let flushed = 0;
+  const remaining = [];
+
+  for (const item of queued) {
+    const { error } = await supabase
+      .from('runs')
+      .update(item.payload)
+      .eq('id', item.runId)
+      .eq('user_id', item.userId);
+
+    if (error) {
+      console.debug('[runRecorder] Run completion queue flush failed.', error);
+      remaining.push(item);
+    } else {
+      flushed += 1;
+    }
+  }
+
+  writeQueue(COMPLETION_QUEUE_KEY, remaining);
+  return { flushed, remaining: remaining.length, error: remaining.length > 0 ? new Error('Some run completions were not synced.') : null };
+}
+
 export function readCheckpointQueue() {
+  return readQueue(CHECKPOINT_QUEUE_KEY);
+}
+
+export function readRunCompletionQueue() {
+  return readQueue(COMPLETION_QUEUE_KEY);
+}
+
+function readQueue(storageKey) {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem(QUEUE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -191,12 +220,20 @@ export function readCheckpointQueue() {
 }
 
 function queueCheckpoint(checkpoint) {
-  writeCheckpointQueue([...readCheckpointQueue(), checkpoint].slice(-200));
+  writeQueue(CHECKPOINT_QUEUE_KEY, [...readCheckpointQueue(), checkpoint].slice(-MAX_QUEUE_ITEMS));
 }
 
-function writeCheckpointQueue(queue) {
+function queueRunCompletion(completion) {
+  const nextQueue = [
+    ...readRunCompletionQueue().filter((item) => item.runId !== completion.runId),
+    completion,
+  ].slice(-MAX_QUEUE_ITEMS);
+  writeQueue(COMPLETION_QUEUE_KEY, nextQueue);
+}
+
+function writeQueue(storageKey, queue) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  window.localStorage.setItem(storageKey, JSON.stringify(queue));
 }
 
 function normalizeCheckpointPayload(checkpoint) {
@@ -241,6 +278,38 @@ function toLegacyRunPayload(payload, startedAtIso, endedAtIso = startedAtIso) {
     started_at: startedAtIso,
     ended_at: endedAtIso,
   };
+}
+
+function buildRunCompletionPayload({
+  endedAtIso,
+  startedAtIso,
+  totalDistanceMeters,
+  totalElapsedSeconds,
+  avgPace,
+  distanceKm,
+}) {
+  const roundedElapsedSeconds = Math.max(1, Math.round(totalElapsedSeconds));
+
+  return {
+    ended_at: endedAtIso,
+    status: 'completed',
+    total_distance_meters: Number(totalDistanceMeters.toFixed(2)),
+    total_elapsed_seconds: roundedElapsedSeconds,
+    avg_pace_seconds_per_km: avgPace,
+    actual_distance_km: Number(distanceKm.toFixed(3)),
+    duration_seconds: roundedElapsedSeconds,
+    started_at: startedAtIso,
+  };
+}
+
+function normalizeQueuedRunCompletion(item) {
+  return Boolean(
+    isValidUuid(item?.runId) &&
+      isValidUuid(item?.userId) &&
+      item?.payload?.status === 'completed' &&
+      typeof item.payload.started_at === 'string' &&
+      typeof item.payload.ended_at === 'string',
+  );
 }
 
 function createLocalRunRecord({ userId, startedAtIso, targetDistanceKm }) {

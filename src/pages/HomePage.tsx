@@ -1,15 +1,16 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
+  RiArrowRightSLine,
   RiBarChartGroupedLine,
-  RiCalendarLine,
   RiFireFill,
   RiHome5Fill,
+  RiMapPin2Fill,
   RiMedalFill,
-  RiMenu2Line,
-  RiNotification3Line,
+  RiPulseLine,
   RiRunFill,
   RiStarFill,
+  RiTimerFlashFill,
   RiTrophyFill,
   RiUserSmileFill,
 } from 'react-icons/ri';
@@ -19,6 +20,7 @@ import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
 import { isTestUserId } from '../lib/testAuth';
 import { achievementRate } from '../lib/runningProgress';
+import dashboardBg from '../assets/home-dashboard-bg.webp';
 import heroImage from '../assets/iron-five-hero.webp';
 
 type HomePageProps = {
@@ -121,8 +123,6 @@ const ranking = [
 ];
 
 const chartPoints = [34, 36, 52, 46, 28, 55, 72];
-const challengeStart = '2025.06.28 (토)';
-const challengeEnd = '2025.07.27 (일)';
 
 export default function HomePage({
   user,
@@ -216,51 +216,36 @@ export default function HomePage({
   }
 
   return (
-    <motion.main className="home-premium" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.45 }}>
-      <HeroSection displayName={displayName} onMenu={() => setToast('메뉴를 준비 중입니다.')} onNotify={() => setToast('새 알림이 없습니다.')} />
+    <motion.main
+      className="home-premium home-dashboard"
+      style={{ '--home-dashboard-bg': `url(${dashboardBg})` } as React.CSSProperties}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.45 }}
+    >
+      <HeroSection displayName={displayName} exercises={exerciseItems} onExerciseStart={handleExerciseStart} />
+      <DashboardHeader displayName={displayName} />
 
-      <motion.section className="daily-goal glass-panel" variants={cardVariant} initial="hidden" animate="visible">
-        <div className="goal-icon">
-          <RiFireFill />
+      <motion.section className="dashboard-progress-card glass-panel" variants={cardVariant} initial="hidden" animate="visible">
+        <div className="dashboard-progress-main">
+          <CircularProgress value={totalProgress} />
         </div>
-        <div>
-          <span>오늘의 목표</span>
-          <strong>5종목 합산 상위 10% 도전</strong>
-          <p>매일 도전하고 한계를 넘어서세요.</p>
-        </div>
-        <div className="challenge-period">
-          <RiCalendarLine />
-          <span>챌린지 기간</span>
-          <strong>{challengeStart}</strong>
-          <small>~ {challengeEnd} · 30일간</small>
+        <div className="dashboard-progress-list">
+          {exerciseItems.map((exercise) => (
+            <ProgressRow
+              key={exercise.id}
+              label={exercise.english}
+              value={getProgress(exercise)}
+              color={exercise.color}
+              icon={exercise.icon}
+            />
+          ))}
         </div>
       </motion.section>
 
-      <SectionTitle title="철인 5종목" caption="원하는 종목을 선택해 운동을 시작하세요." />
-      <section className="exercise-rail" aria-label="철인 5종목 카드">
-        {exerciseItems.map((exercise, index) => (
-          <ExerciseCard key={exercise.id} exercise={exercise} index={index} onStart={handleExerciseStart} />
-        ))}
-      </section>
-
-      <section className="progress-card glass-panel">
-        <CircularProgress value={totalProgress} />
-        <div className="progress-list">
-          <strong>5종목 진행률</strong>
-          {exerciseItems.map((exercise) => (
-            <ProgressRow key={exercise.id} label={exercise.english} value={getProgress(exercise)} color={exercise.color} />
-          ))}
-        </div>
-      </section>
-
       <RankingPodium onRanking={onRanking} />
 
-      <section className="stats-grid">
-        <SummaryCard recentRunsCount={recentRunsCount} />
-        <AICoachCard />
-      </section>
-
-      <BadgeSection />
+      <SummaryCard recentRunsCount={recentRunsCount} />
 
       {toast && <motion.div className="home-toast" initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>{toast}</motion.div>}
       <button className="floating-home-button" type="button" onClick={() => onNavigate('home')} aria-label="홈">
@@ -270,23 +255,17 @@ export default function HomePage({
   );
 }
 
-function HeroSection({ displayName, onMenu, onNotify }: { displayName: string; onMenu: () => void; onNotify: () => void }) {
+function HeroSection({
+  displayName,
+  exercises,
+  onExerciseStart,
+}: {
+  displayName: string;
+  exercises: Exercise[];
+  onExerciseStart: (exercise: Exercise) => void;
+}) {
   return (
-    <section className="premium-hero">
-      <div className="particle-field" aria-hidden="true">
-        {Array.from({ length: 18 }).map((_, index) => (
-          <i key={index} style={{ '--delay': `${index * 0.17}s`, '--x': `${(index * 37) % 100}%` } as React.CSSProperties} />
-        ))}
-      </div>
-      <div className="hero-actions">
-        <button type="button" onClick={onMenu} aria-label="메뉴">
-          <RiMenu2Line />
-        </button>
-        <button type="button" onClick={onNotify} aria-label="알림" className="notify-button">
-          <RiNotification3Line />
-          <small />
-        </button>
-      </div>
+    <section className="premium-hero dashboard-hero">
       <div className="hero-logo">
         <strong>끝까지 버텨라</strong>
         <span>철인 5종 챌린지</span>
@@ -301,16 +280,76 @@ function HeroSection({ displayName, onMenu, onNotify }: { displayName: string; o
           animate={{ scale: [1, 1.03, 1], opacity: 1 }}
           transition={{ scale: { duration: 4.8, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.5 } }}
         />
+        <HeroParticleOverlay />
       </div>
+      <GhostChallengeButtons exercises={exercises} onExerciseStart={onExerciseStart} />
       <div className="hero-copy">
         <span>{displayName}님의 오늘 챌린지</span>
-        <h1>
-          한계 직전,
-          <br />
-          점수가 열린다.
-        </h1>
+        <h1>과거의 나와 경쟁하라.</h1>
       </div>
     </section>
+  );
+}
+
+function GhostChallengeButtons({
+  exercises,
+  onExerciseStart,
+}: {
+  exercises: Exercise[];
+  onExerciseStart: (exercise: Exercise) => void;
+}) {
+  return (
+    <div className="ghost-challenge-buttons" aria-label="챌린지 바로가기">
+      {exercises.map((exercise) => (
+        <button
+          key={exercise.id}
+          className="ghost-challenge-button"
+          style={{ '--accent': exercise.color } as React.CSSProperties}
+          type="button"
+          onClick={() => onExerciseStart(exercise)}
+        >
+          <span>{exercise.name}</span>
+          <RiArrowRightSLine />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HeroParticleOverlay() {
+  return (
+    <div className="hero-particles" aria-hidden="true">
+      {Array.from({ length: 26 }).map((_, index) => (
+        <i
+          key={index}
+          style={
+            {
+              '--particle-x': `${(index * 17 + 8) % 100}%`,
+              '--particle-delay': `${index * -0.16}s`,
+              '--particle-duration': `${2.4 + (index % 5) * 0.24}s`,
+              '--particle-size': `${3 + (index % 4)}px`,
+              '--particle-drift': `${(index % 2 === 0 ? 1 : -1) * (8 + (index % 5) * 3)}px`,
+              '--particle-opacity': `${0.42 + (index % 3) * 0.16}`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function DashboardHeader({ displayName }: { displayName: string }) {
+  return (
+    <header className="dashboard-header">
+      <div>
+        <span>{displayName}님의 오늘</span>
+        <h1>5종목 진행률</h1>
+      </div>
+      <button className="detail-pill" type="button">
+        상세 보기
+        <RiArrowRightSLine />
+      </button>
+    </header>
   );
 }
 
@@ -380,9 +419,20 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-function ProgressRow({ label, value, color }: { label: string; value: number; color: string }) {
+function ProgressRow({
+  label,
+  value,
+  color,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
+}) {
   return (
-    <div className="progress-row">
+    <div className="progress-row" style={{ '--accent': color } as React.CSSProperties}>
+      {Icon && <Icon className="progress-row-icon" />}
       <span>{label}</span>
       <ProgressBar value={value} color={color} />
       <b>{value}%</b>
@@ -402,8 +452,24 @@ function CircularProgress({ value }: { value: number }) {
   return (
     <div className="circle-progress" style={{ '--value': value } as React.CSSProperties}>
       <svg viewBox="0 0 120 120">
+        <defs>
+          <linearGradient id="home-progress-gradient" x1="8" y1="88" x2="112" y2="28" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#f46ed9" />
+            <stop offset="52%" stopColor="#8d6cff" />
+            <stop offset="100%" stopColor="#35c6ff" />
+          </linearGradient>
+        </defs>
         <circle cx="60" cy="60" r="48" />
-        <motion.circle cx="60" cy="60" r="48" pathLength="100" initial={{ strokeDashoffset: 100 }} animate={{ strokeDashoffset: 100 - value }} transition={{ duration: 1 }} />
+        <motion.circle
+          cx="60"
+          cy="60"
+          r="48"
+          pathLength="100"
+          strokeDasharray="100"
+          initial={{ strokeDashoffset: 100 }}
+          animate={{ strokeDashoffset: 100 - value }}
+          transition={{ duration: 1 }}
+        />
       </svg>
       <div>
         <span>오늘 진행률</span>
@@ -420,7 +486,7 @@ function RankingPodium({ onRanking }: { onRanking: () => void }) {
       <div className="ranking-title">
         <div>
           <span>오늘의 랭킹</span>
-          <strong>TOP 3 Podium</strong>
+          <strong>TOP 3 PODIUM</strong>
         </div>
         <RiTrophyFill />
       </div>
@@ -437,6 +503,7 @@ function RankingPodium({ onRanking }: { onRanking: () => void }) {
       </div>
       <button className="premium-button subtle" type="button" onClick={onRanking}>
         전체 랭킹 보기
+        <RiArrowRightSLine />
       </button>
     </section>
   );
@@ -446,18 +513,40 @@ function SummaryCard({ recentRunsCount }: { recentRunsCount: number }) {
   return (
     <section className="summary-card glass-panel">
       <div className="card-heading">
-        <strong>내 기록 요약</strong>
+        <div>
+          <RiPulseLine />
+          <strong>내 기록 요약</strong>
+        </div>
         <RiBarChartGroupedLine />
       </div>
       <div className="summary-metrics">
-        <div><span>이번 주 운동량</span><b>4.21 km</b></div>
-        <div><span>총 운동시간</span><b>04:32:15</b></div>
-        <div><span>연속 달성</span><b>🔥 7일</b></div>
-        <div><span>평균 점수</span><b>842</b></div>
+        <MetricTile icon={RiMapPin2Fill} tone="blue" label="이번 주 운동량" value="4.21 km" />
+        <MetricTile icon={RiTimerFlashFill} tone="cyan" label="총 운동시간" value="04:32:15" />
+        <MetricTile icon={RiFireFill} tone="orange" label="연소 칼로리" value="386 kcal" />
+        <MetricTile icon={RiRunFill} tone="green" label="평균 페이스" value={'06\'28" /km'} />
       </div>
-      <LineChart />
       <p>이번 달 운동 횟수 {Math.max(recentRunsCount, 12)}회</p>
     </section>
+  );
+}
+
+function MetricTile({
+  icon: Icon,
+  tone,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  tone: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className={`metric-tile ${tone}`}>
+      <Icon />
+      <span>{label}</span>
+      <b>{value}</b>
+    </div>
   );
 }
 

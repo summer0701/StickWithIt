@@ -49,6 +49,31 @@ export function dateKeyForDaysAgo(daysAgo: number, now = new Date()) {
   return value.toISOString().slice(0, 10);
 }
 
+export function buildThreeDayRankingPeriod(now = new Date(), anchor = new Date(2025, 5, 28)) {
+  const current = startOfLocalDay(now);
+  const anchorStart = startOfLocalDay(anchor);
+  const dayIndex = Math.max(0, Math.floor((current.getTime() - anchorStart.getTime()) / 86_400_000));
+  const periodStart = new Date(anchorStart);
+  periodStart.setDate(anchorStart.getDate() + Math.floor(dayIndex / 3) * 3);
+
+  const periodEnd = new Date(periodStart);
+  periodEnd.setDate(periodStart.getDate() + 2);
+
+  return {
+    start: periodStart,
+    end: periodEnd,
+    title: '3일 랭킹 기간',
+    summary: `${formatKoreanDate(periodStart)} ~ ${formatKoreanDate(periodEnd)} · 3일 단위 랭킹`,
+  };
+}
+
+export function formatKoreanDate(value: Date) {
+  const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const date = String(value.getDate()).padStart(2, '0');
+  return `${value.getFullYear()}.${month}.${date} (${weekdays[value.getDay()]})`;
+}
+
 function dedupeRuns(runs: RunRecordLike[]) {
   const uniqueRuns = new Map<string, RunRecordLike>();
 
@@ -57,6 +82,10 @@ function dedupeRuns(runs: RunRecordLike[]) {
   });
 
   return Array.from(uniqueRuns.values());
+}
+
+function startOfLocalDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
 function isCompletedOnDate(run: RunRecordLike, dateKey: string) {

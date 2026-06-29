@@ -23,3 +23,38 @@ export function formatGhostDelta(diffSeconds) {
 export function calculateCalories(distanceKm) {
   return Math.round(Math.max(0, Number(distanceKm) || 0) * 74);
 }
+
+export function shouldShowBatteryOptimizationMenu({ isNative, isIgnoringBatteryOptimizations }) {
+  if (!isNative) return true;
+  return isIgnoringBatteryOptimizations === false;
+}
+
+export function shouldConfirmTargetDistanceChange({
+  status,
+  currentTargetDistanceKm,
+  nextTargetDistanceKm,
+  ghostRunnerCount = 0,
+}) {
+  const currentDistance = Number(currentTargetDistanceKm);
+  const nextDistance = Number(nextTargetDistanceKm);
+  const isActiveRun = status === 'running' || status === 'paused';
+  const hasDistanceChanged =
+    Number.isFinite(currentDistance) &&
+    Number.isFinite(nextDistance) &&
+    Math.abs(currentDistance - nextDistance) >= 0.001;
+
+  return isActiveRun && hasDistanceChanged && ghostRunnerCount > 0;
+}
+
+export function getNextRunHudPanel(currentPanel) {
+  return currentPanel === 'stats' ? 'ghost' : 'stats';
+}
+
+export function formatGhostScaleKm(distanceKm) {
+  const safeDistanceKm = Math.max(0, Number(distanceKm) || 0);
+  return `${safeDistanceKm.toFixed(safeDistanceKm >= 10 ? 0 : 1)} km`;
+}
+
+export function formatGhostGoalScaleLabel(targetDistanceKm) {
+  return `목표 ${formatGhostScaleKm(targetDistanceKm)}`;
+}
