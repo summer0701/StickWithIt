@@ -37,6 +37,7 @@ export type RunningPluginApi = {
   playCoachAudio(options: { key?: string; category?: string; file: string; fallbackText?: string }): Promise<void>;
   updateTargetDistance(options: { targetDistanceMeters: number }): Promise<void>;
   updateGhostRunners(options: { ghostRunnersJson: string }): Promise<void>;
+  openSquatPose(): Promise<void>;
   openBatteryOptimizationSettings(): Promise<void>;
   getBatteryOptimizationStatus(): Promise<{ isIgnoringBatteryOptimizations: boolean }>;
   setTtsEnabled(options: { enabled: boolean }): Promise<void>;

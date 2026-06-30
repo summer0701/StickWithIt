@@ -15,6 +15,7 @@ class NativeTtsEngine(private val context: Context) {
     private var textToSpeech: TextToSpeech? = null
     @Volatile private var ready = false
     @Volatile private var enabled = true
+    @Volatile private var speaking = false
 
     fun init() {
         if (textToSpeech != null) return
@@ -31,12 +32,16 @@ class NativeTtsEngine(private val context: Context) {
                         .build()
                 )
                 textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) = Unit
+                    override fun onStart(utteranceId: String?) {
+                        speaking = true
+                    }
                     override fun onDone(utteranceId: String?) {
+                        speaking = false
                         audioFocusManager.abandonFocus()
                     }
                     @Deprecated("Deprecated in Java")
                     override fun onError(utteranceId: String?) {
+                        speaking = false
                         audioFocusManager.abandonFocus()
                     }
                 })
@@ -82,6 +87,7 @@ class NativeTtsEngine(private val context: Context) {
     fun stop() {
         pendingMessages.clear()
         textToSpeech?.stop()
+        speaking = false
         audioFocusManager.abandonFocus()
     }
 
@@ -102,6 +108,8 @@ class NativeTtsEngine(private val context: Context) {
     }
 
     fun isReady(): Boolean = ready
+
+    fun isSpeaking(): Boolean = speaking || textToSpeech?.isSpeaking == true
 
     fun setLanguage(locale: Locale) {
         val result = textToSpeech?.setLanguage(locale)

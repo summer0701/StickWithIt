@@ -28,6 +28,7 @@ type HomePageProps = {
   targetDistanceKm: number;
   onTargetChange: (value: number) => void;
   onStart: () => void;
+  onSquatStart: () => void;
   onRanking: () => void;
   onNavigate: (page: string) => void;
 };
@@ -129,6 +130,7 @@ export default function HomePage({
   targetDistanceKm,
   onTargetChange,
   onStart,
+  onSquatStart,
   onRanking,
   onNavigate,
 }: HomePageProps) {
@@ -210,6 +212,10 @@ export default function HomePage({
     if (exercise.id === 'running') {
       onTargetChange(targetDistanceKm || 10);
       onStart();
+      return;
+    }
+    if (exercise.id === 'squat') {
+      onSquatStart();
       return;
     }
     setToast(`${exercise.name} 운동 화면은 다음 단계에서 연결됩니다.`);

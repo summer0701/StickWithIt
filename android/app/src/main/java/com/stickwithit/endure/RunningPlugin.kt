@@ -191,6 +191,18 @@ class RunningPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun openSquatPose(call: PluginCall) {
+        try {
+            context.startActivity(Intent(context, SquatPoseActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+            call.resolve()
+        } catch (error: Exception) {
+            call.reject("스쿼트 포즈 화면을 열지 못했습니다.", error)
+        }
+    }
+
+    @PluginMethod
     fun getBatteryOptimizationStatus(call: PluginCall) {
         val isIgnoringBatteryOptimizations = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager

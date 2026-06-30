@@ -4455,3 +4455,1077 @@ button:disabled {
     height: 32px;
   }
 }
+
+.squat-screen,
+.squat-camera-screen {
+  width: min(100%, 460px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  color: #f8fbff;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.squat-ready-screen {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: calc(10px + env(safe-area-inset-top)) 14px max(24px, calc(24px + var(--app-safe-area-inset-bottom)));
+  background:
+    radial-gradient(circle at 48% 24%, rgba(63, 218, 205, 0.2), transparent 29%),
+    radial-gradient(circle at 18% 46%, rgba(98, 235, 129, 0.12), transparent 22%),
+    linear-gradient(160deg, #04111f 0%, #09233a 46%, #03101d 100%);
+  scrollbar-width: none;
+}
+
+.squat-ready-screen::-webkit-scrollbar {
+  display: none;
+}
+
+.squat-ready-top {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  min-height: 44px;
+}
+
+.squat-ready-top h1 {
+  margin: 0;
+  color: transparent;
+  font-size: clamp(1.3rem, 5.8vw, 1.75rem);
+  font-weight: 1000;
+  text-align: center;
+  background: linear-gradient(90deg, #b5ff4e, #48e0d2);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.squat-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(156, 181, 223, 0.18);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(31, 48, 72, 0.86), rgba(13, 28, 48, 0.8));
+  color: #fff;
+  box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.04), 0 16px 30px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.squat-timer-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(48vw, 154px);
+  aspect-ratio: 1;
+  margin: 6px auto 10px;
+}
+
+.squat-timer-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-82deg);
+}
+
+.squat-timer-ring circle {
+  fill: none;
+  stroke-width: 8;
+}
+
+.squat-timer-ring .track {
+  stroke: rgba(129, 162, 202, 0.22);
+}
+
+.squat-timer-ring .progress {
+  stroke: url("#squat-progress-gradient");
+  stroke-dasharray: 520 585;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 13px rgba(87, 238, 178, 0.72));
+}
+
+.squat-timer-ring div {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.squat-timer-ring span,
+.squat-timer-ring small,
+.squat-panel span,
+.squat-panel small {
+  color: rgba(226, 235, 248, 0.72);
+  font-weight: 850;
+}
+
+.squat-timer-ring strong {
+  color: #fff;
+  font-size: clamp(2.05rem, 10vw, 3rem);
+  font-weight: 1000;
+  line-height: 0.92;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.24);
+}
+
+.squat-timer-ring small {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(74, 100, 132, 0.54);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.squat-panel {
+  border: 1px solid rgba(143, 171, 214, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(35, 50, 73, 0.7), rgba(8, 18, 33, 0.84)),
+    rgba(8, 16, 30, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 48px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.squat-metric-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.squat-metric-card {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  min-height: 92px;
+  padding: 12px 10px;
+}
+
+.squat-metric-card svg {
+  width: 24px;
+  height: 24px;
+  color: #ff694b;
+  filter: drop-shadow(0 0 12px rgba(255, 105, 75, 0.48));
+}
+
+.squat-metric-card:nth-child(2) svg {
+  color: #ff6b67;
+}
+
+.squat-metric-card strong,
+.squat-count-card strong,
+.squat-rank-card strong {
+  color: #fff;
+  font-size: clamp(1.9rem, 10vw, 2.8rem);
+  font-weight: 1000;
+  line-height: 0.95;
+}
+
+.squat-coach-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.18fr) 48px;
+  gap: 8px 10px;
+  align-items: center;
+  min-height: 112px;
+  padding: 12px;
+}
+
+.squat-coach-card > h2 {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1rem, 4.5vw, 1.28rem);
+  font-weight: 950;
+  line-height: 1.08;
+}
+
+.squat-preview-frame {
+  position: relative;
+  min-height: 76px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.squat-preview-frame img {
+  width: 100%;
+  height: 76px;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(1.05) contrast(1.05);
+}
+
+.squat-feedback-list {
+  display: grid;
+  gap: 8px;
+}
+
+.squat-feedback-list h2 {
+  margin: 0 0 2px;
+  color: #fff;
+  font-size: clamp(1rem, 4.2vw, 1.28rem);
+  line-height: 1.1;
+}
+
+.squat-feedback-list h2 span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(76, 179, 42, 0.74);
+  color: #fff;
+  font-size: 0.72em;
+}
+
+.squat-feedback-list p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: rgba(234, 240, 248, 0.7);
+  font-size: clamp(0.78rem, 3.5vw, 0.92rem);
+  font-weight: 900;
+}
+
+.squat-feedback-list i {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(215, 225, 238, 0.58);
+  border-radius: 50%;
+  color: #0a1a12;
+}
+
+.squat-feedback-list .done {
+  color: #fff;
+}
+
+.squat-feedback-list .done i {
+  border-color: #aaff3f;
+  background: #aaff3f;
+}
+
+.squat-feedback-list.compact {
+  gap: 5px;
+}
+
+.squat-feedback-list.compact h2 {
+  display: none;
+}
+
+.muscle-figure {
+  position: relative;
+  width: 58px;
+  height: 142px;
+  justify-self: center;
+  opacity: 0.86;
+}
+
+.squat-coach-card .muscle-figure {
+  transform: scale(0.56);
+  transform-origin: center;
+}
+
+.muscle-figure span {
+  position: absolute;
+  display: block;
+  background: rgba(125, 140, 160, 0.3);
+  border: 1px solid rgba(196, 212, 232, 0.34);
+}
+
+.muscle-figure .head {
+  left: 20px;
+  top: 0;
+  width: 18px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.muscle-figure .body {
+  left: 17px;
+  top: 25px;
+  width: 24px;
+  height: 54px;
+  border-radius: 46% 46% 38% 38%;
+}
+
+.muscle-figure .arm {
+  top: 34px;
+  width: 13px;
+  height: 58px;
+  border-radius: 999px;
+}
+
+.muscle-figure .arm.left {
+  left: 4px;
+  transform: rotate(12deg);
+}
+
+.muscle-figure .arm.right {
+  right: 4px;
+  transform: rotate(-12deg);
+}
+
+.muscle-figure .leg {
+  top: 78px;
+  width: 19px;
+  height: 58px;
+  border-radius: 999px 999px 42% 42%;
+}
+
+.muscle-figure .leg.left {
+  left: 10px;
+}
+
+.muscle-figure .leg.right {
+  right: 10px;
+}
+
+.muscle-figure .active {
+  background: linear-gradient(180deg, rgba(170, 255, 63, 0.96), rgba(62, 224, 210, 0.6));
+  box-shadow: 0 0 18px rgba(170, 255, 63, 0.5);
+}
+
+.squat-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.squat-count-card,
+.squat-rank-card {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 162px;
+  padding: 20px 18px;
+}
+
+.squat-count-card h2,
+.squat-rank-card h2,
+.squat-ghost-distance h2,
+.squat-floating-ranking h2 {
+  margin: 0;
+  color: #f6f9ff;
+  font-size: clamp(1.05rem, 5vw, 1.38rem);
+  font-weight: 950;
+}
+
+.squat-count-card small {
+  font-size: 1.1rem;
+}
+
+.squat-rank-card strong {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+}
+
+.squat-rank-card strong small {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.squat-rank-card p {
+  margin: 0;
+  color: rgba(226, 235, 248, 0.72);
+  font-weight: 850;
+}
+
+.squat-rank-highlight {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #aaff3f, #22d8e5);
+  color: #07111d;
+  font-weight: 950;
+}
+
+.squat-ghost-distance {
+  margin-top: 8px;
+  padding: 12px 10px;
+}
+
+.squat-ghost-distance h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.squat-ghost-distance h2 svg {
+  color: rgba(218, 229, 245, 0.74);
+}
+
+.squat-ghost-distance > p {
+  margin: 3px 0 0;
+  color: rgba(226, 235, 248, 0.68);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.ghost-card-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(84px, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.ghost-card-list::-webkit-scrollbar {
+  display: none;
+}
+
+.ghost-card {
+  --squat-ghost-color: #5cff8e;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-height: 88px;
+  padding: 8px 7px;
+  border: 1px solid rgba(146, 170, 207, 0.34);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(36, 52, 76, 0.7), rgba(11, 23, 39, 0.82));
+  color: #fff;
+  text-align: center;
+  scroll-snap-align: start;
+}
+
+.ghost-card.best {
+  --squat-ghost-color: #5cff8e;
+  border-color: rgba(102, 241, 145, 0.9);
+  box-shadow: inset 0 0 24px rgba(95, 235, 125, 0.12), 0 0 18px rgba(95, 235, 125, 0.24);
+}
+
+.ghost-card.average {
+  --squat-ghost-color: #6099ff;
+}
+
+.ghost-card.current {
+  --squat-ghost-color: #a768ff;
+  border-color: rgba(156, 255, 70, 0.64);
+}
+
+.ghost-card.yesterday {
+  --squat-ghost-color: #ffa63f;
+  border-color: rgba(140, 105, 255, 0.5);
+}
+
+.ghost-card.worst {
+  --squat-ghost-color: #8793ad;
+  border-color: rgba(255, 86, 72, 0.42);
+}
+
+.ghost-card span {
+  min-height: 18px;
+  color: var(--squat-ghost-color);
+  font-size: 0.86rem;
+  font-weight: 1000;
+}
+
+.ghost-card i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 30px;
+  font-style: normal;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--squat-ghost-color) 72%, transparent));
+}
+
+.ghost-card i::before {
+  width: 24px;
+  height: 29px;
+  border-radius: 13px 13px 7px 7px;
+  content: "";
+  background: linear-gradient(180deg, var(--squat-ghost-color), color-mix(in srgb, var(--squat-ghost-color) 48%, #ffffff 12%));
+  clip-path: polygon(42% 0, 64% 0, 64% 31%, 91% 37%, 82% 54%, 63% 49%, 59% 70%, 76% 100%, 58% 100%, 48% 78%, 32% 100%, 13% 100%, 35% 65%, 39% 43%, 17% 55%, 8% 39%, 39% 25%);
+}
+
+.ghost-card i::after {
+  position: absolute;
+  top: 8px;
+  left: 15px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  content: "";
+  background: rgba(2, 14, 27, 0.9);
+  box-shadow: 8px 0 0 rgba(2, 14, 27, 0.9);
+}
+
+.ghost-card small {
+  display: grid;
+  place-items: center;
+  min-height: 24px;
+  color: rgba(244, 248, 255, 0.9);
+  font-size: 0.64rem;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.ghost-card b {
+  margin-top: auto;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 1000;
+}
+
+.ghost-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.ghost-line::before {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 31px;
+  height: 5px;
+  border-radius: 999px;
+  content: "";
+  background: linear-gradient(90deg, #2489ff, #5ee9d5 38%, #b7ff45 64%, rgba(220, 227, 237, 0.42));
+}
+
+.ghost-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #fff;
+  text-align: center;
+}
+
+.ghost-dot span,
+.ghost-dot b,
+.ghost-dot small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ghost-dot span {
+  color: rgba(233, 240, 249, 0.78);
+  font-weight: 950;
+}
+
+.ghost-dot i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  font-style: normal;
+  font-weight: 950;
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 0 12px currentColor);
+}
+
+.ghost-dot i::before {
+  width: 20px;
+  height: 26px;
+  border-radius: 12px 12px 6px 6px;
+  content: "";
+  background: linear-gradient(180deg, currentColor, rgba(255, 255, 255, 0.2));
+  clip-path: polygon(42% 0, 64% 0, 64% 31%, 91% 37%, 82% 54%, 63% 49%, 59% 70%, 76% 100%, 58% 100%, 48% 78%, 32% 100%, 13% 100%, 35% 65%, 39% 43%, 17% 55%, 8% 39%, 39% 25%);
+}
+
+.ghost-dot i::after {
+  position: absolute;
+  top: 17px;
+  left: 20px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  content: "";
+  background: rgba(2, 14, 27, 0.9);
+  box-shadow: 7px 0 0 rgba(2, 14, 27, 0.9);
+}
+
+.ghost-dot.best i,
+.ghost-dot.average i,
+.ghost-dot.yesterday i {
+  color: #56dff2;
+}
+
+.ghost-dot.current i {
+  width: 60px;
+  height: 60px;
+  border: 0;
+  background: transparent;
+  color: #8be830;
+  box-shadow: 0 0 24px rgba(181, 255, 78, 0.8);
+}
+
+.ghost-dot.gray i {
+  color: #8793ad;
+}
+
+.ghost-dot.worst i {
+  color: #ff615a;
+}
+
+.ghost-dot b {
+  font-size: 1.12rem;
+  font-weight: 1000;
+}
+
+.ghost-dot small {
+  font-size: 0.78rem;
+}
+
+.squat-start-footer {
+  display: grid;
+  place-items: center;
+  margin-top: 12px;
+  padding: 0 42px max(8px, calc(8px + var(--app-safe-area-inset-bottom)));
+}
+
+.squat-main-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  justify-content: center;
+  column-gap: 14px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 20px;
+  border: 1px solid rgba(108, 255, 216, 0.5);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #24bee1 0%, #48d37a 58%, #93ef4f 100%);
+  color: #fff;
+  font-weight: 1000;
+  text-align: left;
+  box-shadow:
+    0 18px 40px rgba(64, 231, 205, 0.28),
+    0 0 26px rgba(146, 239, 79, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.squat-main-action svg {
+  grid-row: 1 / span 2;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.16));
+}
+
+.squat-main-action span {
+  grid-row: 1 / span 2;
+  color: #fff;
+  font-size: 2.7rem;
+  line-height: 1;
+}
+
+.squat-main-action strong {
+  min-width: 0;
+  color: #fff;
+  font-size: clamp(1.14rem, 5.4vw, 1.45rem);
+  line-height: 1;
+}
+
+.squat-main-action small {
+  min-width: 0;
+  color: rgba(236, 255, 244, 0.72);
+  font-size: clamp(0.72rem, 3.2vw, 0.86rem);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.squat-countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  background: rgba(2, 8, 16, 0.78);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.squat-countdown-overlay strong {
+  display: grid;
+  place-items: center;
+  width: 172px;
+  height: 172px;
+  border: 8px solid #aaff3f;
+  border-radius: 50%;
+  font-size: 5.2rem;
+  line-height: 1;
+  box-shadow: 0 0 42px rgba(170, 255, 63, 0.58);
+}
+
+.squat-countdown-overlay span {
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.squat-camera-screen {
+  position: relative;
+  overflow: hidden auto;
+  padding: calc(16px + env(safe-area-inset-top)) 15px calc(22px + var(--app-safe-area-inset-bottom));
+  background-color: #111;
+  background-image:
+    linear-gradient(180deg, rgba(245, 247, 250, 0.04), rgba(245, 247, 250, 0.02)),
+    var(--squat-camera-bg);
+  background-position: center 46%, center 46%;
+  background-size: auto 52%, auto 52%;
+  background-repeat: no-repeat;
+}
+
+.squat-camera-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.04), rgba(10, 10, 10, 0.1) 64%, rgba(10, 10, 10, 0.22));
+}
+
+.squat-camera-back {
+  position: relative;
+  z-index: 3;
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  background: rgba(15, 21, 26, 0.86);
+}
+
+.squat-camera-score {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 15px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  width: 118px;
+  min-height: 120px;
+  padding: 14px 12px 16px;
+  border-radius: 18px;
+  background: rgba(12, 17, 22, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 38px rgba(0, 0, 0, 0.28);
+}
+
+.squat-camera-score span,
+.squat-camera-score hr,
+.squat-camera-score b {
+  grid-column: 1 / -1;
+}
+
+.squat-camera-score span {
+  font-size: 0.9rem;
+  font-weight: 950;
+  text-align: center;
+}
+
+.squat-camera-score strong {
+  color: #fff;
+  font-size: 3.7rem;
+  font-weight: 1000;
+  line-height: 0.88;
+}
+
+.squat-camera-score small {
+  margin-bottom: 8px;
+  font-weight: 900;
+}
+
+.squat-camera-score hr {
+  width: 100%;
+  height: 1px;
+  margin: 12px 0;
+  border: 0;
+  background: rgba(224, 232, 242, 0.22);
+}
+
+.squat-camera-score b {
+  text-align: center;
+}
+
+.squat-feedback-card {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: 122px;
+  min-height: 334px;
+  margin-top: 82px;
+  padding: 13px 10px;
+  border-radius: 14px;
+  background: rgba(12, 17, 22, 0.82);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+}
+
+.squat-feedback-card .squat-feedback-list {
+  gap: 11px;
+}
+
+.squat-feedback-card .squat-feedback-list h2 {
+  font-size: 1rem;
+}
+
+.squat-feedback-card .squat-feedback-list h2 span {
+  min-height: 22px;
+  padding: 0 8px;
+}
+
+.squat-feedback-card .squat-feedback-list p {
+  gap: 7px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.squat-feedback-card .squat-feedback-list i {
+  width: 20px;
+  height: 20px;
+}
+
+.squat-feedback-card .muscle-figure {
+  align-self: end;
+  margin: 8px auto 0;
+}
+
+.pose-overlay {
+  position: absolute;
+  left: 42%;
+  top: 31%;
+  z-index: 2;
+  width: 30%;
+  height: 25%;
+  pointer-events: none;
+}
+
+.pose-overlay .joint {
+  position: absolute;
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(170, 255, 63, 0.9);
+  box-shadow: 0 0 18px rgba(102, 255, 98, 0.78);
+}
+
+.pose-overlay .shoulder {
+  left: 25%;
+  top: 23%;
+}
+
+.pose-overlay .elbow {
+  left: 48%;
+  top: 30%;
+}
+
+.pose-overlay .wrist {
+  left: 87%;
+  top: 30%;
+}
+
+.pose-overlay .hip {
+  left: 10%;
+  top: 62%;
+}
+
+.pose-overlay .knee {
+  left: 48%;
+  top: 70%;
+}
+
+.pose-overlay .ankle {
+  left: 25%;
+  top: 96%;
+}
+
+.pose-overlay .line {
+  position: absolute;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(144, 255, 105, 0.68);
+  box-shadow: 0 0 12px rgba(102, 255, 98, 0.52);
+  transform-origin: left center;
+}
+
+.pose-overlay .line.arm {
+  left: 27%;
+  top: 28%;
+  width: 61%;
+  transform: rotate(5deg);
+}
+
+.pose-overlay .line.torso {
+  left: 14%;
+  top: 60%;
+  width: 38%;
+  transform: rotate(-66deg);
+}
+
+.pose-overlay .line.thigh {
+  left: 12%;
+  top: 65%;
+  width: 38%;
+  transform: rotate(10deg);
+}
+
+.pose-overlay .line.shin {
+  left: 27%;
+  top: 96%;
+  width: 31%;
+  transform: rotate(-70deg);
+}
+
+.squat-floating-ranking {
+  position: relative;
+  z-index: 3;
+  width: 146px;
+  margin: 76px 0 16px auto;
+  padding: 14px 12px;
+  border-radius: 16px;
+  background: rgba(12, 17, 22, 0.86);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
+}
+
+.squat-floating-ranking h2 {
+  margin-bottom: 10px;
+}
+
+.squat-floating-ranking div {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  color: #fff;
+  font-size: 0.74rem;
+}
+
+.squat-floating-ranking span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(204, 216, 232, 0.42);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.squat-floating-ranking b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.squat-floating-ranking em {
+  font-style: normal;
+  font-weight: 950;
+  text-align: right;
+}
+
+.squat-floating-ranking .active {
+  min-height: 30px;
+  margin: 5px 0;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #aaff3f, #16d9e9);
+  color: #07111d;
+}
+
+.squat-floating-ranking .active span {
+  background: rgba(6, 17, 29, 0.18);
+  color: #07111d;
+}
+
+.squat-floating-ranking p {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(224, 232, 242, 0.18);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.squat-ghost-distance.camera {
+  position: relative;
+  z-index: 3;
+  margin-top: 20px;
+  background: rgba(12, 17, 22, 0.88);
+}
+
+.squat-ghost-distance.camera .ghost-line {
+  gap: 4px;
+}
+
+.squat-ghost-distance.camera .ghost-dot i {
+  width: 42px;
+  height: 42px;
+}
+
+.squat-ghost-distance.camera .ghost-dot.current i {
+  width: 54px;
+  height: 54px;
+}
+
+@media (max-width: 374px) {
+  .squat-ready-screen {
+    padding-inline: 12px;
+  }
+
+  .squat-timer-ring {
+    width: min(48vw, 144px);
+    margin-top: 4px;
+  }
+
+  .squat-timer-ring strong {
+    font-size: clamp(1.95rem, 9.5vw, 2.65rem);
+  }
+
+  .squat-coach-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .squat-coach-card .muscle-figure {
+    display: none;
+  }
+
+  .squat-preview-frame,
+  .squat-preview-frame img {
+    height: 70px;
+    min-height: 70px;
+  }
+
+  .squat-start-footer {
+    padding-inline: 18px;
+  }
+
+  .squat-main-action {
+    column-gap: 12px;
+    padding-inline: 18px;
+  }
+
+  .squat-feedback-card {
+    width: 116px;
+  }
+
+  .squat-floating-ranking {
+    width: 140px;
+  }
+}

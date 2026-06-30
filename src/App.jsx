@@ -3,6 +3,7 @@ import { BarChart3, Dumbbell, History, Home, Trophy, User } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
+import SquatPage from './pages/SquatPage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
@@ -20,7 +21,7 @@ const bottomRoutes = [
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState('home');
+  const [page, setPage] = useState('squat');
   const [targetDistanceKm, setTargetDistanceKm] = useState(10);
   const [latestResult, setLatestResult] = useState(null);
 
@@ -91,7 +92,7 @@ export default function App() {
 
   return (
     <div className="app-shell fitness-shell">
-      {page !== 'run' && page !== 'home' && page !== 'my' && (
+      {page !== 'run' && page !== 'squat' && page !== 'home' && page !== 'my' && (
         <header className="topbar fitness-topbar">
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}
@@ -108,10 +109,12 @@ export default function App() {
           targetDistanceKm={targetDistanceKm}
           onTargetChange={setTargetDistanceKm}
           onStart={() => setPage('run')}
+          onSquatStart={() => setPage('squat')}
           onRanking={() => setPage('ranking')}
           onNavigate={setPage}
         />
       )}
+      {page === 'squat' && <SquatPage onBack={() => setPage('home')} />}
       {page === 'run' && (
         <RunPage
           user={user}
@@ -138,7 +141,7 @@ export default function App() {
         <PlaceholderPage title={pageTitle} onHome={() => setPage('home')} />
       )}
 
-      {page !== 'run' && (
+      {page !== 'run' && page !== 'squat' && (
         <nav className="bottom-nav fitness-bottom-nav" aria-label="하단 내비게이션">
           {bottomRoutes.map((route) => {
             const Icon = route.icon;
