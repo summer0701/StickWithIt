@@ -14,6 +14,7 @@ import {
   type GhostSetting,
 } from '../lib/ghostSettings';
 import { readGhostResetAt, resetGhostHistory } from '../lib/ghostReset';
+import { readSquatDurationSeconds, writeSquatDurationSeconds } from '../lib/squatSettings';
 import ghostMascot from '../assets/ghost-settings-mascot.webp';
 
 type MyPageProps = {
@@ -35,6 +36,7 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
   const [difficulty, setDifficulty] = useState<GhostDifficultySetting>(() => readGhostDifficulty(user.id));
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [ghostResetAt, setGhostResetAt] = useState<string | null>(() => readGhostResetAt(user.id));
+  const [squatDurationSeconds, setSquatDurationSeconds] = useState(() => readSquatDurationSeconds(user.id));
   const selectedGhost = settings[selectedIndex] ?? settings[0];
   const preview = useMemo(() => settings.map((item) => ghostDisplayName(item.key, settings)).join(' · '), [settings]);
   const targetDistanceLabel = `${ghostDifficultyTargetKm(difficulty).toFixed(1)} km`;
@@ -67,6 +69,10 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
 
   function resetGhostData() {
     setGhostResetAt(resetGhostHistory(user.id));
+  }
+
+  function updateSquatDuration(minutes: number) {
+    setSquatDurationSeconds(writeSquatDurationSeconds(user.id, minutes * 60));
   }
 
   return (
@@ -213,6 +219,27 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         </div>
       </section>
 
+      <section className="ghost-settings-summary" aria-label="스쿼트 시간 설정">
+        <span>스쿼트 목표 시간</span>
+        <strong>{formatSquatDuration(squatDurationSeconds)}</strong>
+        <label>
+          운동 시간
+          <div className="speed-input-shell">
+            <Activity size={28} aria-hidden="true" />
+            <input
+              inputMode="decimal"
+              min="0.5"
+              max="10"
+              step="0.5"
+              type="number"
+              value={Number((squatDurationSeconds / 60).toFixed(1))}
+              onChange={(event) => updateSquatDuration(Number(event.target.value))}
+            />
+            <small>분</small>
+          </div>
+        </label>
+      </section>
+
       <section className="ghost-settings-summary">
         <span>현재 난이도 · 목표 거리</span>
         <strong>{difficultyOptions.find((option) => option.value === difficulty.difficulty)?.label ?? '입문'} · {targetDistanceLabel}</strong>
@@ -225,6 +252,13 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
       </section>
     </main>
   );
+}
+
+function formatSquatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (seconds === 0) return `${minutes}분`;
+  return `${minutes}분 ${seconds}초`;
 }
 
 function SpeedGraph({ speedKmh, seed }: { speedKmh: number; seed: string }) {

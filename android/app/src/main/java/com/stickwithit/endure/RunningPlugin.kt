@@ -195,6 +195,7 @@ class RunningPlugin : Plugin() {
         try {
             context.startActivity(Intent(context, SquatPoseActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra(SquatPoseActivity.EXTRA_DURATION_SECONDS, call.data.optInt("durationSeconds", 60))
             })
             call.resolve()
         } catch (error: Exception) {

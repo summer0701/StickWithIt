@@ -4,14 +4,19 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageFormat
-import android.graphics.Typeface
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.YuvImage
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -35,18 +40,21 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 class SquatPoseActivity : ComponentActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: SquatSkeletonOverlayView
     private lateinit var feedbackView: TextView
+    private lateinit var finishButton: TextView
     private lateinit var countView: TextView
+    private lateinit var rankingCard: LinearLayout
     private lateinit var metaView: LinearLayout
     private lateinit var timerView: TextView
     private lateinit var progressView: ProgressBar
-    private lateinit var currentRankCountView: TextView
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
+    private val rankRowViews = mutableListOf<TextView>()
     private val analyzerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val evaluator = SquatPoseEvaluator()
     private val ttsEngine by lazy { NativeTtsEngine(this) }
@@ -54,6 +62,7 @@ class SquatPoseActivity : ComponentActivity() {
     private var modelTier: ModelTier = ModelTier.FULL
     private var startedAt = 0L
     private var reps = 0
+    private var targetDurationSeconds = 60
     private var lastFrameAt = 0L
     private var lastNarrationAt = 0L
     private val fpsSamples = ArrayDeque<Float>()
@@ -61,6 +70,7 @@ class SquatPoseActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        targetDurationSeconds = intent.getIntExtra(EXTRA_DURATION_SECONDS, 60).coerceIn(30, 600)
         startedAt = SystemClock.elapsedRealtime()
         lastNarrationAt = startedAt
         ttsEngine.init()
@@ -79,7 +89,7 @@ class SquatPoseActivity : ComponentActivity() {
         if (requestCode == REQUEST_CAMERA && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
             startPoseCamera()
         } else {
-            feedbackView.text = "주의\n카메라 권한을 허용해 주세요"
+            feedbackView.text = "주의\n카메라 권한을 허용해 주세요."
         }
     }
 
@@ -100,48 +110,45 @@ class SquatPoseActivity : ComponentActivity() {
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
         overlayView = SquatSkeletonOverlayView(this)
-        val finishButton = hudTextView(20f).apply {
-            text = "▯  종료하기"
+        finishButton = hudTextView(20f).apply {
+            text = "종료하기"
             setTextColor(Color.WHITE)
-            setPadding(dp(17), 0, dp(18), 0)
-            background = roundedHudBackground(Color.argb(235, 3, 5, 8), dp(16).toFloat())
+            gravity = Gravity.CENTER
+            compoundDrawablePadding = dp(10)
+            setCompoundDrawablesWithIntrinsicBounds(FinishIconDrawable(Color.rgb(255, 78, 86), dp(28)), null, null, null)
+            background = roundedHudBackground(Color.argb(246, 3, 5, 8), dp(20).toFloat())
             setOnClickListener { finish() }
         }
-
         countView = hudTextView(20f).apply {
             text = "SQUATS\n0    회"
             gravity = Gravity.CENTER
-            setPadding(dp(18), dp(14), dp(18), dp(14))
-            background = roundedHudBackground(Color.argb(232, 3, 5, 8), dp(20).toFloat())
+            background = roundedHudBackground(Color.argb(236, 3, 5, 8), dp(20).toFloat())
         }
         feedbackView = hudTextView(15f).apply {
             text = "좋음 · 자세를 확인하는 중"
-            setTextColor(Color.argb(210, 255, 255, 255))
             gravity = Gravity.CENTER
-            setPadding(dp(14), dp(8), dp(14), dp(8))
-            background = roundedHudBackground(Color.argb(120, 3, 5, 8), dp(16).toFloat())
-            visibility = android.view.View.GONE
+            visibility = View.GONE
         }
-        val rankingCard = buildRankingCard()
+        rankingCard = buildRankingCard()
 
         timerView = hudTextView(57f).apply {
-            text = "00:00 / 01:00"
+            text = "00:00 / ${formatClock(targetDurationSeconds)}"
             gravity = Gravity.CENTER
             includeFontPadding = false
         }
         progressView = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 60
+            max = targetDurationSeconds
             progress = 0
-            progressDrawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.rgb(135, 235, 26), Color.rgb(182, 220, 26))).apply {
-                cornerRadius = dp(12).toFloat()
-            }
+            progressDrawable = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.rgb(135, 235, 26), Color.rgb(182, 220, 26))
+            ).apply { cornerRadius = dp(12).toFloat() }
             progressBackgroundTintList = android.content.res.ColorStateList.valueOf(Color.argb(120, 180, 185, 190))
         }
         metaView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(22), dp(28), dp(22), dp(30))
-            background = roundedHudBackground(Color.argb(236, 3, 5, 8), dp(24).toFloat())
+            background = roundedHudBackground(Color.argb(238, 3, 5, 8), dp(24).toFloat())
             addView(timerView, LinearLayout.LayoutParams(-1, -2))
             addView(progressView, LinearLayout.LayoutParams(-1, dp(12)).apply {
                 topMargin = dp(18)
@@ -152,70 +159,137 @@ class SquatPoseActivity : ComponentActivity() {
 
         root.addView(previewView, FrameLayout.LayoutParams(-1, -1))
         root.addView(overlayView, FrameLayout.LayoutParams(-1, -1))
-        root.addView(finishButton, FrameLayout.LayoutParams(dp(190), dp(84), Gravity.START or Gravity.TOP).apply {
-            topMargin = dp(96)
-            leftMargin = dp(30)
-        })
-        root.addView(countView, FrameLayout.LayoutParams(dp(240), dp(234), Gravity.END or Gravity.TOP).apply {
-            topMargin = dp(192)
-            rightMargin = dp(26)
-        })
-        root.addView(feedbackView, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_HORIZONTAL or Gravity.TOP).apply {
-            topMargin = dp(54)
-        })
-        root.addView(rankingCard, FrameLayout.LayoutParams(dp(312), dp(424), Gravity.END or Gravity.BOTTOM).apply {
-            rightMargin = dp(36)
-            bottomMargin = dp(508)
-        })
-        root.addView(metaView, FrameLayout.LayoutParams(-1, dp(304), Gravity.BOTTOM).apply {
-            leftMargin = dp(36)
-            rightMargin = dp(36)
-            bottomMargin = dp(138)
-        })
+        root.addView(finishButton)
+        root.addView(countView)
+        root.addView(feedbackView)
+        root.addView(rankingCard)
+        root.addView(metaView)
         setContentView(root)
+        root.post { applyReferenceHudLayout(root) }
+    }
+
+    private fun applyReferenceHudLayout(root: FrameLayout) {
+        val sx = root.width / REF_WIDTH
+        val sy = root.height / REF_HEIGHT
+        val scale = minOf(sx, sy)
+
+        fun place(view: View, width: Float, height: Float, left: Float? = null, top: Float? = null, right: Float? = null, bottom: Float? = null) {
+            view.layoutParams = FrameLayout.LayoutParams(px(width, sx), px(height, sy)).apply {
+                gravity = ((if (left == null && right != null) Gravity.END else Gravity.START) or
+                    (if (top == null && bottom != null) Gravity.BOTTOM else Gravity.TOP))
+                left?.let { leftMargin = px(it, sx) }
+                right?.let { rightMargin = px(it, sx) }
+                top?.let { topMargin = px(it, sy) }
+                bottom?.let { bottomMargin = px(it, sy) }
+            }
+        }
+
+        finishButton.setTextPx(21f, scale)
+        finishButton.setPadding(px(18f, sx), 0, px(18f, sx), 0)
+        countView.setTextPx(28f, scale)
+        rankingCard.findViewWithTag<TextView>("rankingTitle")?.setTextPx(26f, scale)
+        timerView.setTextPx(88f, scale)
+        updateRankRowTextSize(scale)
+
+        finishButton.background = roundedHudBackground(Color.argb(246, 3, 5, 8), px(22f, scale).toFloat())
+        countView.background = roundedHudBackground(Color.argb(238, 3, 5, 8), px(22f, scale).toFloat())
+        rankingCard.background = roundedHudBackground(Color.argb(235, 3, 5, 8), px(22f, scale).toFloat())
+        metaView.background = roundedHudBackground(Color.argb(238, 3, 5, 8), px(34f, scale).toFloat())
+
+        place(finishButton, 190f, 84f, left = 30f, top = 96f)
+        place(countView, 240f, 234f, right = 26f, top = 192f)
+        place(feedbackView, 220f, 54f, left = 316f, top = 54f)
+        place(rankingCard, 312f, 454f, right = 36f, top = 916f)
+        place(metaView, 780f, 304f, left = 36f, bottom = 138f)
+
+        metaView.setPadding(px(28f, sx), px(24f, sy), px(28f, sx), px(24f, sy))
+        (progressView.layoutParams as LinearLayout.LayoutParams).apply {
+            height = px(12f, sy)
+            topMargin = px(22f, sy)
+            leftMargin = px(70f, sx)
+            rightMargin = px(70f, sx)
+        }
+        metaView.requestLayout()
     }
 
     private fun buildRankingCard(): LinearLayout =
         LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(24), dp(20), dp(22))
-            background = roundedHudBackground(Color.argb(232, 3, 5, 8), dp(18).toFloat())
-            addView(hudTextView(26f).apply {
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+            background = roundedHudBackground(Color.argb(235, 3, 5, 8), dp(18).toFloat())
+            addView(hudTextView(24f).apply {
+                tag = "rankingTitle"
                 text = "RANKING"
                 gravity = Gravity.CENTER
                 includeFontPadding = false
-            }, LinearLayout.LayoutParams(-1, -2).apply {
-                bottomMargin = dp(18)
-            })
-            listOf(
-                Triple("1", "고스트 1", "124회"),
-                Triple("2", "고스트 2", "98회"),
-                Triple("3", "고스트 3", "76회"),
-                Triple("4", "고스트 4", "54회"),
-                Triple("5", "고스트 5", "32회")
-            ).forEachIndexed { index, row ->
-                addView(buildRankRow(row.first, row.second, row.third, index == 0), LinearLayout.LayoutParams(-1, dp(44)))
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
+            repeat(6) {
+                val row = buildRankRow("", false)
+                rankRowViews.add(row)
+                addView(row, LinearLayout.LayoutParams(-1, dp(43)).apply {
+                    if (it > 0) topMargin = dp(4)
+                })
             }
-            val currentRow = buildRankRow("6", "나", "0회", false).apply {
-                background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.rgb(139, 242, 24), Color.rgb(25, 216, 212))).apply {
-                    cornerRadius = dp(8).toFloat()
-                }
-                setTextColor(Color.rgb(2, 18, 16))
-            }
-            currentRankCountView = currentRow
-            addView(currentRow, LinearLayout.LayoutParams(-1, dp(52)).apply {
-                topMargin = dp(12)
-            })
+            updateRankingRows(0)
         }
 
-    private fun buildRankRow(rank: String, name: String, count: String, gold: Boolean): TextView =
+    private fun buildRankRow(textValue: String, current: Boolean): TextView =
         hudTextView(20f).apply {
-            text = "$rank   $name        $count"
+            tag = "rankRow"
+            text = textValue
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), 0, dp(10), 0)
-            setTextColor(if (gold) Color.rgb(255, 216, 40) else Color.WHITE)
             includeFontPadding = false
+            applyRankRowStyle(current)
         }
+
+    private fun TextView.applyRankRowStyle(current: Boolean) {
+        if (current) {
+            setTextColor(Color.rgb(2, 18, 16))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.rgb(139, 242, 24), Color.rgb(25, 216, 212))
+            ).apply { cornerRadius = dp(8).toFloat() }
+        } else {
+            setTextColor(Color.WHITE)
+            background = null
+        }
+    }
+
+    private fun updateRankRowTextSize(scale: Float) {
+        rankRowViews.forEach { it.setTextPx(20f, scale) }
+    }
+
+    private fun updateRankingRows(elapsedSeconds: Int) {
+        val rows = ghostCounts(elapsedSeconds)
+            .map { RankEntry(it.first, it.second, false) }
+            .plus(RankEntry("나", reps, true))
+            .sortedWith(compareByDescending<RankEntry> { it.count }.thenBy { if (it.current) 1 else 0 })
+
+        rows.forEachIndexed { index, row ->
+            rankRowViews.getOrNull(index)?.apply {
+                text = "${index + 1}   ${row.name}        ${row.count}회"
+                applyRankRowStyle(row.current)
+            }
+        }
+    }
+
+    private fun ghostCounts(elapsedSeconds: Int): List<Pair<String, Int>> {
+        val progress = (elapsedSeconds.toFloat() / targetDurationSeconds.toFloat()).coerceIn(0f, 1f)
+        val eased = progress * progress * (3f - 2f * progress)
+        val targets = listOf(
+            "고스트 1" to 124,
+            "고스트 2" to 98,
+            "고스트 3" to 76,
+            "고스트 4" to 54,
+            "고스트 5" to 32
+        )
+        return targets.mapIndexed { index, target ->
+            val warmupDelay = index * 0.015f
+            val adjusted = ((eased - warmupDelay) / (1f - warmupDelay)).coerceIn(0f, 1f)
+            target.first to floor(target.second * adjusted).toInt()
+        }
+    }
 
     private fun startPoseCamera() {
         createLandmarker(ModelTier.FULL)
@@ -232,12 +306,7 @@ class SquatPoseActivity : ComponentActivity() {
                 .also { it.setAnalyzer(analyzerExecutor, ::analyzeFrame) }
 
             cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
-                this,
-                CameraSelector.DEFAULT_FRONT_CAMERA,
-                preview,
-                analysis
-            )
+            cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis)
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -265,10 +334,10 @@ class SquatPoseActivity : ComponentActivity() {
                     val frame = evaluated.copy(modelTier = modelTier.label, fps = averageFps())
                     runOnUiThread { updateHud(frame) }
                 }.onFailure { error ->
-                    runOnUiThread { feedbackView.text = "주의\n${error.message ?: "포즈 결과를 처리하지 못했습니다"}" }
+                    runOnUiThread { feedbackView.text = "주의\n${error.message ?: "포즈 결과를 처리하지 못했습니다."}" }
                 }
             }
-            .setErrorListener { error -> runOnUiThread { feedbackView.text = "주의\n${error.message ?: "포즈 분석을 시작하지 못했습니다"}" } }
+            .setErrorListener { error -> runOnUiThread { feedbackView.text = "주의\n${error.message ?: "포즈 분석을 시작하지 못했습니다."}" } }
             .build()
         poseLandmarker = PoseLandmarker.createFromOptions(this, options)
     }
@@ -293,7 +362,7 @@ class SquatPoseActivity : ComponentActivity() {
             val rotated = rotateBitmap(bitmap, rotationDegrees)
             landmarker.detectAsync(BitmapImageBuilder(rotated).build(), now)
         }.onFailure { error ->
-            runOnUiThread { feedbackView.text = "주의\n${error.message ?: "포즈 분석 프레임을 처리하지 못했습니다"}" }
+            runOnUiThread { feedbackView.text = "주의\n${error.message ?: "포즈 분석 프레임을 처리하지 못했습니다."}" }
         }
     }
 
@@ -309,20 +378,14 @@ class SquatPoseActivity : ComponentActivity() {
         )
         countView.text = "SQUATS\n${reps}    회"
         val elapsedSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1000L).toInt()
-        timerView.text = "${formatClock(elapsedSeconds)} / 01:00"
-        progressView.progress = elapsedSeconds.coerceIn(0, 60)
-        val rank = when (frame.feedback.level) {
-            PoseFeedbackLevel.GOOD -> 2
-            PoseFeedbackLevel.WARNING -> 3
-            PoseFeedbackLevel.BAD -> 4
-        }
-        val ghostStatus = when (frame.feedback.level) {
-            PoseFeedbackLevel.GOOD -> "고스트보다 안정적"
-            PoseFeedbackLevel.WARNING -> "고스트와 접전 중"
-            PoseFeedbackLevel.BAD -> "고스트가 앞서고 있어요"
-        }
-        currentRankCountView.text = "6   나        ${reps}회"
-        speakPoseSummaryIfNeeded(frame, rank)
+        timerView.text = "${formatClock(elapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
+        progressView.progress = elapsedSeconds.coerceIn(0, targetDurationSeconds)
+        updateRankingRows(elapsedSeconds)
+        speakPoseSummaryIfNeeded(frame, currentRank())
+    }
+
+    private fun currentRank(): Int {
+        return rankRowViews.indexOfFirst { it.text.contains("나") }.let { if (it >= 0) it + 1 else 6 }
     }
 
     private fun speakPoseSummaryIfNeeded(frame: SquatPoseFrame, rank: Int) {
@@ -366,7 +429,7 @@ class SquatPoseActivity : ComponentActivity() {
             fpsSamples.clear()
             lastFrameAt = 0L
         }.onFailure { error ->
-            runOnUiThread { feedbackView.text = "주의\n${error.message ?: "Lite 모델로 전환하지 못했습니다"}" }
+            runOnUiThread { feedbackView.text = "주의\n${error.message ?: "Lite 모델로 전환하지 못했습니다."}" }
         }
         switchingModel.set(false)
         return true
@@ -382,6 +445,10 @@ class SquatPoseActivity : ComponentActivity() {
         includeFontPadding = true
     }
 
+    private fun TextView.setTextPx(referencePx: Float, scale: Float) {
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, px(referencePx, scale).toFloat())
+    }
+
     private fun roundedHudBackground(color: Int, radius: Float = 24f) =
         GradientDrawable().apply {
             setColor(color)
@@ -391,14 +458,21 @@ class SquatPoseActivity : ComponentActivity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
+    private fun px(value: Float, scale: Float): Int = (value * scale).roundToInt()
+
+    private data class RankEntry(val name: String, val count: Int, val current: Boolean)
+
     private enum class ModelTier(val assetName: String, val label: String) {
         FULL("pose_landmarker_full.task", "Full"),
         LITE("pose_landmarker_lite.task", "Lite")
     }
 
     companion object {
+        const val EXTRA_DURATION_SECONDS = "durationSeconds"
         private const val REQUEST_CAMERA = 5201
         private const val NARRATION_INTERVAL_MS = 30_000L
+        private const val REF_WIDTH = 852f
+        private const val REF_HEIGHT = 1844f
     }
 }
 
@@ -425,6 +499,51 @@ private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
     if (rotationDegrees == 0) return bitmap
     val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees.toFloat()) }
     return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+}
+
+private class FinishIconDrawable(
+    private val iconColor: Int,
+    private val iconSize: Int
+) : Drawable() {
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = iconColor
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = iconColor
+        style = Paint.Style.FILL
+    }
+
+    override fun draw(canvas: Canvas) {
+        val size = bounds.width().coerceAtMost(bounds.height()).toFloat()
+        val left = bounds.left + size * 0.18f
+        val top = bounds.top + size * 0.12f
+        val right = bounds.left + size * 0.78f
+        val bottom = bounds.top + size * 0.88f
+        strokePaint.strokeWidth = size * 0.09f
+        canvas.drawRoundRect(RectF(left, top, right, bottom), size * 0.08f, size * 0.08f, strokePaint)
+        canvas.drawCircle(bounds.left + size * 0.55f, bounds.top + size * 0.5f, size * 0.045f, fillPaint)
+        canvas.drawLine(bounds.left + size * 0.28f, bounds.top + size * 0.2f, bounds.left + size * 0.28f, bounds.top + size * 0.8f, strokePaint)
+    }
+
+    override fun setAlpha(alpha: Int) {
+        strokePaint.alpha = alpha
+        fillPaint.alpha = alpha
+    }
+
+    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {
+        strokePaint.colorFilter = colorFilter
+        fillPaint.colorFilter = colorFilter
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
+
+    override fun getIntrinsicWidth(): Int = iconSize
+
+    override fun getIntrinsicHeight(): Int = iconSize
 }
 
 private fun formatClock(totalSeconds: Int): String {

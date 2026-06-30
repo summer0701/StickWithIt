@@ -5001,31 +5001,51 @@ button:disabled {
   position: relative;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 30px;
+  width: 44px;
+  height: 42px;
   font-style: normal;
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--squat-ghost-color) 72%, transparent));
 }
 
 .ghost-card i::before {
-  width: 24px;
-  height: 29px;
-  border-radius: 13px 13px 7px 7px;
+  width: 34px;
+  height: 38px;
+  border-radius: 18px 18px 8px 8px;
   content: "";
   background: linear-gradient(180deg, var(--squat-ghost-color), color-mix(in srgb, var(--squat-ghost-color) 48%, #ffffff 12%));
-  clip-path: polygon(42% 0, 64% 0, 64% 31%, 91% 37%, 82% 54%, 63% 49%, 59% 70%, 76% 100%, 58% 100%, 48% 78%, 32% 100%, 13% 100%, 35% 65%, 39% 43%, 17% 55%, 8% 39%, 39% 25%);
+  clip-path: polygon(
+    0 48%,
+    3% 31%,
+    14% 12%,
+    31% 3%,
+    50% 0,
+    69% 3%,
+    86% 12%,
+    97% 31%,
+    100% 48%,
+    100% 100%,
+    84% 86%,
+    68% 100%,
+    50% 86%,
+    32% 100%,
+    16% 86%,
+    0 100%
+  );
 }
 
 .ghost-card i::after {
   position: absolute;
-  top: 8px;
-  left: 15px;
-  width: 4px;
-  height: 4px;
+  top: 14px;
+  left: 13px;
+  width: 7px;
+  height: 9px;
   border-radius: 50%;
   content: "";
-  background: rgba(2, 14, 27, 0.9);
-  box-shadow: 8px 0 0 rgba(2, 14, 27, 0.9);
+  background: #ffffff;
+  box-shadow:
+    14px 0 0 #ffffff,
+    2px 2px 0 -1px rgba(2, 14, 27, 0.9),
+    16px 2px 0 -1px rgba(2, 14, 27, 0.9);
 }
 
 .ghost-card small {
