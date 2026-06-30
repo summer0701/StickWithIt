@@ -42,4 +42,18 @@ class SquatGhostTargetsTest {
             SquatGhostTargets.forDuration(180)
         )
     }
+
+    @Test
+    fun customBaseAverageRepsUpdatesDifficultyTargets() {
+        assertEquals(
+            listOf(
+                "G1 Starter" to 24,
+                "G2 Rookie" to 28,
+                "G3 Rival" to 30,
+                "G4 Elite" to 34,
+                "G5 Legend" to 37
+            ),
+            SquatGhostTargets.forDuration(120, 30.0)
+        )
+    }
 }

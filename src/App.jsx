@@ -120,7 +120,7 @@ export default function App() {
           onNavigate={setPage}
         />
       )}
-      {page === 'squat' && <SquatPage userId={user.id} onBack={() => setPage('home')} />}
+      {page === 'squat' && <SquatPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
       {page === 'run' && (
         <RunPage
           user={user}

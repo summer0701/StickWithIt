@@ -28,9 +28,9 @@ object GhostTtsCatalog {
 
     private val phrases = mapOf(
         "gap_time" to listOf(
-            "{ghostName}보다 {seconds}초 앞서 있습니다.",
-            "{ghostName}보다 {seconds}초 뒤처져 있습니다.",
-            "{ghostName}와 {seconds}초 차이입니다."
+            "{ghostName}와 약 {seconds}초 차이입니다.",
+            "{ghostName}까지 시간 차이는 약 {seconds}초입니다.",
+            "{ghostName}와의 간격은 {distance}, 약 {seconds}초입니다."
         ),
         "pace_change" to listOf(
             "현재 페이스가 빨라지고 있습니다.",
@@ -65,30 +65,30 @@ object GhostTtsCatalog {
             "{ghostName}가 앞서갔습니다. 현재 {rank}위입니다."
         ),
         "front_distance" to listOf(
-            "{ghostName}까지 {distance} 남았습니다.",
-            "다음은 {ghostName}입니다. {distance} 앞에 있습니다.",
-            "{ghostName}와의 거리는 {distance}입니다.",
+            "{ghostName}까지 {distance} 차이입니다.",
+            "다음은 {ghostName}입니다. 앞쪽 {distance}에 있습니다.",
+            "{ghostName}와의 간격은 {distance}입니다.",
             "{ghostName}가 {distance} 앞에 있습니다.",
-            "{distance}만 더 가면 {ghostName}입니다."
+            "{distance}만 좁히면 {ghostName}를 따라잡습니다."
         ),
         "back_distance" to listOf(
             "뒤 {ghostName}와 {distance} 차이입니다.",
             "{ghostName}가 {distance} 뒤에 있습니다.",
-            "뒤 {ghostName}가 따라오고 있습니다.",
-            "{ghostName}와의 간격은 {distance}입니다."
+            "뒤 {ghostName}가 {distance} 차이로 따라오고 있습니다.",
+            "{ghostName}와의 뒤쪽 간격은 {distance}입니다."
         ),
         "close_front" to listOf(
-            "{ghostName}가 바로 앞입니다.",
+            "{ghostName}가 바로 앞, {distance} 차이입니다.",
             "{ghostName}까지 {distance}입니다.",
             "거의 따라왔습니다. {ghostName}까지 {distance}입니다.",
-            "곧 {ghostName}를 추월합니다.",
-            "{ghostName}와 거의 나란히 달리고 있습니다."
+            "{distance}만 더 좁히면 {ghostName}를 추월합니다.",
+            "{ghostName}와 거의 나란히 달리고 있습니다. 차이는 {distance}입니다."
         ),
         "close_back" to listOf(
-            "뒤 {ghostName}가 가까워졌습니다.",
-            "{ghostName}가 거의 따라왔습니다.",
+            "뒤 {ghostName}가 {distance} 차이로 가까워졌습니다.",
+            "{ghostName}가 거의 따라왔습니다. 차이는 {distance}입니다.",
             "뒤 {ghostName}와 {distance} 차이입니다.",
-            "{ghostName}를 따돌려야 합니다."
+            "{ghostName}를 따돌려야 합니다. 현재 간격은 {distance}입니다."
         ),
         "overtake" to listOf(
             "{ghostName}를 추월했습니다.",
@@ -112,16 +112,16 @@ object GhostTtsCatalog {
             "{ghostName}가 다음 목표입니다."
         ),
         "last_ghost" to listOf(
-            "이제 {ghostName}만 남았습니다.",
-            "마지막 상대는 {ghostName}입니다.",
-            "{ghostName}를 넘으면 선두입니다.",
-            "마지막 고스트는 {ghostName}입니다."
+            "이제 {ghostName}만 남았습니다. 차이는 {distance}입니다.",
+            "마지막 상대는 {ghostName}입니다. {distance} 앞에 있습니다.",
+            "{ghostName}를 넘으면 선두입니다. 현재 간격은 {distance}입니다.",
+            "마지막 고스트는 {ghostName}입니다. {distance}만 좁히면 됩니다."
         ),
         "personal_best" to listOf(
-            "{ghostName}를 넘으면 개인 최고 기록입니다.",
-            "개인 최고 기록 고스트는 {ghostName}입니다.",
+            "{ghostName}를 넘으면 개인 최고 기록입니다. 차이는 {distance}입니다.",
+            "개인 최고 기록 고스트는 {ghostName}입니다. 간격은 {distance}입니다.",
             "최고 기록까지 {distance} 남았습니다.",
-            "최고의 나가 앞에 있습니다."
+            "최고의 나가 {distance} 앞에 있습니다."
         ),
         "one_km_left" to listOf(
             "1킬로미터 남았습니다.",

@@ -58,6 +58,11 @@ class RunningPlugin : Plugin() {
                     RunningForegroundService.ACTION_DEBUG -> notifyListeners("debug", JSObject().apply {
                         put("message", intent.getStringExtra("message"))
                     }, true)
+                    SquatPoseActivity.ACTION_SQUAT_FINISHED -> notifyListeners("squatFinished", JSObject().apply {
+                        put("completed", intent.getBooleanExtra(SquatPoseActivity.EXTRA_COMPLETED, false))
+                        put("durationSeconds", intent.getIntExtra(SquatPoseActivity.EXTRA_DURATION_SECONDS, 0))
+                        put("reps", intent.getIntExtra(SquatPoseActivity.EXTRA_REPS, 0))
+                    }, true)
                 }
             }
         }
@@ -65,6 +70,7 @@ class RunningPlugin : Plugin() {
             addAction(RunningForegroundService.ACTION_STATE)
             addAction(RunningForegroundService.ACTION_CHECKPOINT)
             addAction(RunningForegroundService.ACTION_DEBUG)
+            addAction(SquatPoseActivity.ACTION_SQUAT_FINISHED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -196,6 +202,7 @@ class RunningPlugin : Plugin() {
             context.startActivity(Intent(context, SquatPoseActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra(SquatPoseActivity.EXTRA_DURATION_SECONDS, call.data.optInt("durationSeconds", 60))
+                putExtra(SquatPoseActivity.EXTRA_BASE_AVERAGE_REPS, call.data.optDouble("baseAverageReps", SquatGhostTargets.DEFAULT_BASE_AVERAGE_REPS))
             })
             call.resolve()
         } catch (error: Exception) {

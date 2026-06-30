@@ -36,7 +36,6 @@ const STORAGE_PREFIX = 'stickWithit:ghost-settings:';
 const DIFFICULTY_STORAGE_PREFIX = 'stickWithit:ghost-difficulty:';
 const MIN_GHOST_SPEED_KMH = 1;
 const MAX_GHOST_SPEED_KMH = 30;
-const DEFAULT_GHOST_SPEEDS_KMH = [12, 10.5, 10, 10.8, 8.5];
 const DEFAULT_DIFFICULTY_SETTING: GhostDifficultySetting = {
   difficulty: 'beginner',
   customDistanceKm: 2,
@@ -48,10 +47,10 @@ const DIFFICULTY_TARGET_KM: Record<Exclude<GhostDifficulty, 'custom'>, number> =
 };
 
 export function defaultGhostSettings(): GhostSetting[] {
-  return GHOST_SETTING_SLOTS.map((slot, index) => ({
+  return GHOST_SETTING_SLOTS.map((slot) => ({
     ...slot,
     name: '',
-    averageSpeedKmh: DEFAULT_GHOST_SPEEDS_KMH[index] ?? 10.5,
+    averageSpeedKmh: null,
   }));
 }
 

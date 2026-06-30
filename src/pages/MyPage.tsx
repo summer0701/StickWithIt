@@ -1,5 +1,5 @@
 import { Activity, Edit3, Ghost, LogOut, RotateCcw, Settings } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   defaultGhostSettings,
   ghostDifficultyTargetKm,
@@ -15,6 +15,8 @@ import {
 } from '../lib/ghostSettings';
 import { readGhostResetAt, resetGhostHistory } from '../lib/ghostReset';
 import { readSquatDurationSeconds, writeSquatDurationSeconds } from '../lib/squatSettings';
+import { loadRecentRunHistory } from '../services/runComparison';
+import { buildGhostRunners } from '../services/ruleBasedCoach';
 import ghostMascot from '../assets/ghost-settings-mascot.webp';
 
 type MyPageProps = {
@@ -38,9 +40,37 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [ghostResetAt, setGhostResetAt] = useState<string | null>(() => readGhostResetAt(user.id));
   const [squatDurationSeconds, setSquatDurationSeconds] = useState(() => readSquatDurationSeconds(user.id));
+  const [ghostRunners, setGhostRunners] = useState<any[]>([]);
+  const [ghostSyncStatus, setGhostSyncStatus] = useState<'loading' | 'synced' | 'empty'>('loading');
   const selectedGhost = settings[selectedIndex] ?? settings[0];
+  const selectedRunner = ghostRunners.find((runner) => runner.key === selectedGhost?.key);
+  const selectedSpeedKmh = runnerSpeedKmh(selectedRunner) ?? selectedGhost?.averageSpeedKmh ?? null;
   const preview = useMemo(() => settings.map((item) => ghostDisplayName(item.key, settings)).join(' · '), [settings]);
   const targetDistanceLabel = `${ghostDifficultyTargetKm(difficulty).toFixed(1)} km`;
+
+  useEffect(() => {
+    let active = true;
+    const targetKm = ghostDifficultyTargetKm(difficulty);
+    setGhostSyncStatus('loading');
+
+    loadRecentRunHistory(user.id, 10, targetKm)
+      .then(({ recentRuns, recentCheckpoints }) => {
+        if (!active) return;
+        const runners = buildGhostRunners(recentRuns, recentCheckpoints, new Date(), settings, targetKm, difficulty);
+        setGhostRunners(runners);
+        setGhostSyncStatus(recentRuns.length > 0 ? 'synced' : 'empty');
+      })
+      .catch((error) => {
+        console.debug('[MyPage] Failed to sync ghost runners.', error);
+        if (!active) return;
+        setGhostRunners(buildGhostRunners([], [], new Date(), settings, targetKm, difficulty));
+        setGhostSyncStatus('empty');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [difficulty, settings, user.id]);
 
   function updateSetting(index: number, nextValue: Partial<GhostSetting>) {
     setSettings((current) => {
@@ -93,7 +123,7 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         <div className="my-hero-copy">
           <span><Ghost size={22} /> 마이페이지</span>
           <h2>고스트 런 설정</h2>
-          <p>{user.email ?? '러너'}님의 고스트 이름과 평균속도를 설정합니다.</p>
+          <p>{user.email ?? '러너'}님의 러닝 기록과 고스트를 동기화합니다.</p>
         </div>
         <img src={ghostMascot} alt="" className="my-ghost-mascot" />
         <button className="my-hero-settings" type="button" aria-label="설정">
@@ -193,7 +223,7 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
               </label>
 
               <label>
-                평균속도
+                동기화 평균속도
                 <div className="speed-input-shell">
                   <Activity size={28} aria-hidden="true" />
                   <input
@@ -202,19 +232,15 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
                     max="30"
                     step="0.1"
                     type="number"
-                    required
-                    value={selectedGhost.averageSpeedKmh ?? 10.5}
-                    placeholder="10.5"
-                    onChange={(event) => {
-                      if (event.target.value === '') return;
-                      updateSetting(selectedIndex, { averageSpeedKmh: Number(event.target.value) });
-                    }}
+                    value={selectedSpeedKmh == null ? '' : selectedSpeedKmh.toFixed(1)}
+                    placeholder={ghostSyncStatus === 'loading' ? '동기화 중' : '기록 없음'}
+                    readOnly
                   />
                   <small>km/h</small>
                 </div>
               </label>
 
-              <SpeedGraph speedKmh={selectedGhost.averageSpeedKmh ?? 10.5} seed={selectedGhost.key} />
+              <SpeedGraph speedKmh={selectedSpeedKmh ?? 0} seed={selectedGhost.key} />
             </article>
           )}
         </div>
@@ -258,6 +284,8 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         <strong>{difficultyOptions.find((option) => option.value === difficulty.difficulty)?.label ?? '입문'} · {targetDistanceLabel}</strong>
         <span>현재 표시 이름</span>
         <strong>{preview}</strong>
+        <span>고스트 동기화</span>
+        <strong>{ghostSyncStatus === 'synced' ? '내 기록 기준' : ghostSyncStatus === 'loading' ? '동기화 중' : '기본 고스트 기준'}</strong>
         <button className="ghost-data-reset-button" type="button" onClick={resetGhostData}>
           고스트 초기화
         </button>
@@ -306,6 +334,18 @@ function SpeedGraph({ speedKmh, seed }: { speedKmh: number; seed: string }) {
       </div>
     </div>
   );
+}
+
+function runnerSpeedKmh(runner: any) {
+  const directSpeed = Number(runner?.avgSpeedKmh ?? runner?.averageSpeedKmh);
+  if (Number.isFinite(directSpeed) && directSpeed > 0) return Number(directSpeed.toFixed(1));
+
+  const distanceMeters = Number(runner?.totalDistanceMeters);
+  const elapsedSeconds = Number(runner?.totalElapsedSeconds);
+  if (!Number.isFinite(distanceMeters) || !Number.isFinite(elapsedSeconds) || distanceMeters <= 0 || elapsedSeconds <= 0) {
+    return null;
+  }
+  return Number(((distanceMeters / 1000) / (elapsedSeconds / 3600)).toFixed(1));
 }
 
 function buildMinuteSpeedPoints(speedKmh: number, seed: string) {

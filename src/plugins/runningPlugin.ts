@@ -23,6 +23,12 @@ export type NativeCheckpoint = {
   synced?: boolean;
 };
 
+export type NativeSquatFinished = {
+  completed: boolean;
+  durationSeconds: number;
+  reps: number;
+};
+
 export type RunningPluginApi = {
   startRun(options: {
     sessionId: string;
@@ -37,7 +43,7 @@ export type RunningPluginApi = {
   playCoachAudio(options: { key?: string; category?: string; file: string; fallbackText?: string }): Promise<void>;
   updateTargetDistance(options: { targetDistanceMeters: number }): Promise<void>;
   updateGhostRunners(options: { ghostRunnersJson: string }): Promise<void>;
-  openSquatPose(options?: { durationSeconds?: number }): Promise<void>;
+  openSquatPose(options?: { durationSeconds?: number; baseAverageReps?: number }): Promise<void>;
   openBatteryOptimizationSettings(): Promise<void>;
   getBatteryOptimizationStatus(): Promise<{ isIgnoringBatteryOptimizations: boolean }>;
   setTtsEnabled(options: { enabled: boolean }): Promise<void>;
@@ -46,6 +52,7 @@ export type RunningPluginApi = {
   addListener(eventName: 'runState', listenerFunc: (state: NativeRunState) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(eventName: 'checkpoint', listenerFunc: (checkpoint: NativeCheckpoint) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(eventName: 'debug', listenerFunc: (payload: { message?: string }) => void): Promise<{ remove: () => Promise<void> }>;
+  addListener(eventName: 'squatFinished', listenerFunc: (payload: NativeSquatFinished) => void): Promise<{ remove: () => Promise<void> }>;
 };
 
 export const RunningPlugin = registerPlugin<RunningPluginApi>('RunningPlugin');

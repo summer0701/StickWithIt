@@ -86,6 +86,11 @@ class SquatPoseEvaluator {
             errors += "허리를 세워 주세요"
             hold(nowMs, PoseSegment.LEFT_TORSO, PoseSegment.RIGHT_TORSO)
         }
+        if (depthGap > 0.12f || kneeAngle < 55f) {
+            warnings += "스쿼트 깊이를 높여요"
+            segmentLevels[PoseSegment.LEFT_THIGH] = PoseFeedbackLevel.WARNING
+            segmentLevels[PoseSegment.RIGHT_THIGH] = PoseFeedbackLevel.WARNING
+        }
         if (depthGap < -0.035f && kneeAngle > 112f) {
             warnings += "스쿼트 깊이를 조금 더 낮춰요"
             segmentLevels[PoseSegment.LEFT_THIGH] = PoseFeedbackLevel.WARNING

@@ -91,6 +91,7 @@ describe('ruleBasedCoach', () => {
     expect(cue.category).toBe('close');
     expect(cue.ghostLabel).toBe('G4');
     expect(cue.comparisonText).toContain('G4');
+    expect(cue.comparisonText).toMatch(/\d+미터, 약 \d+초/);
   });
 
   it('returns priority cues when no past ghost is close', () => {

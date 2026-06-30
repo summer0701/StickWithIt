@@ -271,11 +271,16 @@ class RuleBasedCoach {
             category = category,
             immediate = immediate,
             ghostName = comparison?.ghost?.label,
-            distanceText = distanceMeters.takeIf { it >= 1.0 }?.let { formatDistance(it) },
+            distanceText = distanceMeters.takeIf { it >= 1.0 }?.let {
+                if (comparison == null) formatDistance(it) else formatGhostGap(it, seconds)
+            },
             seconds = seconds,
             rank = rank
         )
     }
+
+    private fun formatGhostGap(distanceMeters: Double, seconds: Int): String =
+        "${formatDistance(distanceMeters)}, 약 ${seconds}초"
 
     private fun formatDistance(distanceMeters: Double): String {
         val meters = distanceMeters.coerceAtLeast(0.0)

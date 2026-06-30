@@ -1,6 +1,7 @@
 package com.stickwithit.endure
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -66,14 +67,20 @@ class SquatPoseActivity : ComponentActivity() {
     private var startedAt = 0L
     private var reps = 0
     private var targetDurationSeconds = 60
+    private var baseAverageReps = SquatGhostTargets.DEFAULT_BASE_AVERAGE_REPS
+    private var durationFinished = false
     private var lastFrameAt = 0L
     private var lastNarrationAt = 0L
+    private val recentSquatNarrations = ArrayDeque<String>()
     private val fpsSamples = ArrayDeque<Float>()
     private val switchingModel = AtomicBoolean(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         targetDurationSeconds = intent.getIntExtra(EXTRA_DURATION_SECONDS, 60).coerceIn(30, 600)
+        baseAverageReps = intent.getDoubleExtra(EXTRA_BASE_AVERAGE_REPS, SquatGhostTargets.DEFAULT_BASE_AVERAGE_REPS)
+            .takeIf { it.isFinite() && it > 0.0 }
+            ?: SquatGhostTargets.DEFAULT_BASE_AVERAGE_REPS
         startedAt = SystemClock.elapsedRealtime()
         lastNarrationAt = startedAt
         ttsEngine.init()
@@ -120,7 +127,7 @@ class SquatPoseActivity : ComponentActivity() {
             compoundDrawablePadding = dp(10)
             setCompoundDrawablesWithIntrinsicBounds(FinishIconDrawable(Color.rgb(255, 78, 86), dp(28)), null, null, null)
             background = roundedHudBackground(Color.argb(246, 3, 5, 8), dp(20).toFloat())
-            setOnClickListener { finish() }
+            setOnClickListener { finishWithoutCompletion() }
         }
         countView = hudTextView(20f).apply {
             text = buildCountText(0)
@@ -291,7 +298,7 @@ class SquatPoseActivity : ComponentActivity() {
     private fun ghostCounts(elapsedSeconds: Int): List<Pair<String, Int>> {
         val progress = (elapsedSeconds.toFloat() / targetDurationSeconds.toFloat()).coerceIn(0f, 1f)
         val eased = progress * progress * (3f - 2f * progress)
-        val targets = SquatGhostTargets.forDuration(targetDurationSeconds)
+        val targets = SquatGhostTargets.forDuration(targetDurationSeconds, baseAverageReps)
         return targets.mapIndexed { index, target ->
             val warmupDelay = index * 0.015f
             val adjusted = ((eased - warmupDelay) / (1f - warmupDelay)).coerceIn(0f, 1f)
@@ -386,10 +393,36 @@ class SquatPoseActivity : ComponentActivity() {
         )
         countView.text = buildCountText(reps)
         val elapsedSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1000L).toInt()
-        timerView.text = "${formatClock(elapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
-        progressView.progress = elapsedSeconds.coerceIn(0, targetDurationSeconds)
-        updateRankingRows(elapsedSeconds)
-        speakPoseSummaryIfNeeded(frame, currentRank())
+        val displayElapsedSeconds = elapsedSeconds.coerceIn(0, targetDurationSeconds)
+        timerView.text = "${formatClock(displayElapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
+        progressView.progress = displayElapsedSeconds
+        updateRankingRows(displayElapsedSeconds)
+        if (elapsedSeconds >= targetDurationSeconds) {
+            finishAfterDuration()
+            return
+        }
+        speakPoseSummaryIfNeeded(frame, displayElapsedSeconds, currentRank())
+    }
+
+    private fun finishAfterDuration() {
+        if (durationFinished) return
+        durationFinished = true
+        broadcastSquatFinished(completed = true)
+        finish()
+    }
+
+    private fun finishWithoutCompletion() {
+        if (!durationFinished) broadcastSquatFinished(completed = false)
+        finish()
+    }
+
+    private fun broadcastSquatFinished(completed: Boolean) {
+        sendBroadcast(Intent(ACTION_SQUAT_FINISHED).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_COMPLETED, completed)
+            putExtra(EXTRA_DURATION_SECONDS, targetDurationSeconds)
+            putExtra(EXTRA_REPS, reps)
+        })
     }
 
     private fun currentRank(): Int {
@@ -405,7 +438,7 @@ class SquatPoseActivity : ComponentActivity() {
         }
     }
 
-    private fun speakPoseSummaryIfNeeded(frame: SquatPoseFrame, rank: Int) {
+    private fun speakPoseSummaryIfNeeded(frame: SquatPoseFrame, elapsedSeconds: Int, rank: Int) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastNarrationAt < NARRATION_INTERVAL_MS) return
         if (ttsEngine.isSpeaking()) return
@@ -416,17 +449,31 @@ class SquatPoseActivity : ComponentActivity() {
             PoseFeedbackLevel.WARNING -> "주의. ${frame.feedback.detail}"
             PoseFeedbackLevel.BAD -> "교정 필요. ${frame.feedback.detail}"
         }
+        val text = SquatCoachNarration.build(
+            reps = reps,
+            rank = rank,
+            postureText = postureText,
+            ghosts = ghostCounts(elapsedSeconds),
+            recentTexts = recentSquatNarrations,
+            variantSeed = reps + elapsedSeconds + rank
+        )
+        rememberSquatNarration(text)
         val profile = GhostTtsCatalog.profileFor("encouragement")
         ttsEngine.speak(
             NativeTtsCue(
                 category = "squat_pose",
-                text = "$postureText. 현재 ${reps}회, 순위는 ${rank}위입니다.",
+                text = text,
                 priority = 36,
                 speechRate = profile.speechRate,
                 pitch = profile.pitch,
                 immediate = false
             )
         )
+    }
+
+    private fun rememberSquatNarration(text: String) {
+        recentSquatNarrations.addLast(text)
+        while (recentSquatNarrations.size > 6) recentSquatNarrations.removeFirst()
     }
 
     private fun collectFps(now: Long) {
@@ -485,7 +532,11 @@ class SquatPoseActivity : ComponentActivity() {
     }
 
     companion object {
+        const val ACTION_SQUAT_FINISHED = "com.stickwithit.endure.SQUAT_FINISHED"
         const val EXTRA_DURATION_SECONDS = "durationSeconds"
+        const val EXTRA_BASE_AVERAGE_REPS = "baseAverageReps"
+        const val EXTRA_REPS = "reps"
+        const val EXTRA_COMPLETED = "completed"
         private const val REQUEST_CAMERA = 5201
         private const val NARRATION_INTERVAL_MS = 15_000L
         private const val REF_WIDTH = 852f

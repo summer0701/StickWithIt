@@ -23,14 +23,14 @@ describe('ghostSettings', () => {
     expect(ghostDisplayName('slowGhost', settings)).toBe('G5');
   });
 
-  it('restores default speeds when a speed is blank', () => {
+  it('does not invent default speeds when a speed is blank', () => {
     const settings = normalizeGhostSettings([
       { key: 'bestGhost', averageSpeedKmh: '' },
       { key: 'averageGhost', averageSpeedKmh: null },
     ]);
 
-    expect(settings[0].averageSpeedKmh).toBe(12);
-    expect(settings[1].averageSpeedKmh).toBe(10.5);
+    expect(settings[0].averageSpeedKmh).toBeNull();
+    expect(settings[1].averageSpeedKmh).toBeNull();
   });
 
   it('keeps names by slot when the ghost runner changes', () => {
@@ -72,10 +72,10 @@ describe('ghostSettings', () => {
     settings[1] = { ...settings[1], averageSpeedKmh: 10 };
     const ghosts = applyGhostSettingsToRunners({ runners: [], settings, targetDistanceKm: 5 });
 
-    expect(ghosts).toHaveLength(5);
-    expect(ghosts[1].key).toBe('averageGhost');
-    expect(ghosts[1].label).toBe('G2');
-    expect(ghosts[1].totalElapsedSeconds).toBe(1800);
+    expect(ghosts).toHaveLength(1);
+    expect(ghosts[0].key).toBe('averageGhost');
+    expect(ghosts[0].label).toBe('G2');
+    expect(ghosts[0].totalElapsedSeconds).toBe(1800);
   });
 
   it('starts new users on beginner ghost difficulty at 2km', () => {

@@ -3,9 +3,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Info, Play, Settings } from 'lucide-react';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import { readSquatDurationSeconds } from '../lib/squatSettings';
+import { readSquatBaseAverageReps, updateSquatGhostBaseline } from '../lib/squatGhosts';
 
 type SquatPageProps = {
   onBack: () => void;
+  onComplete?: () => void;
   userId?: string;
 };
 
@@ -20,11 +22,37 @@ const ghostDistance = [
   { id: '워스트', status: '느림 ↓', tone: 'worst' },
 ];
 
-export default function SquatPage({ onBack, userId = 'anonymous' }: SquatPageProps) {
+export default function SquatPage({ onBack, onComplete = onBack, userId = 'anonymous' }: SquatPageProps) {
   const [phase, setPhase] = useState<'ready' | 'countdown' | 'launching'>('ready');
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const [reps, setReps] = useState(0);
   const durationSeconds = readSquatDurationSeconds(userId);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+
+    let active = true;
+    let cleanup: (() => void) | undefined;
+    RunningPlugin.addListener('squatFinished', (payload) => {
+      if (!active) return;
+      if (payload.completed) {
+        updateSquatGhostBaseline(userId, payload);
+      }
+      setPhase('ready');
+      onComplete();
+    }).then((listener) => {
+      cleanup = () => {
+        listener.remove();
+      };
+    }).catch((error) => {
+      console.debug('[SquatPage] Failed to listen for squat completion.', error);
+    });
+
+    return () => {
+      active = false;
+      cleanup?.();
+    };
+  }, [onComplete, userId]);
 
   useEffect(() => {
     if (phase !== 'countdown') return undefined;
@@ -55,7 +83,10 @@ export default function SquatPage({ onBack, userId = 'anonymous' }: SquatPagePro
       return;
     }
 
-    RunningPlugin.openSquatPose({ durationSeconds }).catch((error) => {
+    RunningPlugin.openSquatPose({
+      durationSeconds,
+      baseAverageReps: readSquatBaseAverageReps(userId),
+    }).catch((error) => {
       console.debug('[SquatPage] Failed to open native squat pose screen.', error);
       setPhase('ready');
     });

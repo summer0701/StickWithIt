@@ -269,13 +269,21 @@ function ghostTransitionFor(selected, previousDelta) {
 
 function formatGhostComparison(selected) {
   const gapMeters = Math.round(Math.abs(selected.deltaMeters));
+  const gapSeconds = formatGhostGapSeconds(selected, gapMeters);
+  const gapText = `${gapMeters}미터${gapSeconds ? `, 약 ${gapSeconds}초` : ''}`;
   if (Math.abs(selected.deltaMeters) <= CLOSE_GHOST_METERS) {
-    return `${selected.label}와 ${gapMeters}미터 차이로 거의 나란히 달리고 있습니다.`;
+    return `${selected.label}와 ${gapText} 차이로 거의 나란히 달리고 있습니다.`;
   }
   if (selected.deltaMeters > 0) {
-    return `${selected.label}보다 ${gapMeters}미터 앞서고 있습니다.`;
+    return `${selected.label}보다 ${gapText} 앞서고 있습니다.`;
   }
-  return `${selected.label}보다 ${gapMeters}미터 뒤처져 있습니다.`;
+  return `${selected.label}보다 ${gapText} 뒤처져 있습니다.`;
+}
+
+function formatGhostGapSeconds(selected, gapMeters) {
+  const ghostSpeedMetersPerSecond = Number(selected.totalDistanceMeters) / Number(selected.totalElapsedSeconds);
+  if (!Number.isFinite(ghostSpeedMetersPerSecond) || ghostSpeedMetersPerSecond <= 0) return null;
+  return Math.max(1, Math.round(gapMeters / ghostSpeedMetersPerSecond));
 }
 
 function priorityForCategory(category) {
