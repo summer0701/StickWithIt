@@ -7,6 +7,7 @@ import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
 import { supabase } from './lib/supabaseClient';
+import { ghostDifficultyTargetKm, readGhostDifficulty } from './lib/ghostSettings';
 import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth';
 
 const bottomRoutes = [
@@ -21,7 +22,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState('home');
-  const [targetDistanceKm, setTargetDistanceKm] = useState(10);
+  const [targetDistanceKm, setTargetDistanceKm] = useState(2);
   const [latestResult, setLatestResult] = useState(null);
 
   useEffect(() => {
@@ -56,6 +57,11 @@ export default function App() {
 
   const user = session?.user ?? null;
   const isTestUser = user?.app_metadata?.provider === 'local-test';
+
+  useEffect(() => {
+    if (!user) return;
+    setTargetDistanceKm(ghostDifficultyTargetKm(readGhostDifficulty(user.id)));
+  }, [user]);
 
   useEffect(() => {
     if (!user || isTestUser) return;
@@ -133,7 +139,7 @@ export default function App() {
         />
       )}
       {page === 'ranking' && <RankingPage onBack={() => setPage('home')} />}
-      {page === 'my' && <MyPage user={user} onSignOut={handleSignOut} />}
+      {page === 'my' && <MyPage user={user} onSignOut={handleSignOut} onDifficultyTargetChange={setTargetDistanceKm} />}
       {['challenge', 'history'].includes(page) && (
         <PlaceholderPage title={pageTitle} onHome={() => setPage('home')} />
       )}

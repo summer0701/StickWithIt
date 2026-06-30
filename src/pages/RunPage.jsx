@@ -24,12 +24,12 @@ import {
 } from '../services/runRecorder';
 import { buildGhostRaceSnapshot, buildGhostRunners, rememberSpokenMessage, ruleBasedCoach } from '../services/ruleBasedCoach';
 import { playCoachCue, preloadCoachAudio } from '../lib/coachAudioPlayer';
-import { ghostDisplayName, readGhostSettings } from '../lib/ghostSettings';
+import { shouldPlayCoachCue } from '../lib/coachTiming';
+import { ghostDisplayName, readGhostDifficulty, readGhostSettings } from '../lib/ghostSettings';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
 const CHECKPOINT_INTERVAL_SECONDS = 60;
-const COACH_INTERVAL_SECONDS = 15;
 const FINISH_HOLD_MS = 3000;
 const HOLD_RING_CIRCUMFERENCE = 264;
 const START_COACH_TEXT = '고스트 런 시작. 오늘의 상대는 어제의 나다.';
@@ -59,6 +59,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   const [recentRuns, setRecentRuns] = useState([]);
   const [ghostRunners, setGhostRunners] = useState([]);
   const [ghostSettings, setGhostSettings] = useState(() => readGhostSettings(user.id));
+  const [ghostDifficulty, setGhostDifficulty] = useState(() => readGhostDifficulty(user.id));
 
   const runRef = useRef(null);
   const trackerRef = useRef(null);
@@ -121,6 +122,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
 
   useEffect(() => {
     setGhostSettings(readGhostSettings(user.id));
+    setGhostDifficulty(readGhostDifficulty(user.id));
   }, [user.id]);
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
     setGhostRunners([]);
     previousGhostDeltasRef.current = {};
     ensureRecentRunHistory();
-  }, [ghostSettings, normalizedTargetDistanceKm, user.id]);
+  }, [ghostDifficulty, ghostSettings, normalizedTargetDistanceKm, user.id]);
 
   useEffect(() => {
     if (autoStartRequestedRef.current) return;
@@ -233,10 +235,10 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   async function ensureRecentRunHistory(targetKm = normalizedTargetDistanceKm, force = false) {
     if (force) runHistoryPromiseRef.current = null;
     if (!runHistoryPromiseRef.current) {
-      runHistoryPromiseRef.current = loadRecentRunHistory(user.id, 5, targetKm)
+      runHistoryPromiseRef.current = loadRecentRunHistory(user.id, 10, targetKm)
         .then(({ recentRuns: runs, recentCheckpoints: checkpoints }) => {
           setRecentRuns(runs);
-          const ghosts = buildGhostRunners(runs, checkpoints, new Date(), ghostSettings, targetKm);
+          const ghosts = buildGhostRunners(runs, checkpoints, new Date(), ghostSettings, targetKm, ghostDifficulty);
           ghostRunnersRef.current = ghosts;
           setGhostRunners(ghosts);
           return { recentRuns: runs, recentCheckpoints: checkpoints, ghostRunners: ghosts };
@@ -356,7 +358,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
     if (!runRef.current || !point) return;
     const elapsed = Math.max(1, elapsedRef.current);
     const shouldSaveCheckpoint = force || elapsed - lastCheckpointAtRef.current >= CHECKPOINT_INTERVAL_SECONDS;
-    const shouldCoach = force || elapsed - lastCoachAtRef.current >= COACH_INTERVAL_SECONDS;
+    const shouldCoach = shouldPlayCoachCue(elapsed, lastCoachAtRef.current, force);
     if (!shouldSaveCheckpoint && !shouldCoach) return;
 
     const checkpoint = buildCheckpoint({

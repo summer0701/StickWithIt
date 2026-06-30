@@ -1,25 +1,25 @@
 import { runningCoachPhrases } from '../data/runningCoachPhrases';
-import { applyGhostSettingsToRunners, defaultGhostSettings } from '../lib/ghostSettings';
-import { createGhostPackFromBase, ghostPackRouteToRunner } from '../lib/naturalGhostPack';
+import { applyGhostSettingsToRunners, defaultGhostDifficulty, defaultGhostSettings, ghostDifficultyTargetKm } from '../lib/ghostSettings';
+import { createHeuristicGhostPack, ghostPackRouteToRunner } from '../lib/naturalGhostPack';
 
 const DEFAULT_RECENT_LIMIT = 12;
 const CLOSE_GHOST_METERS = 30;
 const GHOST_EVENT_METERS = 10;
 
 const GHOST_LABELS = {
-  bestGhost: '베스트 고스트',
-  averageGhost: '평균 고스트',
-  stableGhost: '안정 고스트',
-  chaserGhost: '추격 고스트',
-  slowGhost: '워스트 고스트',
+  bestGhost: '워스트 고스트',
+  averageGhost: '쉬운 고스트',
+  stableGhost: '평균 고스트',
+  chaserGhost: '도전 고스트',
+  slowGhost: '베스트 고스트',
 };
 
 const GHOST_PRIORITY = [
-  'bestGhost',
-  'averageGhost',
-  'stableGhost',
-  'chaserGhost',
   'slowGhost',
+  'chaserGhost',
+  'stableGhost',
+  'averageGhost',
+  'bestGhost',
 ];
 
 const CATEGORY_PRIORITY = {
@@ -66,7 +66,13 @@ export function ruleBasedCoach({
     }
   }
 
-  const ghosts = ghostRunners ?? buildGhostRunners(recentRuns, recentCheckpoints);
+  const ghosts = ghostRunners ?? buildGhostRunners(
+    recentRuns,
+    recentCheckpoints,
+    new Date(),
+    defaultGhostSettings(),
+    targetMeters > 0 ? targetMeters / 1000 : null,
+  );
   const ghostCue = createGhostCue(checkpoint, ghosts, spokenMessages, previousGhostDeltas);
   if (ghostCue) return ghostCue;
 
@@ -83,23 +89,26 @@ export function buildGhostRunners(
   now = new Date(),
   ghostSettings = defaultGhostSettings(),
   targetDistanceKm = null,
+  ghostDifficulty = defaultGhostDifficulty(),
 ) {
   const runs = recentRuns
     .filter(isCompletedRun)
     .map((run) => normalizeRun(run, recentCheckpoints))
-    .filter(Boolean)
-    .slice(0, 5);
+    .filter(Boolean);
+
+  const difficulty = defaultGhostDifficultySafe(ghostDifficulty);
+  const defaultRunners = createHeuristicGhostPack({
+    difficulty: difficulty.difficulty,
+    targetDistanceKm: targetDistanceKm ?? ghostDifficultyTargetKm(difficulty),
+    customDistanceKm: difficulty.customDistanceKm,
+    seed: `${now.getTime?.() ?? Date.now()}:${targetDistanceKm ?? ''}`,
+  }).map(ghostPackRouteToRunner);
 
   if (runs.length === 0) {
-    return [];
-  }
-
-  if (runs.length === 1) {
-    const generatedRunners = createGhostPackFromBase(runToBaseGhost(runs[0])).map(ghostPackRouteToRunner);
     return applyGhostSettingsToRunners({
-      runners: generatedRunners,
+      runners: defaultRunners,
       settings: ghostSettings,
-      targetDistanceKm,
+      targetDistanceKm: targetDistanceKm ?? ghostDifficultyTargetKm(difficulty),
     });
   }
 
@@ -107,18 +116,19 @@ export function buildGhostRunners(
   const byPaceAsc = [...runs].sort((a, b) => a.paceSecondsPerKm - b.paceSecondsPerKm);
   const bestRun = byPaceAsc[0];
   const slowRun = byPaceAsc[byPaceAsc.length - 1];
-  const chaserRun = byStartedAtDesc[0];
-  const averageGhost = buildAverageGhost(runs);
-  const stableGhost = buildStableGhost(runs);
+  const latestRun = byStartedAtDesc[0];
+  const runnersByKey = new Map(defaultRunners.map((runner) => [runner.key, runner]));
+
+  if (runs.length >= 1) runnersByKey.set('chaserGhost', ghostFromRun('chaserGhost', latestRun, 'latest_user_run'));
+  if (runs.length >= 2) runnersByKey.set('stableGhost', buildAverageGhost(runs, 'stableGhost', 'average_user_run'));
+  if (runs.length >= 3) runnersByKey.set('slowGhost', ghostFromRun('slowGhost', bestRun, 'personal_best'));
+  if (runs.length >= 5) runnersByKey.set('bestGhost', ghostFromRun('bestGhost', slowRun, 'personal_worst'));
+  if (runs.length >= 7) runnersByKey.set('averageGhost', buildAdjustedStableGhost(runs));
+
+  const mixedRunners = GHOST_PRIORITY.map((key) => runnersByKey.get(key)).filter(Boolean);
 
   return applyGhostSettingsToRunners({
-    runners: [
-      ghostFromRun('bestGhost', bestRun),
-      averageGhost,
-      stableGhost,
-      ghostFromRun('chaserGhost', chaserRun),
-      ghostFromRun('slowGhost', slowRun),
-    ].filter(Boolean),
+    runners: mixedRunners,
     settings: ghostSettings,
     targetDistanceKm,
   });
@@ -128,6 +138,10 @@ function isCompletedRun(run) {
   if (!run) return false;
   if (run.status === 'completed') return true;
   return run.status == null && Boolean(run.ended_at);
+}
+
+function defaultGhostDifficultySafe(value) {
+  return value && typeof value === 'object' ? value : defaultGhostDifficulty();
 }
 
 export function createGhostCue(checkpoint, ghosts = [], spokenMessages = [], previousGhostDeltas = {}) {
@@ -146,7 +160,7 @@ export function createGhostCue(checkpoint, ghosts = [], spokenMessages = [], pre
     return buildGhostCue('close', selected, spokenMessages, comparisons);
   }
 
-  if (selected.key === 'bestGhost' && selected.deltaMeters > CLOSE_GHOST_METERS) {
+  if (selected.key === 'slowGhost' && selected.deltaMeters > CLOSE_GHOST_METERS) {
     return buildGhostCue('personal_record', selected, spokenMessages, comparisons);
   }
 
@@ -331,15 +345,21 @@ function normalizeRun(run, recentCheckpoints) {
   };
 }
 
-function ghostFromRun(key, run) {
+function ghostFromRun(key, run, source = 'latest_user_run') {
   if (!run) return null;
   return {
     key,
     label: GHOST_LABELS[key],
+    source,
     sourceRunId: run.id,
     totalDistanceMeters: run.totalDistanceMeters,
     totalElapsedSeconds: run.totalElapsedSeconds,
+    avgSpeedKmh: runAverageSpeedKmh(run),
+    targetTime: formatClock(run.totalElapsedSeconds),
+    pace: `${formatClock(run.paceSecondsPerKm)}/km`,
+    points: checkpointsToPoints(run.checkpoints),
     checkpoints: run.checkpoints,
+    preservePace: true,
   };
 }
 
@@ -415,27 +435,55 @@ function distanceAtInterpolatedElapsed(points, elapsedSeconds) {
   return before.distanceMeters + (after.distanceMeters - before.distanceMeters) * ratio;
 }
 
-function buildAverageGhost(runs) {
+function buildAverageGhost(runs, key = 'stableGhost', source = 'average_user_run') {
   const totalElapsedSeconds = runs.reduce((sum, run) => sum + run.totalElapsedSeconds, 0);
   const totalDistanceMeters = runs.reduce((sum, run) => sum + run.totalDistanceMeters, 0);
   const combinedSpeedMetersPerSecond = totalDistanceMeters / totalElapsedSeconds;
   const averageElapsedSeconds = totalElapsedSeconds / runs.length;
+  const distanceMeters = combinedSpeedMetersPerSecond * averageElapsedSeconds;
   return {
-    key: 'averageGhost',
-    label: GHOST_LABELS.averageGhost,
-    totalDistanceMeters: combinedSpeedMetersPerSecond * averageElapsedSeconds,
+    key,
+    label: GHOST_LABELS[key],
+    source,
+    totalDistanceMeters: distanceMeters,
     totalElapsedSeconds: averageElapsedSeconds,
+    avgSpeedKmh: Number((combinedSpeedMetersPerSecond * 3.6).toFixed(2)),
+    targetTime: formatClock(averageElapsedSeconds),
+    pace: `${formatClock(averageElapsedSeconds / (distanceMeters / 1000))}/km`,
     checkpoints: [],
+    preservePace: true,
   };
 }
 
-function buildStableGhost(runs) {
-  const averageGhost = buildAverageGhost(runs);
+function buildAdjustedStableGhost(runs) {
+  const averageGhost = buildAverageGhost(runs, 'averageGhost', 'adjusted_from_user_data');
+  const slowdownRatio = 1.09;
+  const elapsedSeconds = averageGhost.totalElapsedSeconds * slowdownRatio;
   return {
     ...averageGhost,
-    key: 'stableGhost',
-    label: GHOST_LABELS.stableGhost,
+    totalElapsedSeconds: elapsedSeconds,
+    avgSpeedKmh: Number((averageGhost.avgSpeedKmh / slowdownRatio).toFixed(2)),
+    targetTime: formatClock(elapsedSeconds),
+    pace: `${formatClock(elapsedSeconds / (averageGhost.totalDistanceMeters / 1000))}/km`,
   };
+}
+
+function runAverageSpeedKmh(run) {
+  return Number(((run.totalDistanceMeters / 1000) / (run.totalElapsedSeconds / 3600)).toFixed(2));
+}
+
+function checkpointsToPoints(checkpoints = []) {
+  return checkpoints.map((checkpoint) => ({
+    minute: Number((checkpoint.elapsedSeconds / 60).toFixed(3)),
+    distanceM: Math.round(checkpoint.distanceMeters),
+  }));
+}
+
+function formatClock(seconds) {
+  const rounded = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(rounded / 60);
+  const rest = rounded % 60;
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
 function distanceAtElapsed(ghost, elapsedSeconds) {
