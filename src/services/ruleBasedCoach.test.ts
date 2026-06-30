@@ -36,7 +36,7 @@ describe('ruleBasedCoach', () => {
   ];
 
   it('builds named ghost runners from recent runs', () => {
-    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'), undefined, 5);
 
     expect(ghosts.map((ghost) => ghost.key)).toEqual([
       'bestGhost',
@@ -46,19 +46,26 @@ describe('ruleBasedCoach', () => {
       'slowGhost',
     ]);
     expect(ghosts[0].label).toBe('G1');
+    expect(ghosts.map((ghost) => ghost.source)).toEqual([
+      'initial_default',
+      'initial_default',
+      'average_user_run',
+      'latest_user_run',
+      'personal_best',
+    ]);
   });
 
   it('compares each ghost with interpolated checkpoint timing', () => {
-    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'), undefined, 5);
     const comparisons = compareGhosts({ elapsed_seconds: 300, distance_meters: 1050 }, ghosts);
 
-    expect(comparisons.find((ghost) => ghost.key === 'bestGhost')?.deltaMeters).toBeLessThan(0);
-    expect(comparisons.find((ghost) => ghost.key === 'slowGhost')?.deltaMeters).toBeDefined();
+    expect(comparisons.find((ghost) => ghost.key === 'bestGhost')?.deltaMeters).toBeGreaterThan(0);
+    expect(comparisons.find((ghost) => ghost.key === 'slowGhost')?.deltaMeters).toBeLessThan(0);
     expect(comparisons.every((ghost) => Number.isFinite(ghost.deltaMeters))).toBe(true);
   });
 
   it('builds a ranked ghost race snapshot for visual comparison', () => {
-    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+    const ghosts = buildGhostRunners(recentRuns, recentCheckpoints, new Date('2026-06-28T00:00:00Z'), undefined, 5);
     const snapshot = buildGhostRaceSnapshot({
       currentDistanceMeters: 1050,
       elapsedSeconds: 300,
@@ -66,10 +73,10 @@ describe('ruleBasedCoach', () => {
       ghosts,
     });
 
-    expect(snapshot.entries[0].key).toBe('bestGhost');
-    expect(snapshot.entries[0].label).toBe('G1');
+    expect(snapshot.entries[0].key).toBe('slowGhost');
+    expect(snapshot.entries[0].label).toBe('G5');
     expect(snapshot.current.rank).toBeGreaterThan(1);
-    expect(snapshot.ghosts.find((ghost) => ghost.key === 'slowGhost')).toBeDefined();
+    expect(snapshot.ghosts.find((ghost) => ghost.key === 'bestGhost')).toBeDefined();
     expect(snapshot.current.progressPercent).toBe(21);
   });
 
@@ -78,11 +85,12 @@ describe('ruleBasedCoach', () => {
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1050, pace_seconds_per_km: 286 },
       recentRuns,
       recentCheckpoints,
+      targetDistanceMeters: 5000,
     });
 
     expect(cue.category).toBe('close');
-    expect(cue.ghostLabel).toBe('G5');
-    expect(cue.comparisonText).toContain('G5');
+    expect(cue.ghostLabel).toBe('G4');
+    expect(cue.comparisonText).toContain('G4');
   });
 
   it('returns priority cues when no past ghost is close', () => {
@@ -90,10 +98,11 @@ describe('ruleBasedCoach', () => {
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 700, pace_seconds_per_km: 280 },
       recentRuns,
       recentCheckpoints,
+      targetDistanceMeters: 5000,
     });
 
     expect(cue.category).toBe('behind');
-    expect(cue.ghostLabel).toBe('G1');
+    expect(cue.ghostLabel).toBe('G5');
   });
 
   it('returns personal record cues when ahead of the best ghost', () => {
@@ -101,10 +110,11 @@ describe('ruleBasedCoach', () => {
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1160, pace_seconds_per_km: 260 },
       recentRuns,
       recentCheckpoints,
+      targetDistanceMeters: 5000,
     });
 
     expect(cue.category).toBe('personal_record');
-    expect(cue.ghostLabel).toBe('G1');
+    expect(cue.ghostLabel).toBe('G5');
   });
 
   it('returns overtake cues when the selected ghost delta crosses ahead', () => {
@@ -112,11 +122,12 @@ describe('ruleBasedCoach', () => {
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1160, pace_seconds_per_km: 260 },
       recentRuns,
       recentCheckpoints,
-      previousGhostDeltas: { bestGhost: -20 },
+      targetDistanceMeters: 5000,
+      previousGhostDeltas: { slowGhost: -20 },
     });
 
     expect(cue.category).toBe('overtake');
-    expect(cue.nextGhostDeltas.bestGhost).toBe(40);
+    expect(cue.nextGhostDeltas.slowGhost).toBe(40);
   });
 
   it('returns one kilometer cue inside the last kilometer', () => {
@@ -157,14 +168,32 @@ describe('ruleBasedCoach', () => {
     expect(ghosts.some((ghost) => ghost.sourceRunId === 'running')).toBe(false);
   });
 
-  it('does not create ghosts when no run data exists', () => {
+  it('creates beginner heuristic ghosts when no run data exists', () => {
     const ghosts = buildGhostRunners([], [], new Date('2026-06-28T00:00:00Z'));
 
-    expect(ghosts).toEqual([]);
+    expect(ghosts).toHaveLength(5);
+    expect(ghosts.map((ghost) => ghost.key)).toEqual([
+      'bestGhost',
+      'averageGhost',
+      'stableGhost',
+      'chaserGhost',
+      'slowGhost',
+    ]);
+    expect(ghosts.map((ghost) => ghost.totalElapsedSeconds)).toEqual([
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+    ]);
+    expect(ghosts[0].totalDistanceMeters).toBe(2000);
+    expect(ghosts[0].avgSpeedKmh).toBe(5.8);
+    expect(ghosts[4].avgSpeedKmh).toBe(8.3);
+    expect(ghosts.every((ghost) => Array.isArray(ghost.speedProfile) && ghost.speedProfile.length > 1)).toBe(true);
   });
 
-  it('generates five natural ghosts from a single completed run', () => {
-    const ghosts = buildGhostRunners([recentRuns[0]], recentCheckpoints, new Date('2026-06-28T00:00:00Z'));
+  it('replaces only G4 with the latest completed run after one record', () => {
+    const ghosts = buildGhostRunners([recentRuns[0]], recentCheckpoints, new Date('2026-06-28T00:00:00Z'), undefined, 5);
 
     expect(ghosts.map((ghost) => ghost.key)).toEqual([
       'bestGhost',
@@ -174,8 +203,27 @@ describe('ruleBasedCoach', () => {
       'slowGhost',
     ]);
     expect(ghosts).toHaveLength(5);
-    expect(ghosts[0].totalDistanceMeters).toBeGreaterThan(ghosts[1].totalDistanceMeters);
-    expect(ghosts[4].totalDistanceMeters).toBeLessThan(ghosts[1].totalDistanceMeters);
+    expect(ghosts.map((ghost) => ghost.source)).toEqual([
+      'initial_default',
+      'initial_default',
+      'initial_default',
+      'latest_user_run',
+      'initial_default',
+    ]);
+  });
+
+  it('progressively replaces initial ghosts as completed records accumulate', () => {
+    const expectedSourcesByCount = new Map([
+      [2, ['initial_default', 'initial_default', 'average_user_run', 'latest_user_run', 'initial_default']],
+      [3, ['initial_default', 'initial_default', 'average_user_run', 'latest_user_run', 'personal_best']],
+      [5, ['personal_worst', 'initial_default', 'average_user_run', 'latest_user_run', 'personal_best']],
+      [7, ['personal_worst', 'adjusted_from_user_data', 'average_user_run', 'latest_user_run', 'personal_best']],
+    ]);
+
+    expectedSourcesByCount.forEach((expectedSources, count) => {
+      const ghosts = buildGhostRunners(makeCompletedRuns(count), [], new Date('2026-06-28T00:00:00Z'), undefined, 2);
+      expect(ghosts.map((ghost) => ghost.source)).toEqual(expectedSources);
+    });
   });
 
   it('interpolates generated ghost distance per second before the first minute', () => {
@@ -198,3 +246,17 @@ describe('ruleBasedCoach', () => {
     expect(afterOneMinute?.distanceMeters).toBeGreaterThan(afterOneSecond?.distanceMeters ?? 0);
   });
 });
+
+function makeCompletedRuns(count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const day = String(index + 1).padStart(2, '0');
+    return {
+      id: `run-${index + 1}`,
+      started_at: `2026-06-${day}T00:00:00Z`,
+      ended_at: `2026-06-${day}T00:20:00Z`,
+      status: 'completed',
+      total_elapsed_seconds: 1200 - index * 20,
+      total_distance_meters: 2000,
+    };
+  });
+}

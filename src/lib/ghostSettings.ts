@@ -1,4 +1,5 @@
 export type GhostSlotKey = 'bestGhost' | 'averageGhost' | 'stableGhost' | 'chaserGhost' | 'slowGhost';
+export type GhostDifficulty = 'beginner' | 'novice' | 'standard' | 'custom';
 
 export type GhostSetting = {
   key: GhostSlotKey;
@@ -14,7 +15,13 @@ export type GhostRunnerLike = {
   totalDistanceMeters?: number;
   totalElapsedSeconds?: number;
   checkpoints?: unknown[];
+  preservePace?: boolean;
   [key: string]: unknown;
+};
+
+export type GhostDifficultySetting = {
+  difficulty: GhostDifficulty;
+  customDistanceKm: number;
 };
 
 export const GHOST_SETTING_SLOTS: Array<Pick<GhostSetting, 'key' | 'defaultName' | 'description'>> = [
@@ -26,9 +33,19 @@ export const GHOST_SETTING_SLOTS: Array<Pick<GhostSetting, 'key' | 'defaultName'
 ];
 
 const STORAGE_PREFIX = 'stickWithit:ghost-settings:';
+const DIFFICULTY_STORAGE_PREFIX = 'stickWithit:ghost-difficulty:';
 const MIN_GHOST_SPEED_KMH = 1;
 const MAX_GHOST_SPEED_KMH = 30;
 const DEFAULT_GHOST_SPEEDS_KMH = [12, 10.5, 10, 10.8, 8.5];
+const DEFAULT_DIFFICULTY_SETTING: GhostDifficultySetting = {
+  difficulty: 'beginner',
+  customDistanceKm: 2,
+};
+const DIFFICULTY_TARGET_KM: Record<Exclude<GhostDifficulty, 'custom'>, number> = {
+  beginner: 2,
+  novice: 3,
+  standard: 5,
+};
 
 export function defaultGhostSettings(): GhostSetting[] {
   return GHOST_SETTING_SLOTS.map((slot, index) => ({
@@ -70,6 +87,43 @@ export function writeGhostSettings(userId: string, settings: GhostSetting[]) {
   return normalized;
 }
 
+export function defaultGhostDifficulty(): GhostDifficultySetting {
+  return { ...DEFAULT_DIFFICULTY_SETTING };
+}
+
+export function normalizeGhostDifficulty(value: unknown): GhostDifficultySetting {
+  const source = typeof value === 'object' && value != null ? value as Partial<GhostDifficultySetting> : {};
+  const difficulty = normalizeDifficulty(source.difficulty);
+  return {
+    difficulty,
+    customDistanceKm: normalizeCustomDistanceKm(source.customDistanceKm),
+  };
+}
+
+export function readGhostDifficulty(userId: string): GhostDifficultySetting {
+  if (!canUseLocalStorage()) return defaultGhostDifficulty();
+
+  try {
+    return normalizeGhostDifficulty(JSON.parse(window.localStorage.getItem(difficultyStorageKey(userId)) ?? '{}'));
+  } catch {
+    return defaultGhostDifficulty();
+  }
+}
+
+export function writeGhostDifficulty(userId: string, setting: GhostDifficultySetting) {
+  const normalized = normalizeGhostDifficulty(setting);
+  if (!canUseLocalStorage()) return normalized;
+
+  window.localStorage.setItem(difficultyStorageKey(userId), JSON.stringify(normalized));
+  return normalized;
+}
+
+export function ghostDifficultyTargetKm(setting: GhostDifficultySetting) {
+  const normalized = normalizeGhostDifficulty(setting);
+  if (normalized.difficulty === 'custom') return normalized.customDistanceKm;
+  return DIFFICULTY_TARGET_KM[normalized.difficulty];
+}
+
 export function ghostDisplayName(key: string, settings: GhostSetting[] = defaultGhostSettings()) {
   const slot = normalizeGhostSettings(settings).find((item) => item.key === key);
   if (!slot) return String(key);
@@ -103,6 +157,13 @@ export function applyGhostSettingsToRunners({
       };
 
       if (!slot.averageSpeedKmh) {
+        return {
+          ...base,
+          label: ghostDisplayName(slot.key, normalizedSettings),
+        };
+      }
+
+      if (base.preservePace) {
         return {
           ...base,
           label: ghostDisplayName(slot.key, normalizedSettings),
@@ -160,8 +221,23 @@ function normalizeGhostSpeed(value: unknown, fallback: number) {
   return Math.min(MAX_GHOST_SPEED_KMH, Math.max(MIN_GHOST_SPEED_KMH, Number(speed.toFixed(1))));
 }
 
+function normalizeDifficulty(value: unknown): GhostDifficulty {
+  if (value === 'novice' || value === 'standard' || value === 'custom') return value;
+  return 'beginner';
+}
+
+function normalizeCustomDistanceKm(value: unknown) {
+  const distance = Number(value);
+  if (!Number.isFinite(distance) || distance <= 0) return DEFAULT_DIFFICULTY_SETTING.customDistanceKm;
+  return Math.min(100, Math.max(0.1, Number(distance.toFixed(1))));
+}
+
 function storageKey(userId: string) {
   return `${STORAGE_PREFIX}${userId || 'anonymous'}`;
+}
+
+function difficultyStorageKey(userId: string) {
+  return `${DIFFICULTY_STORAGE_PREFIX}${userId || 'anonymous'}`;
 }
 
 function canUseLocalStorage() {

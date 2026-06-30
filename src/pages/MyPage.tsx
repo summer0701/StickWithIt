@@ -2,10 +2,15 @@ import { Activity, Edit3, Ghost, LogOut, RotateCcw, Settings } from 'lucide-reac
 import { useMemo, useState } from 'react';
 import {
   defaultGhostSettings,
+  ghostDifficultyTargetKm,
   ghostDisplayName,
   normalizeGhostSettings,
+  readGhostDifficulty,
   readGhostSettings,
+  writeGhostDifficulty,
   writeGhostSettings,
+  type GhostDifficulty,
+  type GhostDifficultySetting,
   type GhostSetting,
 } from '../lib/ghostSettings';
 import { readGhostResetAt, resetGhostHistory } from '../lib/ghostReset';
@@ -14,16 +19,25 @@ import ghostMascot from '../assets/ghost-settings-mascot.webp';
 type MyPageProps = {
   user: { id: string; email?: string };
   onSignOut?: () => void;
+  onDifficultyTargetChange?: (targetDistanceKm: number) => void;
 };
 
 const ghostAccents = ['green', 'purple', 'blue', 'orange', 'gray'];
+const difficultyOptions: Array<{ value: GhostDifficulty; label: string; distanceLabel: string }> = [
+  { value: 'beginner', label: '입문', distanceLabel: '2.0 km' },
+  { value: 'novice', label: '초급', distanceLabel: '3.0 km' },
+  { value: 'standard', label: '표준', distanceLabel: '5.0 km' },
+  { value: 'custom', label: '커스텀', distanceLabel: '직접 지정' },
+];
 
-export default function MyPage({ user, onSignOut }: MyPageProps) {
+export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: MyPageProps) {
   const [settings, setSettings] = useState<GhostSetting[]>(() => readGhostSettings(user.id));
+  const [difficulty, setDifficulty] = useState<GhostDifficultySetting>(() => readGhostDifficulty(user.id));
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [ghostResetAt, setGhostResetAt] = useState<string | null>(() => readGhostResetAt(user.id));
   const selectedGhost = settings[selectedIndex] ?? settings[0];
   const preview = useMemo(() => settings.map((item) => ghostDisplayName(item.key, settings)).join(' · '), [settings]);
+  const targetDistanceLabel = `${ghostDifficultyTargetKm(difficulty).toFixed(1)} km`;
 
   function updateSetting(index: number, nextValue: Partial<GhostSetting>) {
     setSettings((current) => {
@@ -36,8 +50,19 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
 
   function resetSettings() {
     const next = writeGhostSettings(user.id, defaultGhostSettings());
+    const nextDifficulty = writeGhostDifficulty(user.id, { difficulty: 'beginner', customDistanceKm: 2 });
     setSettings(next);
+    setDifficulty(nextDifficulty);
+    onDifficultyTargetChange?.(ghostDifficultyTargetKm(nextDifficulty));
     setSelectedIndex(0);
+  }
+
+  function updateDifficulty(nextValue: Partial<GhostDifficultySetting>) {
+    setDifficulty((current) => {
+      const next = writeGhostDifficulty(user.id, { ...current, ...nextValue });
+      onDifficultyTargetChange?.(ghostDifficultyTargetKm(next));
+      return next;
+    });
   }
 
   function resetGhostData() {
@@ -72,13 +97,53 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
       <section className="ghost-settings-panel" aria-label="고스트 설정">
         <div className="ghost-settings-heading">
           <div>
-            <span><Ghost size={21} /> 고스트 슬롯</span>
-            <p>이름이 비어 있으면 G1, G2, G3, G4, G5로 표시됩니다.</p>
+            <span><Ghost size={21} /> 고스트 난이도</span>
+            <p>처음 설치한 사용자는 입문 2km로 시작합니다.</p>
           </div>
           <button type="button" onClick={resetSettings}>
             <RotateCcw size={18} />
             초기화
           </button>
+        </div>
+
+        <div className="ghost-difficulty-control" aria-label="고스트 난이도 선택">
+          {difficultyOptions.map((option) => (
+            <button
+              className={difficulty.difficulty === option.value ? 'active' : ''}
+              key={option.value}
+              type="button"
+              onClick={() => updateDifficulty({ difficulty: option.value })}
+            >
+              <strong>{option.label}</strong>
+              <span>{option.distanceLabel}</span>
+            </button>
+          ))}
+        </div>
+
+        {difficulty.difficulty === 'custom' && (
+          <label className="ghost-custom-distance">
+            커스텀 거리
+            <div className="speed-input-shell">
+              <Activity size={28} aria-hidden="true" />
+              <input
+                inputMode="decimal"
+                min="0.1"
+                max="100"
+                step="0.1"
+                type="number"
+                value={difficulty.customDistanceKm}
+                onChange={(event) => updateDifficulty({ customDistanceKm: Number(event.target.value) })}
+              />
+              <small>km</small>
+            </div>
+          </label>
+        )}
+
+        <div className="ghost-settings-heading compact">
+          <div>
+            <span><Ghost size={21} /> 고스트 슬롯</span>
+            <p>이름이 비어 있으면 G1, G2, G3, G4, G5로 표시됩니다.</p>
+          </div>
         </div>
 
         <div className="ghost-slot-tabs" aria-label="고스트 선택">
@@ -149,6 +214,8 @@ export default function MyPage({ user, onSignOut }: MyPageProps) {
       </section>
 
       <section className="ghost-settings-summary">
+        <span>현재 난이도 · 목표 거리</span>
+        <strong>{difficultyOptions.find((option) => option.value === difficulty.difficulty)?.label ?? '입문'} · {targetDistanceLabel}</strong>
         <span>현재 표시 이름</span>
         <strong>{preview}</strong>
         <button className="ghost-data-reset-button" type="button" onClick={resetGhostData}>

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyGhostSettingsToRunners,
+  defaultGhostDifficulty,
   defaultGhostSettings,
+  ghostDifficultyTargetKm,
   ghostDisplayName,
+  normalizeGhostDifficulty,
   normalizeGhostSettings,
 } from './ghostSettings';
 
@@ -73,5 +76,41 @@ describe('ghostSettings', () => {
     expect(ghosts[1].key).toBe('averageGhost');
     expect(ghosts[1].label).toBe('G2');
     expect(ghosts[1].totalElapsedSeconds).toBe(1800);
+  });
+
+  it('starts new users on beginner ghost difficulty at 2km', () => {
+    const difficulty = defaultGhostDifficulty();
+
+    expect(difficulty).toEqual({ difficulty: 'beginner', customDistanceKm: 2 });
+    expect(ghostDifficultyTargetKm(difficulty)).toBe(2);
+  });
+
+  it('normalizes ghost difficulty and custom distance safely', () => {
+    expect(normalizeGhostDifficulty({ difficulty: 'standard', customDistanceKm: 8.24 })).toEqual({
+      difficulty: 'standard',
+      customDistanceKm: 8.2,
+    });
+    expect(ghostDifficultyTargetKm({ difficulty: 'custom', customDistanceKm: 4.5 })).toBe(4.5);
+    expect(normalizeGhostDifficulty({ difficulty: 'broken', customDistanceKm: -1 })).toEqual({
+      difficulty: 'beginner',
+      customDistanceKm: 2,
+    });
+  });
+
+  it('preserves generated heuristic target pace when applying display settings', () => {
+    const ghosts = applyGhostSettingsToRunners({
+      runners: [{
+        key: 'bestGhost',
+        totalDistanceMeters: 2000,
+        totalElapsedSeconds: 1080,
+        checkpoints: [{ elapsedSeconds: 60, distanceMeters: 100 }],
+        preservePace: true,
+      }],
+      settings: defaultGhostSettings(),
+      targetDistanceKm: 2,
+    });
+
+    expect(ghosts[0].totalElapsedSeconds).toBe(1080);
+    expect(ghosts[0].checkpoints).toEqual([{ elapsedSeconds: 60, distanceMeters: 100 }]);
   });
 });

@@ -53,10 +53,92 @@ const DEFAULT_PROFILES = [
 ];
 
 const MAX_CHANGE_RATIO = 0.15;
+const HEURISTIC_DISTANCE_KM = {
+  beginner: 2,
+  novice: 3,
+  standard: 5,
+};
+const HEURISTIC_GHOSTS = [
+  { id: 'G1', key: 'bestGhost', name: '워스트 고스트', role: 'easy_win', avgSpeedKmh: 5.8, phase: 0.1 },
+  { id: 'G2', key: 'averageGhost', name: '쉬운 고스트', role: 'steady_win', avgSpeedKmh: 6.5, phase: 1.35 },
+  { id: 'G3', key: 'stableGhost', name: '평균 고스트', role: 'baseline', avgSpeedKmh: 7.2, phase: 2.35 },
+  { id: 'G4', key: 'chaserGhost', name: '도전 고스트', role: 'next_goal', avgSpeedKmh: 7.8, phase: 3.4 },
+  { id: 'G5', key: 'slowGhost', name: '베스트 고스트', role: 'long_term_goal', avgSpeedKmh: 8.3, phase: 4.55 },
+];
+const RACE_WEAVE_PATTERN = [95, 98, 100, 101, 102, 100, 99, 101, 103, 102, 100, 99, 101, 104, 103, 101, 100, 103, 105];
 
 export function createGhostPackFromBase(baseGhost) {
   const normalizedBase = normalizeBaseGhost(baseGhost);
   return DEFAULT_PROFILES.map((profile, index) => generateNaturalGhost(normalizedBase, profile, `${normalizedBase.id}:${profile.id}:${index}`));
+}
+
+export function createHeuristicGhostPack({
+  difficulty = 'beginner',
+  targetDistanceKm = null,
+  customDistanceKm = null,
+  seed = Date.now(),
+} = {}) {
+  const normalizedDifficulty = normalizeDifficulty(difficulty);
+  const distanceKm = resolveHeuristicDistanceKm(normalizedDifficulty, targetDistanceKm, customDistanceKm);
+
+  return HEURISTIC_GHOSTS.map((ghost, index) => {
+    const targetSeconds = speedToTargetSeconds(distanceKm, ghost.avgSpeedKmh, seed, index);
+    const finishSprint = shouldFinishSprint(seed, index);
+    const speedProfile = buildMinuteSpeedProfile({
+      minutes: Math.ceil(targetSeconds / 60),
+      seed: `${seed}:${normalizedDifficulty}:${ghost.id}`,
+      phase: ghost.phase,
+      finishSprint,
+    });
+    const route = buildRouteFromSpeedProfile({
+      distanceMeters: distanceKm * 1000,
+      targetSeconds,
+      speedProfile,
+    });
+
+    return {
+      id: ghost.id,
+      key: ghost.key,
+      name: ghost.name,
+      role: ghost.role,
+      targetRole: ghost.role,
+      source: 'initial_default',
+      type: 'heuristic',
+      distanceKm,
+      avgSpeedKmh: ghost.avgSpeedKmh,
+      targetTime: formatClock(targetSeconds),
+      targetSeconds,
+      pace: formatPaceSeconds(targetSeconds / distanceKm),
+      speedProfile,
+      finishSprint,
+      points: routeToPoints(route),
+      route,
+      preservePace: true,
+    };
+  });
+}
+
+export function createHeuristicGhostRunData(options = {}) {
+  const difficulty = normalizeDifficulty(options.difficulty);
+  const distanceKm = resolveHeuristicDistanceKm(difficulty, options.targetDistanceKm, options.customDistanceKm);
+  const ghosts = createHeuristicGhostPack({ ...options, difficulty, targetDistanceKm: distanceKm });
+
+  return {
+    distanceKm,
+    mode: difficulty,
+    ghosts: ghosts.map((ghost) => ({
+      id: ghost.id,
+      name: ghost.name,
+      source: ghost.source,
+      avgSpeedKmh: ghost.avgSpeedKmh,
+      targetRole: ghost.targetRole,
+      targetTime: ghost.targetTime,
+      pace: ghost.pace,
+      speedProfile: ghost.speedProfile,
+      finishSprint: ghost.finishSprint,
+      points: ghost.points,
+    })),
+  };
 }
 
 export function generateNaturalGhost(baseGhost, profile, seed) {
@@ -178,6 +260,16 @@ export function ghostPackRouteToRunner(ghost) {
     key: ghost.key ?? ghost.id,
     label: ghost.name,
     generatedGhostId: ghost.id,
+    ghostRole: ghost.role,
+    source: ghost.source,
+    avgSpeedKmh: ghost.avgSpeedKmh,
+    targetRole: ghost.targetRole,
+    targetTime: ghost.targetTime,
+    pace: ghost.pace,
+    speedProfile: ghost.speedProfile,
+    finishSprint: ghost.finishSprint,
+    points: ghost.points,
+    preservePace: ghost.preservePace,
     totalDistanceMeters: last.distance,
     totalElapsedSeconds: Math.max(1, Number(last.minute) * 60),
     checkpoints: route
@@ -234,6 +326,104 @@ function naturalDipFactor(progress, profile, index) {
 
 function sortedUniqueMinutes(routeA, routeB) {
   return [...new Set([...routeA, ...routeB].map((point) => point.minute))].sort((a, b) => a - b);
+}
+
+function normalizeDifficulty(value) {
+  if (['beginner', 'novice', 'standard', 'custom'].includes(value)) return value;
+  return 'beginner';
+}
+
+function resolveHeuristicDistanceKm(difficulty, targetDistanceKm, customDistanceKm) {
+  const requestedDistance = Number(difficulty === 'custom' ? customDistanceKm : targetDistanceKm);
+  if (Number.isFinite(requestedDistance) && requestedDistance > 0) return requestedDistance;
+  if (difficulty === 'custom') return HEURISTIC_DISTANCE_KM.beginner;
+  return HEURISTIC_DISTANCE_KM[difficulty] ?? HEURISTIC_DISTANCE_KM.beginner;
+}
+
+function speedToTargetSeconds(distanceKm, avgSpeedKmh, seed, index) {
+  const baseSeconds = (distanceKm / avgSpeedKmh) * 3600;
+  const randomOffset = Math.round((seededRandom(`${seed}:target:${index}`)() - 0.5) * 18);
+  return Math.max(60, Math.round(baseSeconds) + randomOffset);
+}
+
+function shouldFinishSprint(seed, index) {
+  return seededRandom(`${seed}:sprint:${index}`)() > 0.18;
+}
+
+function buildMinuteSpeedProfile({ minutes, seed, phase, finishSprint }) {
+  const random = seededRandom(seed);
+  const profile = [];
+
+  for (let minute = 0; minute < minutes; minute += 1) {
+    const progress = minutes <= 1 ? 1 : minute / (minutes - 1);
+    const basePhase =
+      progress < 0.2 ? 95 :
+      progress > 0.8 ? 103 :
+      100;
+    const weave = RACE_WEAVE_PATTERN[minute % RACE_WEAVE_PATTERN.length] - 100;
+    const roleWave = Math.sin(minute * 0.73 + phase) * 1.2;
+    const jitter = (random() - 0.5) * 2;
+    const sprint = finishSprint && progress > 0.86 ? 3 * ((progress - 0.86) / 0.14) : 0;
+    const target = clamp(basePhase + weave + roleWave + jitter + sprint, 93, 107);
+    const previous = profile[profile.length - 1] ?? 100;
+    profile.push(Math.round(clamp(target, previous - 8, previous + 8)));
+  }
+
+  return normalizeSpeedProfile(profile);
+}
+
+function normalizeSpeedProfile(profile) {
+  const average = profile.reduce((sum, value) => sum + value, 0) / Math.max(1, profile.length);
+  if (!Number.isFinite(average) || average <= 0) return profile;
+
+  const scaled = profile.map((value) => Math.round(value * (100 / average)));
+  return scaled.map((value, index) => {
+    const previous = scaled[index - 1];
+    if (previous == null) return clamp(value, 92, 108);
+    return clamp(value, previous - 8, previous + 8);
+  });
+}
+
+function buildRouteFromSpeedProfile({ distanceMeters, targetSeconds, speedProfile }) {
+  const safeDistance = Math.max(0, Number(distanceMeters) || 0);
+  const safeSeconds = Math.max(1, Number(targetSeconds) || 1);
+  const minuteCount = Math.max(1, speedProfile.length);
+  const segmentWeights = speedProfile.map((speed, index) => {
+    const segmentSeconds = index === minuteCount - 1 ? safeSeconds - (minuteCount - 1) * 60 : 60;
+    return Math.max(1, segmentSeconds) * Math.max(1, Number(speed) || 100);
+  });
+  const totalWeight = segmentWeights.reduce((sum, value) => sum + value, 0);
+  const route = [{ minute: 0, distance: 0 }];
+  let distance = 0;
+
+  segmentWeights.forEach((weight, index) => {
+    distance += safeDistance * (weight / totalWeight);
+    const elapsedSeconds = index === minuteCount - 1 ? safeSeconds : (index + 1) * 60;
+    route.push({
+      minute: elapsedSeconds / 60,
+      distance: roundDistance(index === minuteCount - 1 ? safeDistance : distance),
+    });
+  });
+
+  return route;
+}
+
+function formatClock(seconds) {
+  const rounded = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(rounded / 60);
+  const rest = rounded % 60;
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
+function formatPaceSeconds(secondsPerKm) {
+  return `${formatClock(secondsPerKm)}/km`;
+}
+
+function routeToPoints(route) {
+  return route.map((point) => ({
+    minute: point.minute,
+    distanceM: Math.round(point.distance),
+  }));
 }
 
 function distanceAtMinute(route, minute) {

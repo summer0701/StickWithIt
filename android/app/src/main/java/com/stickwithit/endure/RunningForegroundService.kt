@@ -175,7 +175,7 @@ class RunningForegroundService : Service() {
     }
 
     private suspend fun maybePlayElapsedCoachCue(elapsedSeconds: Int) {
-        if (elapsedSeconds - lastElapsedCoachSeconds < CheckpointManager.CHECKPOINT_INTERVAL_SECONDS) return
+        if (elapsedSeconds - lastElapsedCoachSeconds < CheckpointManager.COACH_INTERVAL_SECONDS) return
 
         val cue = coach.createCue(
             elapsedSeconds = elapsedSeconds,

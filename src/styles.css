@@ -1939,6 +1939,10 @@ button {
   gap: 8px;
 }
 
+.ghost-settings-heading.compact {
+  align-items: start;
+}
+
 .ghost-settings-heading span {
   color: #dff4ff;
   font-size: 1.35rem;
@@ -1950,6 +1954,45 @@ button {
   padding: 0 18px;
   color: #9aff7c;
   font-size: 1rem;
+  font-weight: 900;
+}
+
+.ghost-difficulty-control {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ghost-difficulty-control button {
+  min-height: 76px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(111, 132, 183, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #eef6ff;
+  font-weight: 900;
+}
+
+.ghost-difficulty-control button.active {
+  border-color: rgba(154, 255, 124, 0.72);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(154, 255, 124, 0.18), transparent 58%),
+    rgba(154, 255, 124, 0.08);
+}
+
+.ghost-difficulty-control span {
+  color: var(--my-muted);
+  font-size: 0.78rem;
+}
+
+.ghost-custom-distance {
+  display: grid;
+  gap: 8px;
+  color: #eef6ff;
+  font-size: 0.84rem;
   font-weight: 900;
 }
 
@@ -2438,6 +2481,21 @@ button {
 
 .ghost-settings-heading > div {
   gap: 5px;
+}
+
+.ghost-difficulty-control {
+  gap: 7px;
+}
+
+.ghost-difficulty-control button {
+  min-height: 54px;
+  gap: 3px;
+  padding: 7px;
+  font-size: 0.78rem;
+}
+
+.ghost-difficulty-control span {
+  font-size: 0.64rem;
 }
 
 .ghost-settings-heading button {
@@ -3135,7 +3193,7 @@ button {
   width: min(100%, 620px);
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 22px 18px calc(104px + var(--app-safe-area-inset-bottom));
+  padding: 12px 14px calc(76px + var(--app-safe-area-inset-bottom));
   color: #fff;
   background:
     radial-gradient(circle at 90% 35%, rgba(255, 77, 46, 0.16), transparent 20%),
@@ -3174,9 +3232,9 @@ button {
   display: grid;
   grid-template-columns: 0.72fr 1.28fr;
   align-items: center;
-  min-height: 290px;
-  gap: 16px;
-  padding: 20px 0 10px;
+  min-height: 142px;
+  gap: 10px;
+  padding: 4px 0 8px;
 }
 
 .result-medal-wrap {
@@ -3196,7 +3254,7 @@ button {
 }
 
 .result-medal-art {
-  width: min(34vw, 178px);
+  width: min(27vw, 126px);
   max-width: 100%;
   height: auto;
   object-fit: contain;
@@ -3209,15 +3267,15 @@ button {
 
 .result-hero-copy .eyebrow {
   color: #ff563d;
-  font-size: clamp(1rem, 4.5vw, 1.48rem);
+  font-size: clamp(0.72rem, 2.7vw, 0.95rem);
   font-weight: 900;
 }
 
 .result-hero-copy h1 {
-  margin: 8px 0 16px;
+  margin: 4px 0 8px;
   color: #fff;
-  font-size: clamp(2.25rem, 11vw, 4.2rem);
-  line-height: 1.14;
+  font-size: clamp(1.45rem, 6.2vw, 2.45rem);
+  line-height: 1.08;
   letter-spacing: 0;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
 }
@@ -3225,10 +3283,10 @@ button {
 .save-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   margin: 0;
   color: #18bd74;
-  font-size: clamp(1.05rem, 4.8vw, 1.5rem);
+  font-size: clamp(0.76rem, 2.9vw, 1rem);
   font-weight: 900;
 }
 
@@ -3239,10 +3297,10 @@ button {
 .result-summary-panel {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 18px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 28px;
+  border-radius: 18px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045)),
     rgba(18, 21, 27, 0.86);
@@ -3253,11 +3311,11 @@ button {
 
 .result-metric-card {
   position: relative;
-  min-height: 158px;
+  min-height: 96px;
   overflow: hidden;
-  padding: 18px;
+  padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
+  border-radius: 12px;
   background:
     radial-gradient(circle at 10% 10%, var(--metric-glow), transparent 38%),
     rgba(10, 13, 18, 0.58);
@@ -3297,13 +3355,15 @@ button {
 .result-metric-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   color: rgba(235, 238, 247, 0.72);
-  font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+  font-size: clamp(0.68rem, 2.5vw, 0.84rem);
   font-weight: 900;
 }
 
 .result-metric-head svg {
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
   color: var(--metric-color);
   filter: drop-shadow(0 0 10px var(--metric-color));
@@ -3312,29 +3372,29 @@ button {
 .result-metric-value {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  margin: 14px 0 0;
+  gap: 4px;
+  margin: 8px 0 0;
   color: #fff;
 }
 
 .result-metric-value strong {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: clamp(1.95rem, 8vw, 3rem);
+  font-size: clamp(1.25rem, 5.5vw, 1.9rem);
   line-height: 1;
 }
 
 .result-metric-value em {
   color: rgba(255, 255, 255, 0.82);
   font-style: normal;
-  font-size: clamp(0.96rem, 3.8vw, 1.24rem);
+  font-size: clamp(0.7rem, 2.6vw, 0.9rem);
   font-weight: 900;
 }
 
 .result-metric-description {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   color: rgba(223, 229, 242, 0.58);
-  font-size: clamp(0.9rem, 3.6vw, 1.12rem);
+  font-size: clamp(0.66rem, 2.45vw, 0.82rem);
   font-weight: 900;
 }
 
@@ -3344,8 +3404,8 @@ button {
 
 .result-sparkline {
   width: 100%;
-  height: 42px;
-  margin-top: 12px;
+  height: 24px;
+  margin-top: 6px;
   overflow: visible;
 }
 
@@ -3369,8 +3429,8 @@ button {
 }
 
 .result-progress {
-  height: 9px;
-  margin-top: 18px;
+  height: 6px;
+  margin-top: 10px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
@@ -3389,18 +3449,23 @@ button {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 16px;
-  min-height: 76px;
-  padding: 0 22px;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
+  border-radius: 12px;
   background:
     linear-gradient(112deg, rgba(37, 77, 103, 0.6), rgba(92, 42, 97, 0.58), rgba(117, 58, 36, 0.58)),
     rgba(255, 255, 255, 0.06);
   color: #fff;
-  font-size: clamp(1.2rem, 5vw, 1.6rem);
+  font-size: clamp(0.86rem, 3.4vw, 1.08rem);
   font-weight: 900;
   text-align: left;
+}
+
+.result-share-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .result-share-button svg:last-child {

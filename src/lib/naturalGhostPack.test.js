@@ -3,6 +3,8 @@ import {
   blendGhostRoute,
   clampPaceChange,
   createGhostPackFromBase,
+  createHeuristicGhostRunData,
+  createHeuristicGhostPack,
   generateNaturalGhost,
   ghostPackRouteToRunner,
   normalizeGhostDistance,
@@ -54,6 +56,79 @@ describe('naturalGhostPack', () => {
     expect(runner.checkpoints[1].distanceMeters).toBeGreaterThan(0);
   });
 
+  it('creates beginner heuristic ghosts with human minute speed changes and target records', () => {
+    const ghosts = createHeuristicGhostPack({ difficulty: 'beginner', seed: 'new-run' });
+
+    expect(ghosts).toHaveLength(5);
+    expect(ghosts.map((ghost) => ghost.id)).toEqual(['G1', 'G2', 'G3', 'G4', 'G5']);
+    expect(ghosts.map((ghost) => ghost.name)).toEqual(['워스트 고스트', '쉬운 고스트', '평균 고스트', '도전 고스트', '베스트 고스트']);
+    expect(ghosts.map((ghost) => ghost.role)).toEqual(['easy_win', 'steady_win', 'baseline', 'next_goal', 'long_term_goal']);
+    expect(ghosts.map((ghost) => ghost.source)).toEqual(Array(5).fill('initial_default'));
+    expect(ghosts.map((ghost) => ghost.avgSpeedKmh)).toEqual([5.8, 6.5, 7.2, 7.8, 8.3]);
+
+    ghosts.forEach((ghost) => {
+      expect(ghost.targetTime).toMatch(/^\d+:\d{2}$/);
+      expect(ghost.route.at(-1).distance).toBe(2000);
+      expect(ghost.points.at(-1)).toEqual({ minute: ghost.route.at(-1).minute, distanceM: 2000 });
+      expect(ghost.pace).toMatch(/\/km$/);
+      expect(ghost.speedProfile).toHaveLength(Math.ceil(ghost.targetSeconds / 60));
+      expect(new Set(ghost.speedProfile).size).toBeGreaterThan(1);
+      expect(typeof ghost.finishSprint).toBe('boolean');
+      for (let index = 1; index < ghost.speedProfile.length; index += 1) {
+        expect(Math.abs(ghost.speedProfile[index] - ghost.speedProfile[index - 1])).toBeLessThanOrEqual(8);
+      }
+    });
+    expect(ghosts.map((ghost) => ghost.targetSeconds)).toEqual([...ghosts].map((ghost) => ghost.targetSeconds).sort((a, b) => b - a));
+    expect(Math.abs(ghosts[2].targetSeconds - 1000)).toBeLessThanOrEqual(9);
+  });
+
+  it('starts beginner ghosts gently and finishes faster without abrupt changes', () => {
+    const ghosts = createHeuristicGhostPack({ difficulty: 'beginner', seed: 'start-a' });
+
+    ghosts.forEach((ghost) => {
+      const earlyAverage = average(ghost.speedProfile.slice(0, Math.max(1, Math.floor(ghost.speedProfile.length * 0.2))));
+      const middleAverage = average(ghost.speedProfile.slice(
+        Math.floor(ghost.speedProfile.length * 0.2),
+        Math.max(Math.floor(ghost.speedProfile.length * 0.8), Math.floor(ghost.speedProfile.length * 0.2) + 1),
+      ));
+      const lateAverage = average(ghost.speedProfile.slice(Math.floor(ghost.speedProfile.length * 0.8)));
+
+      expect(earlyAverage).toBeLessThan(middleAverage);
+      expect(lateAverage).toBeGreaterThan(middleAverage);
+    });
+  });
+
+  it('changes heuristic ghosts between new starts while preserving difficulty', () => {
+    const first = createHeuristicGhostPack({ difficulty: 'beginner', seed: 'start-a' });
+    const second = createHeuristicGhostPack({ difficulty: 'beginner', seed: 'start-b' });
+
+    expect(first.map((ghost) => ghost.targetSeconds)).not.toEqual(second.map((ghost) => ghost.targetSeconds));
+    expect(first[0].avgSpeedKmh).toBe(5.8);
+    expect(second[4].avgSpeedKmh).toBe(8.3);
+  });
+
+  it('uses difficulty distances and custom distance for heuristic ghosts', () => {
+    expect(createHeuristicGhostPack({ difficulty: 'novice', seed: 'same' })[0].route.at(-1).distance).toBe(3000);
+    expect(createHeuristicGhostPack({ difficulty: 'standard', seed: 'same' })[0].route.at(-1).distance).toBe(5000);
+    expect(createHeuristicGhostPack({ difficulty: 'custom', customDistanceKm: 4.2, seed: 'same' })[0].route.at(-1).distance).toBe(4200);
+  });
+
+  it('returns the requested JSON contract for initial ghost run data', () => {
+    const data = createHeuristicGhostRunData({ difficulty: 'beginner', seed: 'json-contract' });
+
+    expect(data.distanceKm).toBe(2);
+    expect(data.mode).toBe('beginner');
+    expect(data.ghosts).toHaveLength(5);
+    expect(data.ghosts[0]).toMatchObject({
+      id: 'G1',
+      name: '워스트 고스트',
+      source: 'initial_default',
+      avgSpeedKmh: 5.8,
+      targetRole: 'easy_win',
+    });
+    expect(data.ghosts[0].points[0]).toEqual({ minute: 0, distanceM: 0 });
+  });
+
   it('smooths seeded random variation and changes when seed changes', () => {
     const a = smoothRandomVariation(6, 'same-seed');
     const b = smoothRandomVariation(6, 'same-seed');
@@ -84,3 +159,7 @@ describe('naturalGhostPack', () => {
     expect(replaced[0].route.at(-1).distance).toBeGreaterThan(0);
   });
 });
+
+function average(values) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
