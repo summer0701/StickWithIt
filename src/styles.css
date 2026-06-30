@@ -1996,6 +1996,34 @@ button {
   font-weight: 900;
 }
 
+.squat-duration-settings {
+  gap: 12px;
+}
+
+.squat-duration-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.squat-duration-presets button {
+  min-height: 42px;
+  border: 1px solid rgba(141, 162, 198, 0.42);
+  border-radius: 12px;
+  background: rgba(14, 25, 44, 0.74);
+  color: rgba(237, 244, 255, 0.88);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.squat-duration-presets button.active {
+  border-color: rgba(129, 248, 101, 0.94);
+  background: linear-gradient(90deg, #82f41f, #23d8d5);
+  color: #061612;
+  box-shadow: 0 0 18px rgba(91, 239, 99, 0.22);
+}
+
 .ghost-slot-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(72px, 1fr));
@@ -2508,6 +2536,16 @@ button {
 .ghost-settings-heading button svg {
   width: 14px;
   height: 14px;
+}
+
+.squat-duration-presets {
+  gap: 6px;
+}
+
+.squat-duration-presets button {
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 0.8rem;
 }
 
 .ghost-slot-tabs {

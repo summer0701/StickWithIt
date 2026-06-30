@@ -9,7 +9,7 @@ class RuleBasedCoach {
     private var previousSpeedKmh: Double? = null
     private val recentTexts = ArrayDeque<String>()
     private val previousGhostDeltas = mutableMapOf<String, Double>()
-    private val minimumSpeakGapMillis = 30_000L
+    private val minimumSpeakGapMillis = 15_000L
 
     fun resetGhostState() {
         previousGhostDeltas.clear()

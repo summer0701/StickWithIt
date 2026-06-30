@@ -14,6 +14,9 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.SystemClock
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.RelativeSizeSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -120,7 +123,7 @@ class SquatPoseActivity : ComponentActivity() {
             setOnClickListener { finish() }
         }
         countView = hudTextView(20f).apply {
-            text = "SQUATS\n0    회"
+            text = buildCountText(0)
             gravity = Gravity.CENTER
             background = roundedHudBackground(Color.argb(236, 3, 5, 8), dp(20).toFloat())
         }
@@ -189,7 +192,7 @@ class SquatPoseActivity : ComponentActivity() {
         countView.setTextPx(28f, scale)
         rankingCard.findViewWithTag<TextView>("rankingTitle")?.setTextPx(26f, scale)
         timerView.setTextPx(88f, scale)
-        updateRankRowTextSize(scale)
+        updateRankingCardLayout(sx, sy, scale)
 
         finishButton.background = roundedHudBackground(Color.argb(246, 3, 5, 8), px(22f, scale).toFloat())
         countView.background = roundedHudBackground(Color.argb(238, 3, 5, 8), px(22f, scale).toFloat())
@@ -256,8 +259,19 @@ class SquatPoseActivity : ComponentActivity() {
         }
     }
 
-    private fun updateRankRowTextSize(scale: Float) {
-        rankRowViews.forEach { it.setTextPx(20f, scale) }
+    private fun updateRankingCardLayout(sx: Float, sy: Float, scale: Float) {
+        rankingCard.setPadding(px(18f, sx), px(18f, sy), px(18f, sx), px(18f, sy))
+        rankingCard.findViewWithTag<TextView>("rankingTitle")?.let { title ->
+            (title.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = px(12f, sy)
+        }
+        rankRowViews.forEachIndexed { index, row ->
+            row.setTextPx(20f, scale)
+            row.setPadding(px(10f, sx), 0, px(10f, sx), 0)
+            (row.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                height = px(43f, sy)
+                topMargin = if (index > 0) px(4f, sy) else 0
+            }
+        }
     }
 
     private fun updateRankingRows(elapsedSeconds: Int) {
@@ -277,13 +291,7 @@ class SquatPoseActivity : ComponentActivity() {
     private fun ghostCounts(elapsedSeconds: Int): List<Pair<String, Int>> {
         val progress = (elapsedSeconds.toFloat() / targetDurationSeconds.toFloat()).coerceIn(0f, 1f)
         val eased = progress * progress * (3f - 2f * progress)
-        val targets = listOf(
-            "고스트 1" to 124,
-            "고스트 2" to 98,
-            "고스트 3" to 76,
-            "고스트 4" to 54,
-            "고스트 5" to 32
-        )
+        val targets = SquatGhostTargets.forDuration(targetDurationSeconds)
         return targets.mapIndexed { index, target ->
             val warmupDelay = index * 0.015f
             val adjusted = ((eased - warmupDelay) / (1f - warmupDelay)).coerceIn(0f, 1f)
@@ -376,7 +384,7 @@ class SquatPoseActivity : ComponentActivity() {
                 PoseFeedbackLevel.BAD -> Color.rgb(255, 100, 100)
             }
         )
-        countView.text = "SQUATS\n${reps}    회"
+        countView.text = buildCountText(reps)
         val elapsedSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1000L).toInt()
         timerView.text = "${formatClock(elapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
         progressView.progress = elapsedSeconds.coerceIn(0, targetDurationSeconds)
@@ -386,6 +394,15 @@ class SquatPoseActivity : ComponentActivity() {
 
     private fun currentRank(): Int {
         return rankRowViews.indexOfFirst { it.text.contains("나") }.let { if (it >= 0) it + 1 else 6 }
+    }
+
+    private fun buildCountText(count: Int): SpannableString {
+        val countText = count.toString()
+        val text = "SQUATS\n${countText}    회"
+        return SpannableString(text).apply {
+            val start = text.indexOf(countText)
+            setSpan(RelativeSizeSpan(2f), start, start + countText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
     }
 
     private fun speakPoseSummaryIfNeeded(frame: SquatPoseFrame, rank: Int) {
@@ -470,7 +487,7 @@ class SquatPoseActivity : ComponentActivity() {
     companion object {
         const val EXTRA_DURATION_SECONDS = "durationSeconds"
         private const val REQUEST_CAMERA = 5201
-        private const val NARRATION_INTERVAL_MS = 30_000L
+        private const val NARRATION_INTERVAL_MS = 15_000L
         private const val REF_WIDTH = 852f
         private const val REF_HEIGHT = 1844f
     }

@@ -24,6 +24,7 @@ type MyPageProps = {
 };
 
 const ghostAccents = ['green', 'purple', 'blue', 'orange', 'gray'];
+const squatDurationPresets = [1, 2, 3, 5];
 const difficultyOptions: Array<{ value: GhostDifficulty; label: string; distanceLabel: string }> = [
   { value: 'beginner', label: '입문', distanceLabel: '2.0 km' },
   { value: 'novice', label: '초급', distanceLabel: '3.0 km' },
@@ -219,11 +220,23 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         </div>
       </section>
 
-      <section className="ghost-settings-summary" aria-label="스쿼트 시간 설정">
+      <section className="ghost-settings-summary squat-duration-settings" aria-label="스쿼트 시간 설정">
         <span>스쿼트 목표 시간</span>
         <strong>{formatSquatDuration(squatDurationSeconds)}</strong>
+        <div className="squat-duration-presets" aria-label="스쿼트 목표 시간 빠른 선택">
+          {squatDurationPresets.map((minutes) => (
+            <button
+              className={squatDurationSeconds === minutes * 60 ? 'active' : ''}
+              key={minutes}
+              type="button"
+              onClick={() => updateSquatDuration(minutes)}
+            >
+              {minutes}분
+            </button>
+          ))}
+        </div>
         <label>
-          운동 시간
+          커스텀 설정
           <div className="speed-input-shell">
             <Activity size={28} aria-hidden="true" />
             <input
