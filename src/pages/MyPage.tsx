@@ -299,22 +299,28 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         </button>
       </section>
 
-      <nav className="exercise-ghost-tabs" aria-label="운동별 고스트 설정">
-        {exercises.map((exercise) => {
-          const Icon = exercise.icon;
-          return (
-            <button
-              className={selectedExercise.id === exercise.id ? 'active' : ''}
-              key={exercise.id}
-              type="button"
-              onClick={() => setSelectedExerciseId(exercise.id)}
-            >
-              <Icon size={26} />
-              <span>{exercise.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <section className="my-exercise-selector" aria-label="운동 선택">
+        <div className="my-exercise-selector-title">
+          <strong>운동 선택</strong>
+          <span>{selectedExercise.heroLabel} 고스트 설정 중</span>
+        </div>
+        <nav className="exercise-ghost-tabs" aria-label="운동별 고스트 설정">
+          {exercises.map((exercise) => {
+            const Icon = exercise.icon;
+            return (
+              <button
+                className={selectedExercise.id === exercise.id ? 'active' : ''}
+                key={exercise.id}
+                type="button"
+                onClick={() => setSelectedExerciseId(exercise.id)}
+              >
+                <Icon size={26} />
+                <span>{exercise.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </section>
 
       <section className="my-settings-grid">
         <section className="ghost-settings-panel compact-panel" aria-label={`${selectedExercise.heroLabel} 난이도`}>

@@ -2302,14 +2302,50 @@ button {
   color: #eff6ff;
 }
 
+.my-exercise-selector {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--my-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(16, 25, 57, 0.88), rgba(3, 8, 22, 0.92) 62%),
+    rgba(8, 14, 34, 0.86);
+  box-shadow: inset 0 0 44px rgba(75, 108, 255, 0.08), 0 16px 34px rgba(0, 0, 0, 0.24);
+}
+
+.my-exercise-selector-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.my-exercise-selector-title strong {
+  color: #f8fbff;
+  font-size: 1rem;
+  font-weight: 1000;
+}
+
+.my-exercise-selector-title span {
+  min-width: 0;
+  overflow: hidden;
+  color: #9aff7c;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .exercise-ghost-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid var(--my-border);
+  border: 1px solid rgba(111, 132, 183, 0.34);
   border-radius: 8px;
-  background: rgba(8, 14, 34, 0.86);
-  box-shadow: inset 0 0 44px rgba(75, 108, 255, 0.08);
+  background: rgba(4, 9, 24, 0.74);
+  box-shadow: inset 0 0 34px rgba(75, 108, 255, 0.08);
 }
 
 .exercise-ghost-tabs button {
@@ -3071,6 +3107,19 @@ button {
 .my-hero-settings svg {
   width: 17px;
   height: 17px;
+}
+
+.my-exercise-selector {
+  gap: 8px;
+  padding: 9px;
+}
+
+.my-exercise-selector-title strong {
+  font-size: 0.86rem;
+}
+
+.my-exercise-selector-title span {
+  font-size: 0.72rem;
 }
 
 .exercise-ghost-tabs button {
