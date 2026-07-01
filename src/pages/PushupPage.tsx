@@ -2,6 +2,7 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readPushupBaseAverageReps, updatePushupGhostBaseline } from '../lib/pushupGhosts';
 import { saveExerciseRecord } from '../lib/exerciseRecords';
+import pushupNeon from '../assets/pushup-neon.webp';
 import NativeExercisePage from './NativeExercisePage';
 
 type ExercisePageProps = {
@@ -18,6 +19,8 @@ export default function PushupPage({ onBack, onComplete = onBack, userId = 'anon
       targetLabel="횟수 목표"
       guide="카메라는 옆모습 또는 약간 대각선 측면에 두고, 어깨부터 발목까지 한 줄로 유지해 주세요."
       ghostCaption="2분 기준 푸쉬업 기록으로 고스트가 만들어집니다."
+      screenClassName="pushup-ready-screen"
+      poseImageSrc={pushupNeon}
       durationSeconds={getExerciseDurationSeconds(userId, 'pushup')}
       baseAverageValue={readPushupBaseAverageReps(userId)}
       completionEventName="pushupFinished"

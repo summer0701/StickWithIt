@@ -1165,6 +1165,387 @@ button {
   overflow-wrap: anywhere;
 }
 
+.ranking-league-screen {
+  min-height: calc(100dvh - var(--bottom-nav-height));
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px 14px calc(var(--bottom-nav-height) + 26px);
+  color: #f8fbff;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(105, 255, 126, 0.14), transparent 26%),
+    radial-gradient(circle at 8% 62%, rgba(78, 160, 255, 0.13), transparent 28%),
+    linear-gradient(180deg, #020817 0%, #061022 54%, #020714 100%);
+}
+
+.ranking-league-header,
+.ranking-my-card,
+.ranking-guide-card,
+.ranking-table-card,
+.ranking-reward-card {
+  border: 1px solid rgba(111, 132, 183, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(16, 25, 57, 0.86), rgba(3, 8, 22, 0.9) 62%),
+    rgba(8, 14, 34, 0.82);
+  box-shadow: inset 0 0 44px rgba(75, 108, 255, 0.08), 0 18px 42px rgba(0, 0, 0, 0.3);
+}
+
+.ranking-league-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+}
+
+.ranking-league-header span,
+.ranking-table-heading span {
+  color: #9aff7c;
+  font-size: 0.8rem;
+  font-weight: 950;
+}
+
+.ranking-league-header h1 {
+  margin: 6px 0;
+  font-size: clamp(1.7rem, 8vw, 2.8rem);
+  line-height: 1;
+}
+
+.ranking-league-header p,
+.ranking-guide-card p,
+.ranking-reward-card span {
+  margin: 0;
+  color: rgba(207, 217, 244, 0.72);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.ranking-close-button {
+  min-width: 62px;
+  min-height: 36px;
+  border: 1px solid rgba(111, 132, 183, 0.38);
+  border-radius: 8px;
+  background: rgba(11, 18, 42, 0.82);
+  color: #f8fbff;
+  font-weight: 900;
+}
+
+.ranking-my-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ranking-my-rank,
+.ranking-er-score,
+.ranking-season-box {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ranking-my-rank {
+  grid-column: 1 / -1;
+}
+
+.ranking-my-rank svg {
+  color: #9aff7c;
+  filter: drop-shadow(0 0 10px rgba(154, 255, 124, 0.48));
+}
+
+.ranking-my-rank span,
+.ranking-er-score span,
+.ranking-season-box span,
+.ranking-entry-er span {
+  color: rgba(207, 217, 244, 0.68);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.ranking-my-rank strong {
+  font-size: 1.25rem;
+}
+
+.ranking-er-score strong {
+  color: #9aff7c;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.ranking-er-score small,
+.ranking-table-heading small {
+  color: rgba(207, 217, 244, 0.62);
+  font-weight: 850;
+}
+
+.ranking-season-box {
+  justify-items: end;
+  text-align: right;
+}
+
+.ranking-season-box svg {
+  color: #6db5ff;
+}
+
+.ranking-season-box strong {
+  color: #dff4ff;
+}
+
+.ranking-guide-card {
+  display: grid;
+  gap: 6px;
+  padding: 13px 15px;
+}
+
+.ranking-tab-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(111, 132, 183, 0.28);
+  border-radius: 8px;
+  background: rgba(8, 14, 34, 0.86);
+}
+
+.ranking-tab-bar button {
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid rgba(111, 132, 183, 0.16);
+  background: transparent;
+  color: rgba(207, 217, 244, 0.72);
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.ranking-tab-bar button:last-child {
+  border-right: 0;
+}
+
+.ranking-tab-bar button.active {
+  color: #9aff7c;
+  background: rgba(154, 255, 124, 0.1);
+  box-shadow: inset 0 -2px 0 #76ff48;
+}
+
+.ranking-table-card {
+  display: grid;
+  gap: 12px;
+  padding: 15px 12px;
+}
+
+.ranking-table-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ranking-table-heading strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.05rem;
+}
+
+.endure-ranking-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.endure-ranking-list li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 86px;
+  padding: 10px;
+  border: 1px solid rgba(111, 132, 183, 0.22);
+  border-radius: 8px;
+  background: rgba(4, 9, 24, 0.58);
+}
+
+.endure-ranking-list li.current-user {
+  border-color: rgba(154, 255, 124, 0.76);
+  background:
+    radial-gradient(circle at 0% 50%, rgba(154, 255, 124, 0.14), transparent 42%),
+    rgba(4, 9, 24, 0.72);
+  box-shadow: inset 0 0 24px rgba(154, 255, 124, 0.12);
+}
+
+.rank-medal {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(111, 132, 183, 0.14);
+  color: rgba(207, 217, 244, 0.9);
+  font-weight: 1000;
+}
+
+.rank-1 {
+  color: #ffd45c;
+}
+
+.rank-2 {
+  color: #dce8ff;
+}
+
+.rank-3 {
+  color: #ffa65c;
+}
+
+.ranking-entry-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ranking-entry-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ranking-entry-name strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.94rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-entry-name svg {
+  flex: 0 0 auto;
+  color: #9aff7c;
+}
+
+.ranking-entry-name b {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 0.58rem;
+  font-weight: 1000;
+}
+
+.ranking-entry-name b.user {
+  background: rgba(109, 181, 255, 0.16);
+  color: #8fc8ff;
+}
+
+.ranking-entry-name b.ghost {
+  background: rgba(154, 255, 124, 0.14);
+  color: #9aff7c;
+}
+
+.ranking-entry-name small {
+  display: none;
+}
+
+.ranking-score-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.ranking-score-strip span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 4px;
+  border-radius: 7px;
+  background: rgba(111, 132, 183, 0.1);
+  color: rgba(207, 217, 244, 0.62);
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.ranking-score-strip b {
+  color: #f8fbff;
+  font-size: 0.72rem;
+}
+
+.ranking-entry-er {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  min-width: 58px;
+}
+
+.ranking-entry-er strong {
+  color: #9aff7c;
+  font-size: 1rem;
+}
+
+.movement {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.68rem;
+  font-weight: 1000;
+}
+
+.movement.up,
+.movement.new {
+  color: #9aff7c;
+}
+
+.movement.down {
+  color: #ff8383;
+}
+
+.movement.same {
+  color: rgba(207, 217, 244, 0.58);
+}
+
+.ranking-reward-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.ranking-reward-card svg {
+  flex: 0 0 auto;
+  color: #ffd45c;
+}
+
+.ranking-reward-card div {
+  display: grid;
+  gap: 4px;
+}
+
+@media (min-width: 720px) {
+  .ranking-league-screen {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .ranking-my-card {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+  }
+
+  .ranking-my-rank {
+    grid-column: auto;
+  }
+
+  .ranking-entry-name small {
+    display: inline;
+    overflow: hidden;
+    color: rgba(207, 217, 244, 0.58);
+    font-size: 0.68rem;
+    font-weight: 850;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .run-screen {
   min-height: 100vh;
   min-height: 100dvh;
@@ -1921,6 +2302,115 @@ button {
   color: #eff6ff;
 }
 
+.exercise-ghost-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--my-border);
+  border-radius: 8px;
+  background: rgba(8, 14, 34, 0.86);
+  box-shadow: inset 0 0 44px rgba(75, 108, 255, 0.08);
+}
+
+.exercise-ghost-tabs button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 104px;
+  padding: 12px 6px;
+  border: 0;
+  border-right: 1px solid rgba(111, 132, 183, 0.16);
+  background: transparent;
+  color: rgba(207, 217, 244, 0.7);
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.exercise-ghost-tabs button:last-child {
+  border-right: 0;
+}
+
+.exercise-ghost-tabs button.active {
+  color: #9aff7c;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(154, 255, 124, 0.18), transparent 58%),
+    linear-gradient(180deg, rgba(154, 255, 124, 0.12), rgba(154, 255, 124, 0.03));
+  box-shadow: inset 0 0 26px rgba(154, 255, 124, 0.16);
+}
+
+.exercise-ghost-tabs button.active::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  content: "";
+  background: #76ff48;
+  box-shadow: 0 0 18px rgba(118, 255, 72, 0.7);
+}
+
+.exercise-ghost-tabs button.active::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, #76ff48, transparent);
+}
+
+.exercise-ghost-tabs svg {
+  filter: drop-shadow(0 0 10px currentColor);
+}
+
+.my-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: 14px;
+}
+
+.compact-panel {
+  gap: 18px;
+}
+
+.current-summary {
+  align-content: start;
+}
+
+.summary-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  color: #f8fbff;
+}
+
+.summary-title svg {
+  color: rgba(207, 217, 244, 0.78);
+}
+
+.summary-title strong {
+  color: #f8fbff;
+  font-size: 1.08rem;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 30px;
+}
+
+.summary-row span {
+  min-width: 0;
+}
+
+.summary-row strong {
+  text-align: right;
+}
+
+.ghost-management-panel {
+  gap: 18px;
+}
+
 .ghost-settings-panel {
   display: grid;
   gap: 22px;
@@ -2034,7 +2524,8 @@ button {
   min-height: 112px;
   display: grid;
   place-items: center;
-  gap: 8px;
+  align-content: center;
+  gap: 6px;
   border: 1px solid rgba(111, 132, 183, 0.28);
   border-radius: 8px;
   background: rgba(8, 14, 34, 0.86);
@@ -2049,6 +2540,22 @@ button {
     radial-gradient(circle at 45% 34%, color-mix(in srgb, var(--accent, #9aff7c) 23%, transparent), transparent 58%),
     rgba(8, 16, 35, 0.9);
   box-shadow: inset 0 0 34px color-mix(in srgb, var(--accent, #9aff7c) 22%, transparent), 0 0 22px color-mix(in srgb, var(--accent, #9aff7c) 16%, transparent);
+}
+
+.ghost-slot-tab span {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(207, 217, 244, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ghost-slot-tab b {
+  color: var(--accent, #9aff7c);
+  font-size: 0.9rem;
+  font-weight: 1000;
 }
 
 .ghost-slot-tab.green,
@@ -2238,6 +2745,12 @@ button {
   height: 56px;
 }
 
+.ghost-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
 .ghost-setting-card label {
   display: grid;
   gap: 10px;
@@ -2337,6 +2850,68 @@ button {
   font-size: 0.72rem;
   font-weight: 800;
   text-align: center;
+}
+
+.ghost-bottom-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  gap: 12px;
+}
+
+.ghost-settings-summary p {
+  margin: 0;
+  color: var(--my-muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.basis-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.basis-toggle button {
+  min-height: 42px;
+  border: 1px solid rgba(111, 132, 183, 0.34);
+  border-radius: 8px;
+  background: rgba(7, 12, 31, 0.72);
+  color: rgba(237, 244, 255, 0.88);
+  font-weight: 900;
+}
+
+.basis-toggle button.active {
+  border-color: rgba(154, 255, 124, 0.72);
+  background: rgba(154, 255, 124, 0.1);
+  color: #f8fbff;
+}
+
+.record-period-control,
+.duration-inline-settings {
+  display: grid;
+  gap: 8px;
+  color: var(--my-muted);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.record-period-control select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(111, 132, 183, 0.34);
+  border-radius: 8px;
+  background: rgba(7, 12, 31, 0.72);
+  color: #f8fbff;
+  font: inherit;
+  padding: 0 14px;
+}
+
+.duration-inline-settings {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(111, 132, 183, 0.22);
 }
 
 .ghost-settings-summary {
@@ -2498,6 +3073,47 @@ button {
   height: 17px;
 }
 
+.exercise-ghost-tabs button {
+  min-height: 74px;
+  gap: 5px;
+  padding: 8px 3px;
+  font-size: 0.82rem;
+}
+
+.exercise-ghost-tabs button.active::before {
+  width: 2px;
+}
+
+.exercise-ghost-tabs button.active::after {
+  height: 2px;
+}
+
+.exercise-ghost-tabs svg {
+  width: 22px;
+  height: 22px;
+}
+
+.my-settings-grid,
+.ghost-bottom-settings,
+.ghost-detail-grid {
+  grid-template-columns: 1fr;
+  gap: 11px;
+}
+
+.summary-title {
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.summary-title strong {
+  font-size: 0.86rem;
+}
+
+.summary-row {
+  min-height: 24px;
+  gap: 9px;
+}
+
 .ghost-settings-panel {
   gap: 13px;
   padding: 16px 12px;
@@ -2569,6 +3185,14 @@ button {
   max-width: 100%;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ghost-slot-tab span {
+  display: none;
+}
+
+.ghost-slot-tab b {
+  font-size: 0.68rem;
 }
 
 .ghost-settings-list {
@@ -2683,6 +3307,26 @@ button {
 
 .speed-graph-minutes {
   font-size: 0.6rem;
+}
+
+.basis-toggle {
+  gap: 6px;
+}
+
+.basis-toggle button {
+  min-height: 36px;
+  font-size: 0.72rem;
+}
+
+.record-period-control,
+.duration-inline-settings {
+  gap: 6px;
+  font-size: 0.76rem;
+}
+
+.record-period-control select {
+  min-height: 38px;
+  padding: 0 10px;
 }
 
 .ghost-settings-summary {
@@ -4585,6 +5229,58 @@ button:disabled {
   scrollbar-width: none;
 }
 
+.jumping-jack-ready-screen {
+  background:
+    radial-gradient(circle at 80% 19%, rgba(71, 234, 215, 0.16), transparent 24%),
+    radial-gradient(circle at 20% 44%, rgba(120, 246, 133, 0.12), transparent 26%),
+    linear-gradient(160deg, #020a14 0%, #062136 52%, #020b16 100%);
+}
+
+.plank-ready-screen {
+  background:
+    radial-gradient(circle at 73% 25%, rgba(120, 244, 255, 0.14), transparent 25%),
+    radial-gradient(circle at 18% 39%, rgba(104, 248, 109, 0.11), transparent 23%),
+    linear-gradient(160deg, #020a14 0%, #061f34 54%, #020914 100%);
+}
+
+.pushup-ready-screen {
+  background:
+    radial-gradient(circle at 78% 26%, rgba(75, 209, 255, 0.15), transparent 25%),
+    radial-gradient(circle at 18% 41%, rgba(57, 230, 218, 0.12), transparent 25%),
+    linear-gradient(160deg, #020a16 0%, #061f3a 52%, #020815 100%);
+}
+
+.jumping-jack-ready-screen::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(80, 238, 220, 0.08), transparent 22%),
+    radial-gradient(circle at 52% 22%, rgba(99, 255, 156, 0.16), transparent 20%);
+}
+
+.plank-ready-screen::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 75% 28%, rgba(126, 242, 92, 0.12), transparent 18%),
+    linear-gradient(180deg, rgba(54, 226, 213, 0.07), transparent 24%);
+}
+
+.pushup-ready-screen::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 84% 33%, rgba(70, 219, 255, 0.18), transparent 18%),
+    radial-gradient(circle at 16% 30%, rgba(60, 216, 236, 0.08), transparent 14%),
+    linear-gradient(180deg, rgba(44, 207, 244, 0.06), transparent 26%);
+}
+
 .squat-ready-screen::-webkit-scrollbar {
   display: none;
 }
@@ -4684,6 +5380,72 @@ button:disabled {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+.jumping-jack-ready-screen .squat-timer-ring {
+  width: min(52vw, 184px);
+  margin-top: 16px;
+  margin-bottom: 18px;
+  transform: translateX(-38px);
+}
+
+.jumping-jack-ready-screen .squat-timer-ring .progress {
+  stroke-dasharray: 554 585;
+}
+
+.plank-ready-screen .squat-timer-ring {
+  width: min(58vw, 202px);
+  margin-top: 12px;
+  margin-bottom: 14px;
+  transform: translateX(-22px);
+}
+
+.plank-ready-screen .squat-timer-ring .progress {
+  stroke-dasharray: 482 585;
+}
+
+.pushup-ready-screen .squat-timer-ring {
+  width: min(58vw, 200px);
+  margin-top: 12px;
+  margin-bottom: 14px;
+  transform: translateX(-28px);
+}
+
+.pushup-ready-screen .squat-timer-ring .progress {
+  stroke-dasharray: 520 585;
+}
+
+.exercise-pose-hero {
+  position: absolute;
+  top: 126px;
+  right: 18px;
+  z-index: 1;
+  width: min(31vw, 128px);
+  pointer-events: none;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 18px rgba(72, 240, 218, 0.36));
+}
+
+.exercise-pose-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.plank-ready-screen .exercise-pose-hero {
+  top: 176px;
+  right: 12px;
+  width: min(40vw, 164px);
+  opacity: 0.94;
+  filter: drop-shadow(0 0 19px rgba(113, 247, 117, 0.32));
+}
+
+.pushup-ready-screen .exercise-pose-hero {
+  top: 162px;
+  right: 4px;
+  width: min(44vw, 178px);
+  opacity: 0.94;
+  filter: drop-shadow(0 0 20px rgba(65, 218, 255, 0.34));
+}
+
 .squat-panel {
   border: 1px solid rgba(143, 171, 214, 0.18);
   border-radius: 18px;
@@ -4739,13 +5501,179 @@ button:disabled {
   padding: 12px;
 }
 
-.squat-coach-card > h2 {
-  grid-column: 1 / -1;
+.squat-coach-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.squat-coach-card:not(.with-pose-art) .squat-coach-copy {
+  grid-column: 1 / span 2;
+}
+
+.squat-coach-copy h2 {
   margin: 0;
   color: #fff;
   font-size: clamp(1rem, 4.5vw, 1.28rem);
   font-weight: 950;
   line-height: 1.08;
+}
+
+.squat-coach-copy p {
+  margin: 0;
+  color: rgba(226, 235, 248, 0.7);
+  font-size: clamp(0.86rem, 3.5vw, 0.98rem);
+  font-weight: 850;
+  line-height: 1.55;
+}
+
+.squat-coach-badge {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(101, 245, 151, 0.32);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(106, 248, 136, 0.22), transparent 62%),
+    rgba(6, 29, 32, 0.58);
+  box-shadow:
+    inset 0 0 26px rgba(94, 247, 157, 0.14),
+    0 0 24px rgba(85, 238, 178, 0.16);
+}
+
+.squat-coach-badge img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+}
+
+.jumping-jack-ready-screen .squat-panel {
+  border-color: rgba(98, 231, 211, 0.22);
+  background:
+    linear-gradient(145deg, rgba(19, 49, 52, 0.68), rgba(7, 17, 34, 0.88)),
+    rgba(7, 16, 28, 0.86);
+}
+
+.plank-ready-screen .squat-panel {
+  border-color: rgba(93, 230, 202, 0.28);
+  background:
+    linear-gradient(145deg, rgba(15, 46, 50, 0.7), rgba(6, 15, 32, 0.9)),
+    rgba(6, 16, 29, 0.88);
+}
+
+.pushup-ready-screen .squat-panel {
+  border-color: rgba(72, 206, 237, 0.3);
+  background:
+    linear-gradient(145deg, rgba(10, 43, 61, 0.72), rgba(6, 15, 33, 0.9)),
+    rgba(5, 16, 32, 0.88);
+}
+
+.jumping-jack-ready-screen .squat-coach-card {
+  grid-template-columns: 98px minmax(0, 1fr) 48px;
+  margin-top: 4px;
+}
+
+.plank-ready-screen .squat-coach-card {
+  grid-template-columns: 98px minmax(0, 1fr);
+  gap: 10px 14px;
+  margin-top: 8px;
+  padding: 14px;
+}
+
+.pushup-ready-screen .squat-coach-card {
+  grid-template-columns: 98px minmax(0, 1fr);
+  gap: 10px 14px;
+  margin-top: 8px;
+  padding: 14px;
+}
+
+.pushup-ready-screen .squat-coach-card > .squat-icon-button {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  justify-self: end;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 118px;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border-color: rgba(77, 231, 210, 0.32);
+  border-radius: 999px;
+  color: #72f0df;
+}
+
+.pushup-ready-screen .squat-coach-card > .squat-icon-button::after {
+  content: "음성 안내";
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.plank-ready-screen .squat-coach-card > .squat-icon-button {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  justify-self: end;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 118px;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border-color: rgba(85, 239, 136, 0.32);
+  border-radius: 999px;
+  color: #82f690;
+}
+
+.plank-ready-screen .squat-coach-card > .squat-icon-button::after {
+  content: "음성 안내";
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.jumping-jack-ready-screen .squat-coach-copy h2 {
+  font-size: clamp(1.16rem, 5vw, 1.42rem);
+}
+
+.plank-ready-screen .squat-coach-copy h2 {
+  font-size: clamp(1.16rem, 5vw, 1.42rem);
+}
+
+.pushup-ready-screen .squat-coach-copy h2 {
+  font-size: clamp(1.16rem, 5vw, 1.42rem);
+}
+
+.plank-ready-screen .squat-coach-badge {
+  border-color: rgba(68, 234, 220, 0.4);
+  background:
+    radial-gradient(circle, rgba(63, 230, 218, 0.18), transparent 63%),
+    rgba(7, 30, 36, 0.62);
+}
+
+.plank-ready-screen .squat-coach-badge img {
+  width: 82px;
+  height: 82px;
+}
+
+.pushup-ready-screen .squat-coach-badge {
+  border-color: rgba(76, 218, 245, 0.42);
+  background:
+    radial-gradient(circle, rgba(53, 214, 244, 0.2), transparent 64%),
+    rgba(6, 27, 43, 0.62);
+}
+
+.pushup-ready-screen .squat-coach-badge img {
+  width: 84px;
+  height: 84px;
 }
 
 .squat-preview-frame {
@@ -5231,9 +6159,11 @@ button:disabled {
   align-items: center;
   justify-content: center;
   column-gap: 14px;
+  box-sizing: border-box;
   width: 100%;
   min-height: 58px;
   padding: 10px 20px;
+  overflow: hidden;
   border: 1px solid rgba(108, 255, 216, 0.5);
   border-radius: 20px;
   background: linear-gradient(135deg, #24bee1 0%, #48d37a 58%, #93ef4f 100%);
@@ -5267,10 +6197,13 @@ button:disabled {
 
 .squat-main-action small {
   min-width: 0;
+  max-width: 100%;
   color: rgba(236, 255, 244, 0.72);
   font-size: clamp(0.72rem, 3.2vw, 0.86rem);
   font-weight: 900;
-  white-space: nowrap;
+  line-height: 1.16;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .squat-countdown-overlay {

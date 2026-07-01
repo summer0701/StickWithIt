@@ -151,7 +151,7 @@ export default function App() {
           onRanking={() => setPage('ranking')}
         />
       )}
-      {page === 'ranking' && <RankingPage onBack={() => setPage('home')} />}
+      {page === 'ranking' && <RankingPage user={user} onBack={() => setPage('home')} />}
       {page === 'my' && <MyPage user={user} onSignOut={handleSignOut} onDifficultyTargetChange={setTargetDistanceKm} />}
       {['challenge', 'history'].includes(page) && (
         <PlaceholderPage title={pageTitle} onHome={() => setPage('home')} />

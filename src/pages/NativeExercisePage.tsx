@@ -9,6 +9,8 @@ type NativeExercisePageProps = {
   targetLabel: string;
   guide: string;
   ghostCaption: string;
+  screenClassName?: string;
+  poseImageSrc?: string;
   durationSeconds: number;
   baseAverageValue: number;
   completionEventName: 'jumpingJackFinished' | 'pushupFinished' | 'plankFinished';
@@ -33,6 +35,8 @@ export default function NativeExercisePage({
   targetLabel,
   guide,
   ghostCaption,
+  screenClassName = '',
+  poseImageSrc,
   durationSeconds,
   baseAverageValue,
   completionEventName,
@@ -113,11 +117,11 @@ export default function NativeExercisePage({
   }
 
   if (phase === 'launching') {
-    return <main className="squat-screen squat-ready-screen" aria-label={`${title} 카메라 실행 중`} />;
+    return <main className={`squat-screen squat-ready-screen ${screenClassName}`} aria-label={`${title} 카메라 실행 중`} />;
   }
 
   return (
-    <main className="squat-screen squat-ready-screen">
+    <main className={`squat-screen squat-ready-screen ${screenClassName}`}>
       <header className="squat-ready-top">
         <button className="squat-icon-button" type="button" onClick={onBack} aria-label="뒤로가기">
           <ArrowLeft size={30} />
@@ -146,9 +150,22 @@ export default function NativeExercisePage({
         </div>
       </section>
 
-      <section className="squat-coach-card squat-panel">
-        <h2>{title} 자세 안내</h2>
-        <p>{guide}</p>
+      {poseImageSrc && (
+        <div className="exercise-pose-hero" aria-hidden="true">
+          <img src={poseImageSrc} alt="" />
+        </div>
+      )}
+
+      <section className={`squat-coach-card squat-panel ${poseImageSrc ? 'with-pose-art' : ''}`}>
+        {poseImageSrc && (
+          <div className="squat-coach-badge" aria-hidden="true">
+            <img src={poseImageSrc} alt="" />
+          </div>
+        )}
+        <div className="squat-coach-copy">
+          <h2>{title} 자세 안내</h2>
+          <p>{guide}</p>
+        </div>
         <button className="squat-icon-button" type="button" onClick={openMusic} aria-label="운동 음악 열기">
           <Headphones size={24} />
         </button>
