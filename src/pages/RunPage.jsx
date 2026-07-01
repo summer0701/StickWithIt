@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
-import { Activity, Lock, Pause, Play, Settings, Unlock } from 'lucide-react';
+import { Activity, Headphones, Pause, Play, Settings } from 'lucide-react';
 import {
   formatGhostGoalScaleLabel,
   formatGhostScaleKm,
@@ -26,6 +26,7 @@ import { buildGhostRaceSnapshot, buildGhostRunners, rememberSpokenMessage, ruleB
 import { playCoachCue, preloadCoachAudio } from '../lib/coachAudioPlayer';
 import { shouldPlayCoachCue } from '../lib/coachTiming';
 import { ghostDisplayName, readGhostDifficulty, readGhostSettings } from '../lib/ghostSettings';
+import { buildYouTubeMusicSearchUrl } from '../lib/runningMusic';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import runningHudBg from '../assets/running-hud-bg.jpg';
 
@@ -39,7 +40,6 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   const normalizedTargetDistanceKm = Math.max(0.1, Number(targetDistanceKm) || 10);
   const targetDistanceMeters = normalizedTargetDistanceKm * 1000;
   const [status, setStatus] = useState('preparing');
-  const [locked, setLocked] = useState(false);
   const [routeFocused, setRouteFocused] = useState(false);
   const [hudPanel, setHudPanel] = useState('ghost');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -602,7 +602,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   }
 
   function startFinishHold(event) {
-    if (saving || locked || sessionEndedRef.current || status === 'preparing') return;
+    if (saving || sessionEndedRef.current || status === 'preparing') return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     longPressTriggeredRef.current = false;
@@ -628,7 +628,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
   function endFinishHold() {
     const triggered = longPressTriggeredRef.current;
     cancelFinishHold();
-    if (!triggered && !saving && !locked && status !== 'preparing') {
+    if (!triggered && !saving && status !== 'preparing') {
       togglePause();
     }
   }
@@ -643,6 +643,19 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
 
   function toggleHudPanel() {
     setHudPanel((current) => getNextRunHudPanel(current));
+  }
+
+  async function openRunningMusic() {
+    if (isNativePlatform) {
+      try {
+        await RunningPlugin.openRunningMusic();
+        return;
+      } catch (error) {
+        console.debug('[RunPage] Failed to open native music app.', error);
+      }
+    }
+
+    window.open(buildYouTubeMusicSearchUrl(), '_blank', 'noopener,noreferrer');
   }
 
   function goHomeFromSettings() {
@@ -741,16 +754,21 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
         <div className="paused-session-card">
           <strong>일시정지</strong>
           <span>다시 누르면 기록을 이어갑니다.</span>
-          <button type="button" onClick={finishRun} disabled={saving || locked || elapsedSeconds === 0}>
+          <button type="button" onClick={finishRun} disabled={saving || elapsedSeconds === 0}>
             {saving ? '저장 중...' : '러닝 종료'}
           </button>
         </div>
       )}
 
       <div className="run-hud-controls">
-        <button className={`hud-action-button ${locked ? 'active' : ''}`} type="button" onClick={() => setLocked((value) => !value)}>
-          {locked ? <Lock size={24} /> : <Unlock size={24} />}
-          <span>잠금</span>
+        <button
+          className="hud-action-button hud-music-button"
+          type="button"
+          onClick={openRunningMusic}
+          aria-label="YouTube Music에서 러닝하기 좋은 음악 검색"
+        >
+          <Headphones size={24} />
+          <span>뮤직</span>
         </button>
         <button
           className={`hud-pause-button ${holdProgress > 0 ? 'holding' : ''}`}
@@ -759,7 +777,7 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
           onPointerUp={endFinishHold}
           onPointerLeave={cancelFinishHold}
           onPointerCancel={cancelFinishHold}
-          disabled={saving || locked}
+          disabled={saving}
           aria-label="짧게 누르면 일시정지, 3초간 길게 누르면 러닝 종료"
         >
           <svg className="hold-progress-ring" viewBox="0 0 100 100" aria-hidden="true">
@@ -772,7 +790,6 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
           className={`hud-action-button ${hudPanel === 'stats' ? 'active' : ''}`}
           type="button"
           onClick={toggleHudPanel}
-          disabled={locked}
           aria-label={hudPanel === 'ghost' ? '거리 시간 평균 페이스 보기' : '고스트런 시각화 보기'}
           aria-pressed={hudPanel === 'stats'}
         >

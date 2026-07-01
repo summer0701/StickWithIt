@@ -63,6 +63,24 @@ class RunningPlugin : Plugin() {
                         put("durationSeconds", intent.getIntExtra(SquatPoseActivity.EXTRA_DURATION_SECONDS, 0))
                         put("reps", intent.getIntExtra(SquatPoseActivity.EXTRA_REPS, 0))
                     }, true)
+                    JumpingJackPoseActivity.ACTION_JUMPING_JACK_FINISHED -> notifyListeners("jumpingJackFinished", JSObject().apply {
+                        put("completed", intent.getBooleanExtra(PoseExerciseActivity.EXTRA_COMPLETED, false))
+                        put("durationSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, 0))
+                        put("reps", intent.getIntExtra(PoseExerciseActivity.EXTRA_REPS, 0))
+                    }, true)
+                    PushupPoseActivity.ACTION_PUSHUP_FINISHED -> notifyListeners("pushupFinished", JSObject().apply {
+                        put("completed", intent.getBooleanExtra(PoseExerciseActivity.EXTRA_COMPLETED, false))
+                        put("durationSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, 0))
+                        put("reps", intent.getIntExtra(PoseExerciseActivity.EXTRA_REPS, 0))
+                    }, true)
+                    PlankPoseActivity.ACTION_PLANK_FINISHED -> notifyListeners("plankFinished", JSObject().apply {
+                        put("completed", intent.getBooleanExtra(PoseExerciseActivity.EXTRA_COMPLETED, false))
+                        put("durationSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, 0))
+                        put("goodSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_GOOD_SECONDS, 0))
+                        put("warningSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_WARNING_SECONDS, 0))
+                        put("badSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_BAD_SECONDS, 0))
+                        put("qualityScore", intent.getIntExtra(PoseExerciseActivity.EXTRA_QUALITY_SCORE, 0))
+                    }, true)
                 }
             }
         }
@@ -71,6 +89,9 @@ class RunningPlugin : Plugin() {
             addAction(RunningForegroundService.ACTION_CHECKPOINT)
             addAction(RunningForegroundService.ACTION_DEBUG)
             addAction(SquatPoseActivity.ACTION_SQUAT_FINISHED)
+            addAction(JumpingJackPoseActivity.ACTION_JUMPING_JACK_FINISHED)
+            addAction(PushupPoseActivity.ACTION_PUSHUP_FINISHED)
+            addAction(PlankPoseActivity.ACTION_PLANK_FINISHED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -130,6 +151,30 @@ class RunningPlugin : Plugin() {
         }
         ContextCompat.startForegroundService(context, intent)
         call.resolve()
+    }
+
+    @PluginMethod
+    fun openRunningMusic(call: PluginCall) {
+        val searchUri = Uri.parse("$YOUTUBE_MUSIC_SEARCH_URL_PREFIX${Uri.encode(RUNNING_MUSIC_SEARCH_QUERY)}")
+        val opened = listOf(
+            Intent(Intent.ACTION_VIEW, searchUri).apply {
+                setPackage(YOUTUBE_MUSIC_PACKAGE)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            Intent(Intent.ACTION_VIEW, searchUri).apply {
+                setPackage(YOUTUBE_PACKAGE)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            Intent(Intent.ACTION_VIEW, searchUri).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        ).any { tryStartActivity(it) }
+
+        if (opened) {
+            call.resolve()
+        } else {
+            call.reject("YouTube Music search screen could not be opened.")
+        }
     }
 
     @PluginMethod
@@ -194,6 +239,30 @@ class RunningPlugin : Plugin() {
             call.resolve()
         } catch (error: Exception) {
             call.reject("스쿼트 포즈 화면을 열지 못했습니다.", error)
+        }
+    }
+
+    @PluginMethod
+    fun openJumpingJackPose(call: PluginCall) {
+        openRepetitionPoseActivity(call, JumpingJackPoseActivity::class.java, "점핑잭")
+    }
+
+    @PluginMethod
+    fun openPushupPose(call: PluginCall) {
+        openRepetitionPoseActivity(call, PushupPoseActivity::class.java, "푸쉬업")
+    }
+
+    @PluginMethod
+    fun openPlankPose(call: PluginCall) {
+        try {
+            context.startActivity(Intent(context, PlankPoseActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, call.data.optInt("durationSeconds", 60))
+                putExtra(PoseExerciseActivity.EXTRA_BASE_AVERAGE_GOOD_SECONDS, call.data.optDouble("baseAverageGoodSeconds", 90.0))
+            })
+            call.resolve()
+        } catch (error: Exception) {
+            call.reject("플랭크 포즈 화면을 열지 못했습니다.", error)
         }
     }
 
@@ -278,6 +347,32 @@ class RunningPlugin : Plugin() {
         context.startService(Intent(context, RunningForegroundService::class.java).apply { this.action = action })
     }
 
+    private fun tryStartActivity(intent: Intent): Boolean =
+        runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
+
+    private fun openRepetitionPoseActivity(call: PluginCall, activityClass: Class<*>, label: String) {
+        try {
+            context.startActivity(Intent(context, activityClass).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, call.data.optInt("durationSeconds", 60))
+                putExtra(PoseExerciseActivity.EXTRA_BASE_AVERAGE_REPS, call.data.optDouble("baseAverageReps", 25.0))
+            })
+            call.resolve()
+        } catch (error: Exception) {
+            call.reject("${label} 포즈 화면을 열지 못했습니다.", error)
+        }
+    }
+
     private fun Throwable.asException(): Exception =
         this as? Exception ?: Exception(this)
+
+    companion object {
+        private const val YOUTUBE_MUSIC_PACKAGE = "com.google.android.apps.youtube.music"
+        private const val YOUTUBE_PACKAGE = "com.google.android.youtube"
+        private const val RUNNING_MUSIC_SEARCH_QUERY = "러닝하기 좋은 음악"
+        private const val YOUTUBE_MUSIC_SEARCH_URL_PREFIX = "https://music.youtube.com/search?q="
+    }
 }

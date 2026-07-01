@@ -29,6 +29,9 @@ type HomePageProps = {
   onTargetChange: (value: number) => void;
   onStart: () => void;
   onSquatStart: () => void;
+  onJumpingJackStart: () => void;
+  onPushupStart: () => void;
+  onPlankStart: () => void;
   onRanking: () => void;
   onNavigate: (page: string) => void;
 };
@@ -131,6 +134,9 @@ export default function HomePage({
   onTargetChange,
   onStart,
   onSquatStart,
+  onJumpingJackStart,
+  onPushupStart,
+  onPlankStart,
   onRanking,
   onNavigate,
 }: HomePageProps) {
@@ -216,6 +222,18 @@ export default function HomePage({
     }
     if (exercise.id === 'squat') {
       onSquatStart();
+      return;
+    }
+    if (exercise.id === 'jumping-jack') {
+      onJumpingJackStart();
+      return;
+    }
+    if (exercise.id === 'push-up') {
+      onPushupStart();
+      return;
+    }
+    if (exercise.id === 'plank') {
+      onPlankStart();
       return;
     }
     setToast(`${exercise.name} 운동 화면은 다음 단계에서 연결됩니다.`);

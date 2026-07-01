@@ -29,6 +29,21 @@ export type NativeSquatFinished = {
   reps: number;
 };
 
+export type NativeRepetitionExerciseFinished = {
+  completed: boolean;
+  durationSeconds: number;
+  reps: number;
+};
+
+export type NativePlankFinished = {
+  completed: boolean;
+  durationSeconds: number;
+  goodSeconds: number;
+  warningSeconds: number;
+  badSeconds: number;
+  qualityScore: number;
+};
+
 export type RunningPluginApi = {
   startRun(options: {
     sessionId: string;
@@ -40,9 +55,13 @@ export type RunningPluginApi = {
   pauseRun(): Promise<void>;
   resumeRun(): Promise<void>;
   speak(options: { text: string }): Promise<void>;
+  openRunningMusic(): Promise<void>;
   updateTargetDistance(options: { targetDistanceMeters: number }): Promise<void>;
   updateGhostRunners(options: { ghostRunnersJson: string }): Promise<void>;
   openSquatPose(options?: { durationSeconds?: number; baseAverageReps?: number }): Promise<void>;
+  openJumpingJackPose(options?: { durationSeconds?: number; baseAverageReps?: number }): Promise<void>;
+  openPushupPose(options?: { durationSeconds?: number; baseAverageReps?: number }): Promise<void>;
+  openPlankPose(options?: { durationSeconds?: number; baseAverageGoodSeconds?: number }): Promise<void>;
   openBatteryOptimizationSettings(): Promise<void>;
   getBatteryOptimizationStatus(): Promise<{ isIgnoringBatteryOptimizations: boolean }>;
   setTtsEnabled(options: { enabled: boolean }): Promise<void>;
@@ -52,6 +71,9 @@ export type RunningPluginApi = {
   addListener(eventName: 'checkpoint', listenerFunc: (checkpoint: NativeCheckpoint) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(eventName: 'debug', listenerFunc: (payload: { message?: string }) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(eventName: 'squatFinished', listenerFunc: (payload: NativeSquatFinished) => void): Promise<{ remove: () => Promise<void> }>;
+  addListener(eventName: 'jumpingJackFinished', listenerFunc: (payload: NativeRepetitionExerciseFinished) => void): Promise<{ remove: () => Promise<void> }>;
+  addListener(eventName: 'pushupFinished', listenerFunc: (payload: NativeRepetitionExerciseFinished) => void): Promise<{ remove: () => Promise<void> }>;
+  addListener(eventName: 'plankFinished', listenerFunc: (payload: NativePlankFinished) => void): Promise<{ remove: () => Promise<void> }>;
 };
 
 export const RunningPlugin = registerPlugin<RunningPluginApi>('RunningPlugin');

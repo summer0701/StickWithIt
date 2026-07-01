@@ -4,6 +4,9 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
 import SquatPage from './pages/SquatPage';
+import JumpingJackPage from './pages/JumpingJackPage';
+import PushupPage from './pages/PushupPage';
+import PlankPage from './pages/PlankPage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
@@ -22,7 +25,7 @@ const bottomRoutes = [
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState('squat');
+  const [page, setPage] = useState('home');
   const [targetDistanceKm, setTargetDistanceKm] = useState(10);
   const [latestResult, setLatestResult] = useState(null);
 
@@ -58,6 +61,7 @@ export default function App() {
 
   const user = session?.user ?? null;
   const isTestUser = user?.app_metadata?.provider === 'local-test';
+  const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'plank'];
 
   useEffect(() => {
     if (!user) return;
@@ -98,7 +102,7 @@ export default function App() {
 
   return (
     <div className="app-shell fitness-shell">
-      {page !== 'run' && page !== 'squat' && page !== 'home' && page !== 'my' && (
+      {!fullScreenExercisePages.includes(page) && page !== 'home' && page !== 'my' && (
         <header className="topbar fitness-topbar">
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}
@@ -116,11 +120,17 @@ export default function App() {
           onTargetChange={setTargetDistanceKm}
           onStart={() => setPage('run')}
           onSquatStart={() => setPage('squat')}
+          onJumpingJackStart={() => setPage('jumping-jack')}
+          onPushupStart={() => setPage('push-up')}
+          onPlankStart={() => setPage('plank')}
           onRanking={() => setPage('ranking')}
           onNavigate={setPage}
         />
       )}
       {page === 'squat' && <SquatPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
+      {page === 'jumping-jack' && <JumpingJackPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
+      {page === 'push-up' && <PushupPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
+      {page === 'plank' && <PlankPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
       {page === 'run' && (
         <RunPage
           user={user}
@@ -147,7 +157,7 @@ export default function App() {
         <PlaceholderPage title={pageTitle} onHome={() => setPage('home')} />
       )}
 
-      {page !== 'run' && page !== 'squat' && (
+      {!fullScreenExercisePages.includes(page) && (
         <nav className="bottom-nav fitness-bottom-nav" aria-label="하단 내비게이션">
           {bottomRoutes.map((route) => {
             const Icon = route.icon;
