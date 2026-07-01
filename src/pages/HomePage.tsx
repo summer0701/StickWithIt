@@ -18,6 +18,9 @@ import { FaDumbbell } from 'react-icons/fa6';
 import { GiJumpAcross, GiMuscleUp, GiPlanks, GiWeightLiftingUp } from 'react-icons/gi';
 import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
+import { readExerciseRecords } from '../lib/exerciseRecords';
+import { buildDailyExerciseProgress, formatExerciseValue, type ExerciseProgressValues } from '../lib/homeExerciseProgress';
+import { getHomeWorkoutSummary, type HomeWorkoutSummary } from '../lib/homeWorkoutSummary';
 import { isTestUserId } from '../lib/testAuth';
 import { achievementRate } from '../lib/runningProgress';
 import dashboardBg from '../assets/home-dashboard-bg.webp';
@@ -142,23 +145,36 @@ export default function HomePage({
 }: HomePageProps) {
   const [toast, setToast] = useState('');
   const [recentRunsCount, setRecentRunsCount] = useState(0);
-  const [todayRunningKm, setTodayRunningKm] = useState(0);
   const [yesterdayBestRunningKm, setYesterdayBestRunningKm] = useState(0);
+  const [dailyProgress, setDailyProgress] = useState<ExerciseProgressValues>(() =>
+    buildDailyExerciseProgress({ runs: [], exerciseRecords: readExerciseRecords(user.id) }),
+  );
+  const [workoutSummary, setWorkoutSummary] = useState<HomeWorkoutSummary>(() =>
+    getHomeWorkoutSummary({ userId: user.id, runs: [], exerciseRecords: readExerciseRecords(user.id) }),
+  );
   const exerciseItems = useMemo(
-    () => exercises.map((exercise) => (
-      exercise.id === 'running'
-        ? {
-            ...exercise,
-            goalTitle: '어제 최고 기록',
-            goalLabel: yesterdayBestRunningKm > 0 ? `${yesterdayBestRunningKm.toFixed(2)}km` : '기록 없음',
-            recordLabel: `${todayRunningKm.toFixed(2)}km`,
-            targetValue: yesterdayBestRunningKm,
-            currentValue: todayRunningKm,
-            achievementLabel: getRunningAchievementLabel(todayRunningKm, yesterdayBestRunningKm),
-          }
-        : exercise
-    )),
-    [todayRunningKm, yesterdayBestRunningKm],
+    () => exercises.map((exercise) => {
+      if (exercise.id === 'running') {
+        return {
+          ...exercise,
+          goalTitle: '어제 최고 기록',
+          goalLabel: yesterdayBestRunningKm > 0 ? `${yesterdayBestRunningKm.toFixed(2)}km` : '기록 없음',
+          recordLabel: `${dailyProgress.runningKm.toFixed(2)}km`,
+          targetValue: yesterdayBestRunningKm,
+          currentValue: dailyProgress.runningKm,
+          achievementLabel: getRunningAchievementLabel(dailyProgress.runningKm, yesterdayBestRunningKm),
+        };
+      }
+
+      const currentValue = currentExerciseValue(exercise.id, dailyProgress);
+      return {
+        ...exercise,
+        recordLabel: formatExerciseValue(currentValue, exercise.unit as 'km' | '회' | '초'),
+        currentValue,
+        achievementLabel: `${getProgress({ ...exercise, currentValue })}%`,
+      };
+    }),
+    [dailyProgress, yesterdayBestRunningKm],
   );
   const totalProgress = Math.round(
     exerciseItems.reduce((sum, exercise) => sum + getProgress(exercise), 0) / exerciseItems.length,
@@ -166,15 +182,22 @@ export default function HomePage({
 
   useEffect(() => {
     const localRuns = readLocalRuns(user.id);
+    const localExerciseRecords = readExerciseRecords(user.id);
+    const localDailyProgress = buildDailyExerciseProgress({ runs: localRuns, exerciseRecords: localExerciseRecords });
+    setDailyProgress(localDailyProgress);
+    setWorkoutSummary(getHomeWorkoutSummary({ userId: user.id, runs: localRuns, exerciseRecords: localExerciseRecords }));
     setRecentRunsCount(localRuns.length);
-    setTodayRunningKm(sumTodayRunningKm(localRuns));
     setYesterdayBestRunningKm(bestRunningKmOnDate(localRuns, yesterdayDateKey()));
     if (isTestUserId(user.id)) return;
 
     async function loadRunCount() {
       try {
         const [recentResult, todayResult, yesterdayResult] = await Promise.all([
-          supabase.from('runs').select('id').eq('user_id', user.id).limit(30),
+          supabase
+            .from('runs')
+            .select('id,user_id,status,ended_at,started_at,created_at,actual_distance_km,total_distance_meters,total_elapsed_seconds,duration_seconds')
+            .eq('user_id', user.id)
+            .limit(30),
           supabase
             .from('runs')
             .select('id,status,ended_at,started_at,created_at,actual_distance_km,total_distance_meters')
@@ -189,12 +212,19 @@ export default function HomePage({
             .lt('started_at', startOfTodayIso())
             .limit(100),
         ]);
+        const recentRuns = [...(recentResult.data ?? []), ...localRuns];
+        const runningDailyProgress = buildDailyExerciseProgress({
+          runs: [...(todayResult.data ?? []), ...localRuns],
+          exerciseRecords: localExerciseRecords,
+        });
+        setDailyProgress(runningDailyProgress);
         setRecentRunsCount(Math.max(localRuns.length, recentResult.data?.length ?? 0));
-        setTodayRunningKm(sumTodayRunningKm([...(todayResult.data ?? []), ...localRuns]));
+        setWorkoutSummary(getHomeWorkoutSummary({ userId: user.id, runs: recentRuns, exerciseRecords: localExerciseRecords }));
         setYesterdayBestRunningKm(bestRunningKmOnDate([...(yesterdayResult.data ?? []), ...localRuns], yesterdayDateKey()));
       } catch {
         setRecentRunsCount(localRuns.length);
-        setTodayRunningKm(sumTodayRunningKm(localRuns));
+        setDailyProgress(localDailyProgress);
+        setWorkoutSummary(getHomeWorkoutSummary({ userId: user.id, runs: localRuns, exerciseRecords: localExerciseRecords }));
         setYesterdayBestRunningKm(bestRunningKmOnDate(localRuns, yesterdayDateKey()));
       }
     }
@@ -269,7 +299,7 @@ export default function HomePage({
 
       <RankingPodium onRanking={onRanking} />
 
-      <SummaryCard recentRunsCount={recentRunsCount} />
+      <SummaryCard summary={workoutSummary} recentRunsCount={recentRunsCount} />
 
       {toast && <motion.div className="home-toast" initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>{toast}</motion.div>}
       <button className="floating-home-button" type="button" onClick={() => onNavigate('home')} aria-label="홈">
@@ -533,7 +563,8 @@ function RankingPodium({ onRanking }: { onRanking: () => void }) {
   );
 }
 
-function SummaryCard({ recentRunsCount }: { recentRunsCount: number }) {
+function SummaryCard({ summary, recentRunsCount }: { summary: HomeWorkoutSummary; recentRunsCount: number }) {
+  const metricIcons = [RiMapPin2Fill, RiTimerFlashFill, RiFireFill, RiRunFill];
   return (
     <section className="summary-card glass-panel">
       <div className="card-heading">
@@ -544,12 +575,18 @@ function SummaryCard({ recentRunsCount }: { recentRunsCount: number }) {
         <RiBarChartGroupedLine />
       </div>
       <div className="summary-metrics">
-        <MetricTile icon={RiMapPin2Fill} tone="blue" label="이번 주 운동량" value="4.21 km" />
-        <MetricTile icon={RiTimerFlashFill} tone="cyan" label="총 운동시간" value="04:32:15" />
-        <MetricTile icon={RiFireFill} tone="orange" label="연소 칼로리" value="386 kcal" />
-        <MetricTile icon={RiRunFill} tone="green" label="평균 페이스" value={'06\'28" /km'} />
+        {summary.metrics.map((metric, index) => (
+          <MetricTile
+            key={metric.label}
+            icon={metricIcons[index] ?? RiPulseLine}
+            tone={metric.tone}
+            label={metric.label}
+            value={metric.value}
+          />
+        ))}
       </div>
-      <p>이번 달 운동 횟수 {Math.max(recentRunsCount, 12)}회</p>
+      <p>{summary.insight}</p>
+      <small>최근 기록 {summary.recordCount}개 분석 · 러닝 기록 {recentRunsCount}개</small>
     </section>
   );
 }
@@ -630,23 +667,18 @@ function getProgress(exercise: Exercise) {
   return Math.min(100, achievementRate(exercise.currentValue, exercise.targetValue));
 }
 
+function currentExerciseValue(exerciseId: string, progress: ExerciseProgressValues) {
+  if (exerciseId === 'squat') return progress.squatReps;
+  if (exerciseId === 'jumping-jack') return progress.jumpingJackReps;
+  if (exerciseId === 'push-up') return progress.pushupReps;
+  if (exerciseId === 'plank') return progress.plankGoodSeconds;
+  return 0;
+}
+
 function getRunningAchievementLabel(todayKm: number, yesterdayBestKm: number) {
   if (yesterdayBestKm <= 0) return '기록 없음';
   if (todayKm > yesterdayBestKm) return '어제 대비 신기록';
   return `${Math.min(100, Math.round((todayKm / yesterdayBestKm) * 100))}%`;
-}
-
-function sumTodayRunningKm(runs: Array<Record<string, any>>) {
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const uniqueRuns = new Map<string, Record<string, any>>();
-
-  runs.forEach((run, index) => {
-    uniqueRuns.set(String(run.id ?? `run-${index}`), run);
-  });
-
-  return Array.from(uniqueRuns.values())
-    .filter((run) => isCompletedOnDate(run, todayKey))
-    .reduce((sum, run) => sum + runDistanceKm(run), 0);
 }
 
 function bestRunningKmOnDate(runs: Array<Record<string, any>>, dateKey: string) {

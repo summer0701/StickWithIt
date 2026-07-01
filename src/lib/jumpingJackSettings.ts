@@ -1,11 +1,9 @@
-import { readTimedExerciseDurationSeconds, writeTimedExerciseDurationSeconds } from './timedExerciseSettings';
-
-const STORAGE_PREFIX = 'stickWithIt:jumping-jack-duration-seconds:';
+import { getExerciseDurationSeconds, setExerciseDurationSeconds } from './exerciseDurationSettings';
 
 export function readJumpingJackDurationSeconds(userId: string) {
-  return readTimedExerciseDurationSeconds(STORAGE_PREFIX, userId);
+  return getExerciseDurationSeconds(userId, 'jumpingJack');
 }
 
 export function writeJumpingJackDurationSeconds(userId: string, seconds: number) {
-  return writeTimedExerciseDurationSeconds(STORAGE_PREFIX, userId, seconds);
+  return setExerciseDurationSeconds(userId, 'jumpingJack', seconds);
 }

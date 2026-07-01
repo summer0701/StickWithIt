@@ -1,6 +1,7 @@
 import { RunningPlugin } from '../plugins/runningPlugin';
-import { readPushupDurationSeconds } from '../lib/pushupSettings';
+import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readPushupBaseAverageReps, updatePushupGhostBaseline } from '../lib/pushupGhosts';
+import { saveExerciseRecord } from '../lib/exerciseRecords';
 import NativeExercisePage from './NativeExercisePage';
 
 type ExercisePageProps = {
@@ -17,12 +18,15 @@ export default function PushupPage({ onBack, onComplete = onBack, userId = 'anon
       targetLabel="횟수 목표"
       guide="카메라는 옆모습 또는 약간 대각선 측면에 두고, 어깨부터 발목까지 한 줄로 유지해 주세요."
       ghostCaption="2분 기준 푸쉬업 기록으로 고스트가 만들어집니다."
-      durationSeconds={readPushupDurationSeconds(userId)}
+      durationSeconds={getExerciseDurationSeconds(userId, 'pushup')}
       baseAverageValue={readPushupBaseAverageReps(userId)}
       completionEventName="pushupFinished"
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
         RunningPlugin.openPushupPose({ durationSeconds, baseAverageReps: baseAverageValue })}
-      onCompleted={(payload) => updatePushupGhostBaseline(userId, payload)}
+      onCompleted={(payload) => {
+        saveExerciseRecord({ userId, type: 'push-up', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        updatePushupGhostBaseline(userId, payload);
+      }}
       onBack={onBack}
       onComplete={onComplete}
     />

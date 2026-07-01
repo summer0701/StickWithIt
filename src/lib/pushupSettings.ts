@@ -1,11 +1,9 @@
-import { readTimedExerciseDurationSeconds, writeTimedExerciseDurationSeconds } from './timedExerciseSettings';
-
-const STORAGE_PREFIX = 'stickWithIt:pushup-duration-seconds:';
+import { getExerciseDurationSeconds, setExerciseDurationSeconds } from './exerciseDurationSettings';
 
 export function readPushupDurationSeconds(userId: string) {
-  return readTimedExerciseDurationSeconds(STORAGE_PREFIX, userId);
+  return getExerciseDurationSeconds(userId, 'pushup');
 }
 
 export function writePushupDurationSeconds(userId: string, seconds: number) {
-  return writeTimedExerciseDurationSeconds(STORAGE_PREFIX, userId, seconds);
+  return setExerciseDurationSeconds(userId, 'pushup', seconds);
 }

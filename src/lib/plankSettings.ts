@@ -1,11 +1,9 @@
-import { readTimedExerciseDurationSeconds, writeTimedExerciseDurationSeconds } from './timedExerciseSettings';
-
-const STORAGE_PREFIX = 'stickWithIt:plank-duration-seconds:';
+import { getExerciseDurationSeconds, setExerciseDurationSeconds } from './exerciseDurationSettings';
 
 export function readPlankDurationSeconds(userId: string) {
-  return readTimedExerciseDurationSeconds(STORAGE_PREFIX, userId);
+  return getExerciseDurationSeconds(userId, 'plank');
 }
 
 export function writePlankDurationSeconds(userId: string, seconds: number) {
-  return writeTimedExerciseDurationSeconds(STORAGE_PREFIX, userId, seconds);
+  return setExerciseDurationSeconds(userId, 'plank', seconds);
 }

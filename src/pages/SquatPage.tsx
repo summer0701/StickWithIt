@@ -2,8 +2,9 @@ import { Capacitor } from '@capacitor/core';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Info, Play, Settings } from 'lucide-react';
 import { RunningPlugin } from '../plugins/runningPlugin';
-import { readSquatDurationSeconds } from '../lib/squatSettings';
+import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readSquatBaseAverageReps, updateSquatGhostBaseline } from '../lib/squatGhosts';
+import { saveExerciseRecord } from '../lib/exerciseRecords';
 
 type SquatPageProps = {
   onBack: () => void;
@@ -26,7 +27,7 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
   const [phase, setPhase] = useState<'ready' | 'countdown' | 'launching'>('ready');
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const [reps, setReps] = useState(0);
-  const durationSeconds = readSquatDurationSeconds(userId);
+  const durationSeconds = getExerciseDurationSeconds(userId, 'squat');
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
@@ -36,6 +37,7 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
     RunningPlugin.addListener('squatFinished', (payload) => {
       if (!active) return;
       if (payload.completed) {
+        saveExerciseRecord({ userId, type: 'squat', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
         updateSquatGhostBaseline(userId, payload);
       }
       setPhase('ready');

@@ -14,7 +14,12 @@ import {
   type GhostSetting,
 } from '../lib/ghostSettings';
 import { readGhostResetAt, resetGhostHistory } from '../lib/ghostReset';
-import { readSquatDurationSeconds, writeSquatDurationSeconds } from '../lib/squatSettings';
+import {
+  formatExerciseDuration,
+  getExerciseDurationSeconds,
+  setExerciseDurationSeconds,
+  type ExerciseDurationType,
+} from '../lib/exerciseDurationSettings';
 import { loadRecentRunHistory } from '../services/runComparison';
 import { buildGhostRunners } from '../services/ruleBasedCoach';
 import ghostMascot from '../assets/ghost-settings-mascot.webp';
@@ -26,7 +31,6 @@ type MyPageProps = {
 };
 
 const ghostAccents = ['green', 'purple', 'blue', 'orange', 'gray'];
-const squatDurationPresets = [1, 2, 3, 5];
 const difficultyOptions: Array<{ value: GhostDifficulty; label: string; distanceLabel: string }> = [
   { value: 'beginner', label: '입문', distanceLabel: '2.0 km' },
   { value: 'novice', label: '초급', distanceLabel: '3.0 km' },
@@ -39,7 +43,6 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
   const [difficulty, setDifficulty] = useState<GhostDifficultySetting>(() => readGhostDifficulty(user.id));
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [ghostResetAt, setGhostResetAt] = useState<string | null>(() => readGhostResetAt(user.id));
-  const [squatDurationSeconds, setSquatDurationSeconds] = useState(() => readSquatDurationSeconds(user.id));
   const [ghostRunners, setGhostRunners] = useState<any[]>([]);
   const [ghostSyncStatus, setGhostSyncStatus] = useState<'loading' | 'synced' | 'empty'>('loading');
   const selectedGhost = settings[selectedIndex] ?? settings[0];
@@ -100,10 +103,6 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
 
   function resetGhostData() {
     setGhostResetAt(resetGhostHistory(user.id));
-  }
-
-  function updateSquatDuration(minutes: number) {
-    setSquatDurationSeconds(writeSquatDurationSeconds(user.id, minutes * 60));
   }
 
   return (
@@ -246,38 +245,37 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         </div>
       </section>
 
-      <section className="ghost-settings-summary squat-duration-settings" aria-label="스쿼트 시간 설정">
-        <span>스쿼트 목표 시간</span>
-        <strong>{formatSquatDuration(squatDurationSeconds)}</strong>
-        <div className="squat-duration-presets" aria-label="스쿼트 목표 시간 빠른 선택">
-          {squatDurationPresets.map((minutes) => (
-            <button
-              className={squatDurationSeconds === minutes * 60 ? 'active' : ''}
-              key={minutes}
-              type="button"
-              onClick={() => updateSquatDuration(minutes)}
-            >
-              {minutes}분
-            </button>
-          ))}
-        </div>
-        <label>
-          커스텀 설정
-          <div className="speed-input-shell">
-            <Activity size={28} aria-hidden="true" />
-            <input
-              inputMode="decimal"
-              min="0.5"
-              max="10"
-              step="0.5"
-              type="number"
-              value={Number((squatDurationSeconds / 60).toFixed(1))}
-              onChange={(event) => updateSquatDuration(Number(event.target.value))}
-            />
-            <small>분</small>
-          </div>
-        </label>
-      </section>
+      <ExerciseDurationCard
+        title="스쿼트 목표 시간"
+        exerciseType="squat"
+        userId={user.id}
+        presets={[60, 120, 180, 300]}
+        description="스쿼트 운동 시간을 설정합니다."
+      />
+
+      <ExerciseDurationCard
+        title="점핑잭 목표 시간"
+        exerciseType="jumpingJack"
+        userId={user.id}
+        presets={[60, 120, 180, 300]}
+        description="점핑잭 운동 시간을 설정합니다."
+      />
+
+      <ExerciseDurationCard
+        title="푸쉬업 목표 시간"
+        exerciseType="pushup"
+        userId={user.id}
+        presets={[60, 120, 180, 300]}
+        description="푸쉬업 운동 시간을 설정합니다."
+      />
+
+      <ExerciseDurationCard
+        title="플랭크 목표 시간"
+        exerciseType="plank"
+        userId={user.id}
+        presets={[30, 60, 120, 180]}
+        description="플랭크 운동 시간을 설정합니다."
+      />
 
       <section className="ghost-settings-summary">
         <span>현재 난이도 · 목표 거리</span>
@@ -295,11 +293,73 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
   );
 }
 
-function formatSquatDuration(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (seconds === 0) return `${minutes}분`;
-  return `${minutes}분 ${seconds}초`;
+function ExerciseDurationCard({
+  title,
+  exerciseType,
+  userId,
+  presets,
+  description,
+}: {
+  title: string;
+  exerciseType: ExerciseDurationType;
+  userId?: string;
+  presets: number[];
+  description: string;
+}) {
+  const [durationSeconds, setDurationSeconds] = useState(() => getExerciseDurationSeconds(userId, exerciseType));
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setDurationSeconds(getExerciseDurationSeconds(userId, exerciseType));
+  }, [exerciseType, userId]);
+
+  useEffect(() => {
+    if (!saved) return undefined;
+    const timer = window.setTimeout(() => setSaved(false), 1400);
+    return () => window.clearTimeout(timer);
+  }, [saved]);
+
+  function updateDuration(nextSeconds: number) {
+    setDurationSeconds(setExerciseDurationSeconds(userId, exerciseType, nextSeconds));
+    setSaved(true);
+  }
+
+  return (
+    <section className="ghost-settings-summary squat-duration-settings" aria-label={title}>
+      <span>{title}</span>
+      <strong>{formatExerciseDuration(durationSeconds)}</strong>
+      <small>{description}</small>
+      <div className="squat-duration-presets" aria-label={`${title} 빠른 선택`}>
+        {presets.map((seconds) => (
+          <button
+            className={durationSeconds === seconds ? 'active' : ''}
+            key={seconds}
+            type="button"
+            onClick={() => updateDuration(seconds)}
+          >
+            {formatExerciseDuration(seconds)}
+          </button>
+        ))}
+      </div>
+      <label>
+        커스텀 설정
+        <div className="speed-input-shell">
+          <Activity size={28} aria-hidden="true" />
+          <input
+            inputMode="decimal"
+            min="0.5"
+            max="10"
+            step="0.5"
+            type="number"
+            value={Number((durationSeconds / 60).toFixed(1))}
+            onChange={(event) => updateDuration(Number(event.target.value) * 60)}
+          />
+          <small>분</small>
+        </div>
+      </label>
+      {saved && <small>저장 완료</small>}
+    </section>
+  );
 }
 
 function SpeedGraph({ speedKmh, seed }: { speedKmh: number; seed: string }) {
