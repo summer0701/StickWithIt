@@ -31,15 +31,6 @@ export function getVoiceCue({ distanceKm, targetDistanceKm, ghostDiffSeconds, la
   return '조금만 버텨, 지금 페이스 좋아.';
 }
 
-export function speak(text) {
-  if (!text || typeof window === 'undefined' || !window.speechSynthesis) {
-    return false;
-  }
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ko-KR';
-  utterance.rate = 1;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-  return true;
+export function speak(_text) {
+  return false;
 }

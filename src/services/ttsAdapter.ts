@@ -3,37 +3,26 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 
 const NativeTextToSpeech = registerPlugin('NativeTextToSpeech');
 
-export async function speakCoachMessage(message, options = {}) {
+export async function speakCoachMessage(message, _options = {}) {
   if (!message) return false;
+  if (!Capacitor.isNativePlatform()) return false;
 
-  if (Capacitor.isNativePlatform() && options.preferNative) {
+  try {
+    await RunningPlugin.speak({ text: message });
+    return true;
+  } catch (error) {
+    console.debug('[ttsAdapter] RunningPlugin TTS is not ready yet, trying NativeTextToSpeech.', error);
     try {
-      await RunningPlugin.speak({ text: message });
+      await NativeTextToSpeech.speak({ text: message, language: 'ko-KR' });
       return true;
-    } catch (error) {
-      console.debug('[ttsAdapter] RunningPlugin TTS is not ready yet, trying NativeTextToSpeech.', error);
-      try {
-        await NativeTextToSpeech.speak({ text: message, language: 'ko-KR' });
-        return true;
-      } catch (nativeTextToSpeechError) {
-        console.debug('[ttsAdapter] Native TTS is not ready yet, falling back to Web Speech.', nativeTextToSpeechError);
-      }
+    } catch (nativeTextToSpeechError) {
+      console.debug('[ttsAdapter] Native TTS is unavailable.', nativeTextToSpeechError);
+      return false;
     }
   }
-
-  return speakWithWebSpeech(message);
 }
 
 export function speakWithWebSpeech(message) {
-  if (!message || typeof window === 'undefined' || !window.speechSynthesis) {
-    console.debug('[ttsAdapter] SpeechSynthesis is unavailable.');
-    return false;
-  }
-
-  const utterance = new SpeechSynthesisUtterance(message);
-  utterance.lang = 'ko-KR';
-  utterance.rate = 1;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-  return true;
+  if (message) console.debug('[ttsAdapter] Web Speech is disabled; Native TTS only.');
+  return false;
 }

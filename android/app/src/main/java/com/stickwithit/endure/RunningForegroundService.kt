@@ -24,7 +24,6 @@ class RunningForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var database: RunDatabase
     private lateinit var ttsEngine: NativeTtsEngine
-    private lateinit var coachAudioPlayer: CachedCoachAudioPlayer
     private lateinit var coach: RuleBasedCoach
     private var locationTracker: LocationTracker? = null
     private var checkpointManager: CheckpointManager? = null
@@ -42,10 +41,8 @@ class RunningForegroundService : Service() {
         super.onCreate()
         database = RunDatabase.get(this)
         ttsEngine = NativeTtsEngine(this)
-        coachAudioPlayer = CachedCoachAudioPlayer(this, ttsEngine)
         coach = RuleBasedCoach()
         ttsEngine.init()
-        coachAudioPlayer.preload()
         acquireWakeLock()
     }
 
@@ -56,15 +53,6 @@ class RunningForegroundService : Service() {
             ACTION_PAUSE -> paused = true
             ACTION_RESUME -> paused = false
             ACTION_SPEAK -> intent.getStringExtra(EXTRA_TEXT)?.let { ttsEngine.speak(it) }
-            ACTION_PLAY_COACH_AUDIO -> {
-                val file = intent.getStringExtra(EXTRA_FILE)
-                val fallbackText = intent.getStringExtra(EXTRA_TEXT)
-                if (file.isNullOrBlank()) {
-                    fallbackText?.let { ttsEngine.speak(it) }
-                } else {
-                    coachAudioPlayer.playFile(file, fallbackText)
-                }
-            }
             ACTION_UPDATE_TARGET_DISTANCE -> {
                 targetDistanceMeters = intent.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, targetDistanceMeters)
                 coach.resetGhostState()
@@ -89,7 +77,6 @@ class RunningForegroundService : Service() {
     override fun onDestroy() {
         checkpointTickerJob?.cancel()
         locationTracker?.stop()
-        coachAudioPlayer.release()
         ttsEngine.shutdown()
         wakeLock?.takeIf { it.isHeld }?.release()
         scope.cancel()
@@ -273,7 +260,6 @@ class RunningForegroundService : Service() {
         const val ACTION_PAUSE = "com.stickwithit.endure.RUN_PAUSE"
         const val ACTION_RESUME = "com.stickwithit.endure.RUN_RESUME"
         const val ACTION_SPEAK = "com.stickwithit.endure.RUN_SPEAK"
-        const val ACTION_PLAY_COACH_AUDIO = "com.stickwithit.endure.RUN_PLAY_COACH_AUDIO"
         const val ACTION_UPDATE_TARGET_DISTANCE = "com.stickwithit.endure.RUN_UPDATE_TARGET_DISTANCE"
         const val ACTION_UPDATE_GHOST_RUNNERS = "com.stickwithit.endure.RUN_UPDATE_GHOST_RUNNERS"
         const val ACTION_TTS_ENABLED = "com.stickwithit.endure.RUN_TTS_ENABLED"
@@ -283,7 +269,6 @@ class RunningForegroundService : Service() {
         const val EXTRA_SESSION_ID = "sessionId"
         const val EXTRA_TARGET_DISTANCE_METERS = "targetDistanceMeters"
         const val EXTRA_GHOST_RUNNERS_JSON = "ghostRunnersJson"
-        const val EXTRA_FILE = "file"
         const val EXTRA_TEXT = "text"
         const val EXTRA_TTS_ENABLED = "ttsEnabled"
     }

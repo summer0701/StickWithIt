@@ -133,19 +133,6 @@ class RunningPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun playCoachAudio(call: PluginCall) {
-        val file = call.getString("file", "")
-        val fallbackText = call.getString("fallbackText", "")
-        val intent = Intent(context, RunningForegroundService::class.java).apply {
-            action = RunningForegroundService.ACTION_PLAY_COACH_AUDIO
-            putExtra(RunningForegroundService.EXTRA_FILE, file)
-            putExtra(RunningForegroundService.EXTRA_TEXT, fallbackText)
-        }
-        ContextCompat.startForegroundService(context, intent)
-        call.resolve()
-    }
-
-    @PluginMethod
     fun updateTargetDistance(call: PluginCall) {
         val targetDistanceMeters = call.data.optDouble("targetDistanceMeters", 0.0)
         val intent = Intent(context, RunningForegroundService::class.java).apply {
