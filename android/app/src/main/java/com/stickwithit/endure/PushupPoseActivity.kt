@@ -15,10 +15,19 @@ class PushupPoseActivity : PoseExerciseActivity() {
     override val requireStableFullBodyBeforeStart = true
     override val startCountdownSeconds = 5
     override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+    override val useGameHud = true
     override val readinessLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24)
     override val readinessMissingDetail = "상체와 허리까지 보이게 카메라를 맞춰주세요."
     override val readinessAcceptedDetail = "좋습니다. 5초 뒤 푸쉬업을 시작합니다."
     override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
+    override val guideBounds = PoseSkeletonOverlayView.GuideBounds(
+        left = 0.18f,
+        top = 0.12f,
+        right = 0.80f,
+        bottom = 0.88f
+    )
+    override val landscapeHudRightOffset = 230f
+    override val landscapeTopOffset = 46f
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.PUSHUP)
 

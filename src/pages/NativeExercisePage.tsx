@@ -13,6 +13,7 @@ type NativeExercisePageProps = {
   poseImageSrc?: string;
   durationSeconds: number;
   baseAverageValue: number;
+  countdownStartSeconds?: number;
   countdownLaunchMessage?: string;
   completionEventName: 'jumpingJackFinished' | 'pushupFinished' | 'lungeFinished';
   onOpenNative: (options: { durationSeconds: number; baseAverageValue: number }) => Promise<void>;
@@ -39,6 +40,7 @@ export default function NativeExercisePage({
   poseImageSrc,
   durationSeconds,
   baseAverageValue,
+  countdownStartSeconds = COUNTDOWN_START,
   countdownLaunchMessage = '카메라 화면으로 이동합니다',
   completionEventName,
   onOpenNative,
@@ -47,7 +49,7 @@ export default function NativeExercisePage({
   onComplete = onBack,
 }: NativeExercisePageProps) {
   const [phase, setPhase] = useState<'ready' | 'countdown' | 'launching'>('ready');
-  const [countdown, setCountdown] = useState(COUNTDOWN_START);
+  const [countdown, setCountdown] = useState(countdownStartSeconds);
   const [progressUnits, setProgressUnits] = useState(0);
 
   useEffect(() => {
@@ -91,7 +93,12 @@ export default function NativeExercisePage({
   }, [durationSeconds, progressUnits]);
 
   function startCountdown() {
-    setCountdown(COUNTDOWN_START);
+    if (countdownStartSeconds <= 0) {
+      setProgressUnits(0);
+      openNativeCamera();
+      return;
+    }
+    setCountdown(countdownStartSeconds);
     setProgressUnits(0);
     setPhase('countdown');
   }

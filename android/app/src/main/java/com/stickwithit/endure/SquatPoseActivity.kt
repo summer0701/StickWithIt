@@ -74,6 +74,12 @@ class SquatPoseActivity : ComponentActivity() {
     private val recentSquatNarrations = ArrayDeque<String>()
     private val fpsSamples = ArrayDeque<Float>()
     private val switchingModel = AtomicBoolean(false)
+    private var workoutStarted = false
+    private var readyForStartCountdown = false
+    private var stablePoseStartedAt = 0L
+    private var countdownStartedAt = 0L
+    private var lastReadinessTtsAt = 0L
+    private var lastReadinessTtsText = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -345,6 +351,12 @@ class SquatPoseActivity : ComponentActivity() {
                         index to PosePoint(landmark.x(), landmark.y(), landmark.visibility().orElse(1f))
                     }?.toMap().orEmpty()
                     if (points.isEmpty()) return@setResultListener
+                    if (!readyForStartCountdown) {
+                        val frame = buildReadinessFrame(points, now).copy(modelTier = modelTier.label, fps = averageFps())
+                        runOnUiThread { updateReadinessHud(frame) }
+                        return@setResultListener
+                    }
+                    if (!workoutStarted && shouldHoldForStartCountdown(now)) return@setResultListener
                     val evaluated = evaluator.update(points, now) { reps += 1 }
                     val frame = evaluated.copy(modelTier = modelTier.label, fps = averageFps())
                     runOnUiThread { updateHud(frame) }
@@ -404,6 +416,112 @@ class SquatPoseActivity : ComponentActivity() {
         speakPoseSummaryIfNeeded(frame, displayElapsedSeconds, currentRank())
     }
 
+    private fun updateReadinessHud(frame: SquatPoseFrame) {
+        overlayView.render(frame)
+        feedbackView.visibility = View.VISIBLE
+        feedbackView.text = "${frame.feedback.label} · ${frame.feedback.detail}"
+        feedbackView.setTextColor(
+            when (frame.feedback.level) {
+                PoseFeedbackLevel.GOOD -> Color.rgb(136, 255, 150)
+                PoseFeedbackLevel.WARNING -> Color.rgb(255, 222, 95)
+                PoseFeedbackLevel.BAD -> Color.rgb(255, 100, 100)
+            }
+        )
+        countView.text = buildReadinessText()
+        timerView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        progressView.progress = 0
+        speakReadinessGuideIfNeeded(frame.feedback)
+    }
+
+    private fun shouldHoldForStartCountdown(now: Long): Boolean {
+        if (countdownStartedAt == 0L) countdownStartedAt = now
+        val durationMs = START_COUNTDOWN_SECONDS * 1000L
+        val elapsedMs = now - countdownStartedAt
+        if (elapsedMs >= durationMs) {
+            workoutStarted = true
+            startedAt = now
+            lastNarrationAt = now
+            ttsEngine.stop()
+            return false
+        }
+
+        val remaining = ((durationMs - elapsedMs + 999L) / 1000L).toInt().coerceIn(1, START_COUNTDOWN_SECONDS)
+        runOnUiThread { updateCountdownHud(remaining) }
+        return true
+    }
+
+    private fun updateCountdownHud(remainingSeconds: Int) {
+        feedbackView.visibility = View.VISIBLE
+        feedbackView.text = "준비 · ${remainingSeconds}초 후 시작합니다."
+        feedbackView.setTextColor(Color.rgb(255, 222, 95))
+        countView.text = buildCountdownText(remainingSeconds)
+        timerView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        progressView.progress = 0
+    }
+
+    private fun buildReadinessFrame(landmarks: Map<Int, PosePoint>, now: Long): SquatPoseFrame {
+        val feedback = readinessFeedback(landmarks, now)
+        return SquatPoseFrame(landmarks = landmarks, feedback = feedback, modelTier = "", fps = 0f)
+    }
+
+    private fun readinessFeedback(landmarks: Map<Int, PosePoint>, now: Long): SquatPoseFeedback {
+        val visible = fullBodyStartLandmarks.all { index -> (landmarks[index]?.visibility ?: 0f) >= START_VISIBILITY }
+        if (!visible) {
+            stablePoseStartedAt = 0L
+            return SquatPoseFeedback(PoseFeedbackLevel.WARNING, "준비", "전신이 보이도록 카메라 앞에 서 주세요.")
+        }
+
+        val points = fullBodyStartLandmarks.mapNotNull { landmarks[it] }
+        val minX = points.minOf { it.x }
+        val maxX = points.maxOf { it.x }
+        val minY = points.minOf { it.y }
+        val maxY = points.maxOf { it.y }
+        val bodyWidth = maxX - minX
+        val bodyHeight = maxY - minY
+        val centerX = (minX + maxX) / 2f
+        val nearEdge = minX < 0.07f || maxX > 0.93f || minY < 0.04f || maxY > 0.96f
+        val detail = when {
+            nearEdge || bodyHeight > 0.88f || bodyWidth > 0.82f -> "카메라에서 너무 가깝습니다. 조금 뒤로 이동해주세요."
+            bodyHeight < 0.48f -> "조금 앞으로 와주세요."
+            centerX < 0.35f || centerX > 0.65f -> "중앙으로 이동해주세요."
+            else -> null
+        }
+        if (detail != null) {
+            stablePoseStartedAt = 0L
+            return SquatPoseFeedback(PoseFeedbackLevel.WARNING, "준비", detail)
+        }
+
+        if (stablePoseStartedAt == 0L) stablePoseStartedAt = now
+        if (now - stablePoseStartedAt >= STABLE_POSE_START_MS) {
+            readyForStartCountdown = true
+            countdownStartedAt = 0L
+            return SquatPoseFeedback(PoseFeedbackLevel.GOOD, "좋음", "좋습니다. 5초 뒤 스쿼트를 시작합니다.")
+        }
+        return SquatPoseFeedback(PoseFeedbackLevel.GOOD, "준비", "좋습니다. 자세를 유지하세요.")
+    }
+
+    private fun speakReadinessGuideIfNeeded(feedback: SquatPoseFeedback) {
+        val now = SystemClock.elapsedRealtime()
+        val text = feedback.detail
+        if (text == lastReadinessTtsText && now - lastReadinessTtsAt < READINESS_TTS_INTERVAL_MS) return
+        if (text != lastReadinessTtsText && now - lastReadinessTtsAt < 1200L) return
+        if (ttsEngine.isSpeaking() && text == lastReadinessTtsText) return
+        val profile = GhostTtsCatalog.profileFor("encouragement")
+        lastReadinessTtsAt = now
+        lastReadinessTtsText = text
+        ttsEngine.speak(
+            NativeTtsCue(
+                category = "squat_readiness",
+                text = text,
+                priority = 48,
+                speechRate = profile.speechRate,
+                pitch = profile.pitch,
+                immediate = false,
+                templateId = "squat_readiness_$text"
+            )
+        )
+    }
+
     private fun finishAfterDuration() {
         if (durationFinished) return
         durationFinished = true
@@ -435,6 +553,23 @@ class SquatPoseActivity : ComponentActivity() {
         return SpannableString(text).apply {
             val start = text.indexOf(countText)
             setSpan(RelativeSizeSpan(2f), start, start + countText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+    private fun buildReadinessText(): SpannableString {
+        val title = "카메라 위치"
+        val text = "$title\n확인 중"
+        return SpannableString(text).apply {
+            setSpan(RelativeSizeSpan(0.9f), 0, title.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+    private fun buildCountdownText(seconds: Int): SpannableString {
+        val countText = seconds.toString()
+        val text = "COUNTDOWN  ${countText}"
+        return SpannableString(text).apply {
+            val start = text.indexOf(countText)
+            setSpan(RelativeSizeSpan(1.7f), start, start + countText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 
@@ -539,8 +674,13 @@ class SquatPoseActivity : ComponentActivity() {
         const val EXTRA_COMPLETED = "completed"
         private const val REQUEST_CAMERA = 5201
         private const val NARRATION_INTERVAL_MS = 15_000L
+        private const val START_COUNTDOWN_SECONDS = 5
+        private const val STABLE_POSE_START_MS = 1_500L
+        private const val READINESS_TTS_INTERVAL_MS = 15_000L
+        private const val START_VISIBILITY = 0.50f
         private const val REF_WIDTH = 852f
         private const val REF_HEIGHT = 1844f
+        private val fullBodyStartLandmarks = listOf(0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28)
     }
 }
 

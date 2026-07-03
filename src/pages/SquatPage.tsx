@@ -74,9 +74,8 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
   }, [durationSeconds, reps]);
 
   function startCountdown() {
-    setCountdown(COUNTDOWN_START);
     setReps(0);
-    setPhase('countdown');
+    openNativeSquatCamera();
   }
 
   function openNativeSquatCamera() {

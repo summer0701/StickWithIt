@@ -6,6 +6,11 @@ class LungePoseActivity : PoseExerciseActivity() {
     override val completionAction = ACTION_LUNGE_FINISHED
     override val defaultBaseAverageValue = 30.0
     override val musicQuery = "런지 운동할 때 듣기 좋은 음악"
+    override val requireStableFullBodyBeforeStart = true
+    override val startCountdownSeconds = 5
+    override val readinessMissingDetail = "전신이 보이도록 카메라 앞에 서 주세요."
+    override val readinessAcceptedDetail = "좋습니다. 5초 뒤 런지를 시작합니다."
+    override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.LUNGE)
 

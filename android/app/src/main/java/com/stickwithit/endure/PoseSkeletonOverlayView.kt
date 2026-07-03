@@ -2,6 +2,7 @@ package com.stickwithit.endure
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
@@ -22,14 +23,26 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
     }
     private val guidePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 3f
         color = Color.argb(150, 135, 235, 26)
+        pathEffect = DashPathEffect(floatArrayOf(22f, 14f), 0f)
+    }
+    private val guideGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 9f
+        color = Color.argb(92, 158, 255, 58)
+        pathEffect = DashPathEffect(floatArrayOf(22f, 14f), 0f)
     }
     private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.argb(24, 135, 235, 26)
     }
     private var frame: SquatPoseFrame? = null
+    var guideBounds = GuideBounds()
+        set(value) {
+            field = value
+            invalidate()
+        }
     var guideEnabled: Boolean = false
         set(value) {
             field = value
@@ -65,13 +78,19 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
     private fun mirrorX(x: Float): Float = 1f - x
 
     private fun drawGuide(canvas: android.graphics.Canvas) {
-        val left = width * 0.15f
-        val top = height * 0.08f
-        val right = width * 0.85f
-        val bottom = height * 0.92f
+        val left = width * guideBounds.left
+        val top = height * guideBounds.top
+        val right = width * guideBounds.right
+        val bottom = height * guideBounds.bottom
         val rect = RectF(left, top, right, bottom)
-        canvas.drawRoundRect(rect, width * 0.08f, width * 0.08f, guideFillPaint)
-        canvas.drawRoundRect(rect, width * 0.08f, width * 0.08f, guidePaint)
+        val radius = width * 0.035f
+        val current = frame
+        val ready = current?.feedback?.level == PoseFeedbackLevel.GOOD
+        if (ready) {
+            canvas.drawRoundRect(rect, radius, radius, guideGlowPaint)
+        }
+        canvas.drawRoundRect(rect, radius, radius, guideFillPaint)
+        canvas.drawRoundRect(rect, radius, radius, guidePaint)
         canvas.drawLine(width * 0.5f, top, width * 0.5f, bottom, guidePaint)
     }
 
@@ -83,6 +102,13 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
         }
 
     private data class Connection(val from: Int, val to: Int, val segment: PoseSegment)
+
+    data class GuideBounds(
+        val left: Float = 0.15f,
+        val top: Float = 0.08f,
+        val right: Float = 0.85f,
+        val bottom: Float = 0.92f
+    )
 
     companion object {
         private val visibleLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28)

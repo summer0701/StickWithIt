@@ -26,6 +26,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.camera.core.CameraSelector
@@ -64,16 +65,25 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     protected open val readinessMissingDetail: String = "전신이 보이도록 카메라 앞에 서 주세요."
     protected open val readinessAcceptedDetail: String = "좋습니다!"
     protected open val readinessHoldingDetail: String = "좋습니다! 자세를 유지하세요."
+    protected open val readinessStableMs: Long = STABLE_POSE_START_MS
+    protected open val guideBounds: PoseSkeletonOverlayView.GuideBounds = PoseSkeletonOverlayView.GuideBounds()
+    protected open val landscapeHudRightOffset: Float = 118f
+    protected open val landscapeTopOffset: Float = 34f
+    protected open val useGameHud: Boolean = false
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: PoseSkeletonOverlayView
     private lateinit var finishButton: TextView
     private lateinit var musicButton: TextView
+    private lateinit var volumeSlider: SeekBar
     private lateinit var countView: TextView
     private lateinit var feedbackView: TextView
     private lateinit var rankingCard: LinearLayout
     private lateinit var metaView: LinearLayout
     private lateinit var timerView: TextView
+    private lateinit var gameCountLabelView: TextView
+    private lateinit var gameTimeView: TextView
+    private lateinit var timerSubView: TextView
     private lateinit var progressView: ProgressBar
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private val rankRowViews = mutableListOf<TextView>()
@@ -149,19 +159,60 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             setBackgroundColor(Color.BLACK)
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
-        previewView = PreviewView(this).apply { scaleType = previewScaleType }
-        overlayView = PoseSkeletonOverlayView(this).apply { guideEnabled = requireStableFullBodyBeforeStart }
+        previewView = PreviewView(this).apply {
+            scaleType = previewScaleType
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            isClickable = false
+            isFocusable = false
+        }
+        overlayView = PoseSkeletonOverlayView(this).apply {
+            guideEnabled = requireStableFullBodyBeforeStart
+            guideBounds = this@PoseExerciseActivity.guideBounds
+            isClickable = false
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
         finishButton = hudTextView(20f).apply {
-            text = "종료하기"
+            text = if (useGameHud) "×" else "종료하기"
             gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
+            elevation = dp(18).toFloat()
+            translationZ = dp(18).toFloat()
             background = roundedHudBackground(Color.argb(246, 3, 5, 8), dp(20).toFloat())
-            setOnClickListener { finishWithoutCompletion() }
+            setOnClickListener {
+                finishWithoutCompletion()
+            }
+            setOnLongClickListener {
+                finishWithoutCompletion()
+                true
+            }
         }
         musicButton = hudTextView(30f).apply {
             text = "♪"
             gravity = Gravity.CENTER
+            visibility = if (useGameHud) View.GONE else View.VISIBLE
+            isClickable = true
+            isFocusable = true
+            elevation = dp(18).toFloat()
+            translationZ = dp(18).toFloat()
             background = roundedHudBackground(Color.argb(246, 3, 5, 8), dp(24).toFloat())
-            setOnClickListener { openMusic() }
+            setOnClickListener {
+                if (useGameHud) {
+                    toggleVolumeSlider()
+                } else {
+                    openMusic()
+                }
+            }
+        }
+        volumeSlider = SeekBar(this).apply {
+            max = 100
+            progress = 70
+            rotation = -90f
+            visibility = View.GONE
+            alpha = 0f
+            elevation = dp(20).toFloat()
+            translationZ = dp(20).toFloat()
         }
         countView = hudTextView(20f).apply {
             text = buildCountText(0)
@@ -173,9 +224,27 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             gravity = Gravity.CENTER
         }
         rankingCard = buildRankingCard()
-        timerView = hudTextView(57f).apply {
+        timerView = hudTextView(if (useGameHud) 28f else 57f).apply {
+            text = if (useGameHud) "0" else "00:00 / ${formatClock(targetDurationSeconds)}"
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+        }
+        gameCountLabelView = hudTextView(20f).apply {
+            text = "PUSH UPS"
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            visibility = View.GONE
+        }
+        gameTimeView = hudTextView(24f).apply {
             text = "00:00 / ${formatClock(targetDurationSeconds)}"
             gravity = Gravity.CENTER
+            includeFontPadding = false
+            visibility = View.GONE
+        }
+        timerSubView = hudTextView(13f).apply {
+            text = "남은 시간 ${formatClock(targetDurationSeconds)}"
+            gravity = Gravity.CENTER
+            setTextColor(Color.argb(210, 235, 245, 232))
             includeFontPadding = false
         }
         progressView = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -190,12 +259,20 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         metaView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
+            visibility = if (useGameHud) View.INVISIBLE else View.VISIBLE
             background = roundedHudBackground(Color.argb(238, 3, 5, 8), dp(24).toFloat())
             addView(timerView, LinearLayout.LayoutParams(-1, -2))
+            addView(gameCountLabelView, LinearLayout.LayoutParams(-1, -2))
+            addView(gameTimeView, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(6)
+            })
             addView(progressView, LinearLayout.LayoutParams(-1, dp(12)).apply {
                 topMargin = dp(18)
                 leftMargin = dp(22)
                 rightMargin = dp(22)
+            })
+            addView(timerSubView, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(8)
             })
         }
 
@@ -203,10 +280,12 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         root.addView(overlayView, FrameLayout.LayoutParams(-1, -1))
         root.addView(finishButton)
         root.addView(musicButton)
+        root.addView(volumeSlider)
         root.addView(countView)
         root.addView(feedbackView)
         root.addView(rankingCard)
         root.addView(metaView)
+        bringHudControlsToFront()
         setContentView(root)
         var lastRootWidth = 0
         var lastRootHeight = 0
@@ -217,9 +296,21 @@ abstract class PoseExerciseActivity : ComponentActivity() {
                 lastRootWidth = width
                 lastRootHeight = height
                 applyHudLayout(view as FrameLayout)
+                bringHudControlsToFront()
             }
         }
-        root.post { applyHudLayout(root) }
+        root.post {
+            applyHudLayout(root)
+            bringHudControlsToFront()
+        }
+    }
+
+    private fun bringHudControlsToFront() {
+        finishButton.bringToFront()
+        if (!useGameHud) {
+            musicButton.bringToFront()
+            volumeSlider.bringToFront()
+        }
     }
 
     private fun applyHudLayout(root: FrameLayout) {
@@ -241,20 +332,29 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             }
         }
 
+        if (useGameHud && landscape) {
+            applyGameHudLayout(root, sx, sy, scale)
+            return
+        }
+        if (useGameHud) {
+            metaView.visibility = View.INVISIBLE
+            return
+        }
+
         finishButton.setTextPx(21f, scale)
         musicButton.setTextPx(42f, scale)
         countView.setTextPx(28f, scale)
-        timerView.setTextPx(if (landscape) 70f else 88f, scale)
+        timerView.setTextPx(if (landscape) 64f else 88f, scale)
         rankingCard.findViewWithTag<TextView>("rankingTitle")?.setTextPx(26f, scale)
         updateRankingCardLayout(sx, sy, scale)
         if (landscape) {
-            place(finishButton, 176f, 66f, left = 30f, top = 30f)
-            place(countView, 220f, 146f, right = 118f, top = 34f)
-            place(feedbackView, 880f, 82f, left = 482f, top = 58f)
-            place(rankingCard, 292f, 360f, right = 118f, top = 204f)
+            place(finishButton, 176f, 66f, left = 30f, top = landscapeTopOffset + 26f)
+            place(countView, 220f, 150f, right = landscapeHudRightOffset, top = landscapeTopOffset + 28f)
+            place(feedbackView, 880f, 82f, left = 482f, top = landscapeTopOffset + 54f)
+            place(rankingCard, 292f, 360f, right = landscapeHudRightOffset, top = 222f)
             place(musicButton, 74f, 74f, left = 30f, bottom = 34f)
-            place(metaView, 560f, 116f, left = 642f, bottom = 18f)
-            metaView.setPadding(px(20f, sx), px(12f, sy), px(20f, sx), px(12f, sy))
+            place(metaView, 560f, 132f, left = 642f, bottom = 30f)
+            metaView.setPadding(px(20f, sx), px(18f, sy), px(20f, sx), px(14f, sy))
         } else {
             place(finishButton, 190f, 84f, left = 30f, top = 96f)
             place(countView, 240f, 234f, right = 26f, top = 192f)
@@ -264,6 +364,101 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             place(metaView, 780f, 304f, left = 36f, bottom = 138f)
             metaView.setPadding(px(28f, sx), px(24f, sy), px(28f, sx), px(24f, sy))
         }
+    }
+
+    private fun applyGameHudLayout(root: FrameLayout, sx: Float, sy: Float, scale: Float) {
+        val safeLeft = root.rootWindowInsets?.systemWindowInsetLeft ?: 0
+        val safeTop = root.rootWindowInsets?.systemWindowInsetTop ?: 0
+        val safeRight = root.rootWindowInsets?.systemWindowInsetRight ?: 0
+        val safeBottom = root.rootWindowInsets?.systemWindowInsetBottom ?: 0
+        fun percentPlace(
+            view: View,
+            widthRatio: Float,
+            heightRatio: Float,
+            minWidthPx: Int = 0,
+            minHeightPx: Int = 0,
+            maxHeightPx: Int = Int.MAX_VALUE,
+            leftRatio: Float? = null,
+            topRatio: Float? = null,
+            rightRatio: Float? = null,
+            bottomRatio: Float? = null
+        ) {
+            view.layoutParams = FrameLayout.LayoutParams(
+                (root.width * widthRatio).roundToInt().coerceAtLeast(minWidthPx),
+                (root.height * heightRatio).roundToInt().coerceAtLeast(minHeightPx).coerceAtMost(maxHeightPx)
+            ).apply {
+                gravity = ((if (leftRatio == null && rightRatio != null) Gravity.END else Gravity.START) or
+                    (if (topRatio == null && bottomRatio != null) Gravity.BOTTOM else Gravity.TOP))
+                leftRatio?.let { leftMargin = safeLeft + (root.width * it).roundToInt() }
+                rightRatio?.let { rightMargin = safeRight + (root.width * it).roundToInt() }
+                topRatio?.let { topMargin = safeTop + (root.height * it).roundToInt() }
+                bottomRatio?.let { bottomMargin = safeBottom + (root.height * it).roundToInt() }
+            }
+        }
+
+        finishButton.setTextPx(30f, scale)
+        musicButton.setTextPx(34f, scale)
+        feedbackView.setTextPx(24f, scale)
+        countView.setTextPx(20f, scale)
+        timerView.setTextPxClamped(136f, scale, minPx = 120, maxPx = 180)
+        gameCountLabelView.setTextPxClamped(26f, scale, minPx = 22, maxPx = 34)
+        gameTimeView.setTextPxClamped(38f, scale, minPx = 30, maxPx = 52)
+        timerSubView.setTextPxClamped(20f, scale, minPx = 20, maxPx = 28)
+        rankingCard.findViewWithTag<TextView>("rankingTitle")?.setTextPxClamped(22f, scale, minPx = 20, maxPx = 28)
+        timerView.setShadowLayer(px(8f, scale).toFloat(), 0f, px(3f, scale).toFloat(), Color.BLACK)
+        gameTimeView.setShadowLayer(px(5f, scale).toFloat(), 0f, px(2f, scale).toFloat(), Color.BLACK)
+        gameCountLabelView.setShadowLayer(px(4f, scale).toFloat(), 0f, px(2f, scale).toFloat(), Color.BLACK)
+        timerSubView.setShadowLayer(px(3f, scale).toFloat(), 0f, px(1f, scale).toFloat(), Color.BLACK)
+        gameCountLabelView.visibility = View.VISIBLE
+        gameTimeView.visibility = View.VISIBLE
+
+        finishButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(24f, scale).toFloat())
+        musicButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(26f, scale).toFloat())
+        feedbackView.background = roundedHudBackground(Color.argb(156, 0, 0, 0), px(20f, scale).toFloat())
+        countView.background = roundedHudBackground(Color.argb(176, 0, 0, 0), px(19f, scale).toFloat())
+        rankingCard.background = roundedHudBackground(Color.argb(196, 0, 0, 0), px(22f, scale).toFloat())
+        metaView.background = roundedHudBackground(Color.argb(204, 0, 0, 0), px(24f, scale).toFloat())
+        metaView.visibility = View.VISIBLE
+
+        percentPlace(finishButton, 0.052f, 0.112f, leftRatio = 0.025f, topRatio = 0.055f)
+        percentPlace(feedbackView, 0.36f, 0.075f, leftRatio = 0.32f, topRatio = 0.055f)
+        percentPlace(countView, 0.13f, 0.075f, rightRatio = 0.055f, topRatio = 0.055f)
+        percentPlace(
+            rankingCard,
+            0.19f,
+            0.48f,
+            minWidthPx = px(180f, sx).coerceAtLeast(180),
+            minHeightPx = px(360f, sy).coerceAtLeast(360),
+            maxHeightPx = px(420f, sy).coerceAtLeast(420),
+            rightRatio = 0.052f,
+            topRatio = 0.25f
+        )
+        percentPlace(
+            metaView,
+            0.38f,
+            0.31f,
+            minWidthPx = px(420f, sx).coerceAtLeast(420),
+            minHeightPx = px(250f, sy).coerceAtLeast(250),
+            leftRatio = 0.26f,
+            bottomRatio = 0.035f
+        )
+        musicButton.visibility = View.GONE
+        volumeSlider.visibility = View.GONE
+
+        metaView.setPadding(px(18f, sx), px(12f, sy), px(18f, sx), px(12f, sy))
+        (progressView.layoutParams as? LinearLayout.LayoutParams)?.apply {
+            height = px(8f, sy)
+            topMargin = px(8f, sy)
+            leftMargin = px(48f, sx)
+            rightMargin = px(48f, sx)
+        }
+        (gameTimeView.layoutParams as? LinearLayout.LayoutParams)?.topMargin = px(5f, sy)
+        (timerSubView.layoutParams as? LinearLayout.LayoutParams)?.topMargin = px(6f, sy)
+        if (!useGameHud) {
+            gameCountLabelView.visibility = View.GONE
+            gameTimeView.visibility = View.GONE
+        }
+        updateRankingCardLayout(sx, sy, scale)
     }
 
     private fun buildRankingCard(): LinearLayout =
@@ -310,13 +505,18 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     }
 
     private fun updateRankingCardLayout(sx: Float, sy: Float, scale: Float) {
-        rankingCard.setPadding(px(18f, sx), px(18f, sy), px(18f, sx), px(18f, sy))
+        rankingCard.setPadding(px(if (useGameHud) 18f else 18f, sx), px(if (useGameHud) 22f else 18f, sy), px(if (useGameHud) 18f else 18f, sx), px(if (useGameHud) 22f else 18f, sy))
         rankRowViews.forEachIndexed { index, row ->
-            row.setTextPx(20f, scale)
-            row.setPadding(px(10f, sx), 0, px(10f, sx), 0)
+            row.visibility = View.VISIBLE
+            if (useGameHud) {
+                row.setTextPxClamped(20f, scale, minPx = 20, maxPx = 26)
+            } else {
+                row.setTextPx(20f, scale)
+            }
+            row.setPadding(px(if (useGameHud) 12f else 10f, sx), 0, px(if (useGameHud) 12f else 10f, sx), 0)
             (row.layoutParams as? LinearLayout.LayoutParams)?.apply {
-                height = px(43f, sy)
-                topMargin = if (index > 0) px(4f, sy) else 0
+                height = if (useGameHud) px(44f, sy).coerceAtLeast(42) else px(43f, sy)
+                topMargin = if (index > 0) px(if (useGameHud) 6f else 4f, sy) else 0
             }
         }
     }
@@ -328,9 +528,20 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             .plus(RankEntry("나", currentValue, true))
             .sortedWith(compareByDescending<RankEntry> { it.count }.thenBy { if (it.current) 1 else 0 })
 
-        rows.forEachIndexed { index, row ->
+        val visibleRows = rows.take(rankRowViews.size)
+        visibleRows.forEachIndexed { index, row ->
             rankRowViews.getOrNull(index)?.apply {
-                text = "${index + 1}   ${row.name}        ${row.count}${metricUnit()}"
+                val medal = if (useGameHud) {
+                    when (index) {
+                        0 -> "🥇 "
+                        1 -> "🥈 "
+                        2 -> "🥉 "
+                        else -> "${index + 1}  "
+                    }
+                } else {
+                    "${index + 1}   "
+                }
+                text = "$medal${row.name}        ${row.count}${metricUnit()}"
                 applyRankRowStyle(row.current)
             }
         }
@@ -436,6 +647,11 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     private fun updateHud(frame: SquatPoseFrame) {
         accumulateQuality(frame.feedback.level)
         overlayView.render(frame)
+        if (useGameHud) {
+            feedbackView.visibility = View.GONE
+            countView.text = "●"
+            countView.setTextColor(Color.rgb(158, 255, 58))
+        }
         feedbackView.text = "${frame.feedback.label} · ${frame.feedback.detail}"
         feedbackView.setTextColor(
             when (frame.feedback.level) {
@@ -444,10 +660,14 @@ abstract class PoseExerciseActivity : ComponentActivity() {
                 PoseFeedbackLevel.BAD -> Color.rgb(255, 100, 100)
             }
         )
-        countView.text = buildCountText(currentMetricValue())
+        if (!useGameHud) countView.text = buildCountText(currentMetricValue())
         val elapsedSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1000L).toInt()
         val displayElapsedSeconds = elapsedSeconds.coerceIn(0, targetDurationSeconds)
-        timerView.text = "${formatClock(displayElapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
+        timerView.text = if (useGameHud) currentMetricValue().toString() else "${formatClock(displayElapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
+        gameCountLabelView.visibility = if (useGameHud) View.VISIBLE else View.GONE
+        gameTimeView.visibility = if (useGameHud) View.VISIBLE else View.GONE
+        gameTimeView.text = "${formatClock(displayElapsedSeconds)} / ${formatClock(targetDurationSeconds)}"
+        timerSubView.text = "남은 시간 ${formatClock((targetDurationSeconds - displayElapsedSeconds).coerceAtLeast(0))}"
         progressView.progress = displayElapsedSeconds
         updateRankingRows(displayElapsedSeconds)
         if (elapsedSeconds >= targetDurationSeconds) {
@@ -459,7 +679,9 @@ abstract class PoseExerciseActivity : ComponentActivity() {
 
     private fun updateReadinessHud(frame: SquatPoseFrame) {
         overlayView.render(frame)
-        feedbackView.text = "${frame.feedback.label} · ${frame.feedback.detail}"
+        feedbackView.visibility = View.VISIBLE
+        val ready = frame.feedback.level == PoseFeedbackLevel.GOOD
+        feedbackView.text = if (useGameHud && ready) "✓ 카메라 준비 완료" else "${frame.feedback.label} · ${frame.feedback.detail}"
         feedbackView.setTextColor(
             when (frame.feedback.level) {
                 PoseFeedbackLevel.GOOD -> Color.rgb(136, 255, 150)
@@ -467,8 +689,17 @@ abstract class PoseExerciseActivity : ComponentActivity() {
                 PoseFeedbackLevel.BAD -> Color.rgb(255, 100, 100)
             }
         )
-        countView.text = buildCountText(0)
-        timerView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        countView.text = if (useGameHud) {
+            if (ready) "● 준비 완료" else "● 위치 확인 중"
+        } else {
+            buildReadinessText()
+        }
+        countView.setTextColor(if (ready) Color.rgb(158, 255, 58) else Color.rgb(255, 222, 95))
+        timerView.text = if (useGameHud) "0" else "00:00 / ${formatClock(targetDurationSeconds)}"
+        gameCountLabelView.visibility = if (useGameHud) View.VISIBLE else View.GONE
+        gameTimeView.visibility = if (useGameHud) View.VISIBLE else View.GONE
+        gameTimeView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        timerSubView.text = "남은 시간 ${formatClock(targetDurationSeconds)}"
         progressView.progress = 0
         speakReadinessGuideIfNeeded(frame.feedback)
     }
@@ -494,8 +725,13 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     private fun updateCountdownHud(remainingSeconds: Int) {
         feedbackView.text = "준비 · ${remainingSeconds}초 후 시작합니다."
         feedbackView.setTextColor(Color.rgb(255, 222, 95))
-        countView.text = buildCountdownText(remainingSeconds)
-        timerView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        countView.text = if (useGameHud) "● 준비 완료" else buildCountdownText(remainingSeconds)
+        countView.setTextColor(Color.rgb(158, 255, 58))
+        timerView.text = if (useGameHud) remainingSeconds.toString() else "00:00 / ${formatClock(targetDurationSeconds)}"
+        gameCountLabelView.visibility = if (useGameHud) View.VISIBLE else View.GONE
+        gameTimeView.visibility = if (useGameHud) View.VISIBLE else View.GONE
+        gameTimeView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        timerSubView.text = if (useGameHud) "초 후 시작" else "남은 시간 ${formatClock(targetDurationSeconds)}"
         progressView.progress = 0
     }
 
@@ -524,7 +760,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         }
 
         if (stablePoseStartedAt == 0L) stablePoseStartedAt = now
-        val stableEnough = now - stablePoseStartedAt >= STABLE_POSE_START_MS
+        val stableEnough = now - stablePoseStartedAt >= readinessStableMs
         if (stableEnough) {
             readyForStartCountdown = true
             countdownStartedAt = 0L
@@ -693,6 +929,26 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         }
     }
 
+    private fun buildReadinessText(): SpannableString {
+        val title = "카메라 위치"
+        val text = "$title\n확인 중"
+        return SpannableString(text).apply {
+            setSpan(RelativeSizeSpan(0.9f), 0, title.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+    private fun toggleVolumeSlider() {
+        val show = volumeSlider.visibility != View.VISIBLE
+        if (show) {
+            volumeSlider.visibility = View.VISIBLE
+            volumeSlider.animate().alpha(1f).translationY(0f).setDuration(240L).start()
+        } else {
+            volumeSlider.animate().alpha(0f).setDuration(220L).withEndAction {
+                volumeSlider.visibility = View.GONE
+            }.start()
+        }
+    }
+
     private fun openMusic() {
         val searchUri = Uri.parse("https://music.youtube.com/search?q=${Uri.encode(musicQuery)}")
         val opened = listOf(
@@ -744,6 +1000,10 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         setTextSize(TypedValue.COMPLEX_UNIT_PX, px(referencePx, scale).toFloat())
     }
 
+    private fun TextView.setTextPxClamped(referencePx: Float, scale: Float, minPx: Int, maxPx: Int) {
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, px(referencePx, scale).coerceIn(minPx, maxPx).toFloat())
+    }
+
     private fun roundedHudBackground(color: Int, radius: Float = 24f) =
         GradientDrawable().apply {
             setColor(color)
@@ -782,7 +1042,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         private const val NARRATION_INTERVAL_MS = 15_000L
         private const val COMPLETION_NARRATION_DELAY_MS = 2_500L
         private const val STABLE_POSE_START_MS = 1_500L
-        private const val READINESS_TTS_INTERVAL_MS = 3_500L
+        private const val READINESS_TTS_INTERVAL_MS = 15_000L
         private const val START_VISIBILITY = 0.50f
         private const val REF_WIDTH = 852f
         private const val REF_HEIGHT = 1844f

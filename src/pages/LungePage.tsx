@@ -23,6 +23,7 @@ export default function LungePage({ onBack, onComplete = onBack, userId = 'anony
       poseImageSrc={lungeNeon}
       durationSeconds={getExerciseDurationSeconds(userId, 'lunge')}
       baseAverageValue={readLungeBaseReps(userId)}
+      countdownStartSeconds={0}
       completionEventName="lungeFinished"
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
         RunningPlugin.openLungePose({ durationSeconds, baseAverageReps: baseAverageValue })}

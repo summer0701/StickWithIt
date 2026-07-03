@@ -23,6 +23,7 @@ export default function JumpingJackPage({ onBack, onComplete = onBack, userId = 
       poseImageSrc={jumpingJackNeon}
       durationSeconds={getExerciseDurationSeconds(userId, 'jumpingJack')}
       baseAverageValue={readJumpingJackBaseAverageReps(userId)}
+      countdownStartSeconds={0}
       completionEventName="jumpingJackFinished"
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
         RunningPlugin.openJumpingJackPose({ durationSeconds, baseAverageReps: baseAverageValue })}

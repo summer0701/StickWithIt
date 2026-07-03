@@ -6,6 +6,11 @@ class JumpingJackPoseActivity : PoseExerciseActivity() {
     override val completionAction = ACTION_JUMPING_JACK_FINISHED
     override val defaultBaseAverageValue = 60.0
     override val musicQuery = "점핑잭 운동할 때 듣기 좋은 음악"
+    override val requireStableFullBodyBeforeStart = true
+    override val startCountdownSeconds = 5
+    override val readinessMissingDetail = "머리부터 발끝까지 화면에 들어오게 서 주세요."
+    override val readinessAcceptedDetail = "좋습니다. 5초 뒤 점핑잭을 시작합니다."
+    override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.JUMPING_JACK)
 

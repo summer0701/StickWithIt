@@ -23,6 +23,7 @@ export default function PushupPage({ onBack, onComplete = onBack, userId = 'anon
       poseImageSrc={pushupNeon}
       durationSeconds={getExerciseDurationSeconds(userId, 'pushup')}
       baseAverageValue={readPushupBaseAverageReps(userId)}
+      countdownStartSeconds={0}
       countdownLaunchMessage="스마트폰을 가로로 눞혀주세요"
       completionEventName="pushupFinished"
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
