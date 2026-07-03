@@ -7,7 +7,7 @@ describe('exerciseGhostBaseline', () => {
     expect(completionRepsToBaseline({ durationSeconds: 180, reps: 75 }, 25)).toBe(50);
   });
 
-  it('converts plank good seconds to a two minute baseline', () => {
+  it('converts lunge good seconds to a two minute baseline', () => {
     expect(completionGoodSecondsToBaseline({ durationSeconds: 60, goodSeconds: 45 }, 90)).toBe(90);
     expect(completionGoodSecondsToBaseline({ durationSeconds: 180, goodSeconds: 90 }, 90)).toBe(60);
   });

@@ -13,7 +13,7 @@ type NativeExercisePageProps = {
   poseImageSrc?: string;
   durationSeconds: number;
   baseAverageValue: number;
-  completionEventName: 'jumpingJackFinished' | 'pushupFinished' | 'plankFinished';
+  completionEventName: 'jumpingJackFinished' | 'pushupFinished' | 'lungeFinished';
   onOpenNative: (options: { durationSeconds: number; baseAverageValue: number }) => Promise<void>;
   onCompleted: (payload: any) => void;
   onBack: () => void;

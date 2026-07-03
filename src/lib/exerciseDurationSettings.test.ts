@@ -13,11 +13,11 @@ describe('exerciseDurationSettings', () => {
   it('stores each exercise duration independently with the shared key format', () => {
     setExerciseDurationSeconds('user-1', 'jumpingJack', 120);
     setExerciseDurationSeconds('user-1', 'pushup', 180);
-    setExerciseDurationSeconds('user-1', 'plank', 30);
+    setExerciseDurationSeconds('user-1', 'lunge', 30);
 
     expect(getExerciseDurationSeconds('user-1', 'jumpingJack')).toBe(120);
     expect(getExerciseDurationSeconds('user-1', 'pushup')).toBe(180);
-    expect(getExerciseDurationSeconds('user-1', 'plank')).toBe(30);
+    expect(getExerciseDurationSeconds('user-1', 'lunge')).toBe(30);
     expect(window.localStorage.getItem('stickWithIt:jumpingJack-duration-seconds:user-1')).toBe('120');
   });
 

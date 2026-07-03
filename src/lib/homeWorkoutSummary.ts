@@ -25,7 +25,7 @@ const exerciseDefinitions = [
   { type: 'running', label: 'Running', metric: 'distance' },
   { type: 'squat', label: 'Squat', metric: 'reps' },
   { type: 'push-up', label: 'Push-up', metric: 'reps' },
-  { type: 'plank', label: 'Plank', metric: 'qualityTime' },
+  { type: 'lunge', label: 'Lunge', metric: 'reps' },
   { type: 'walking', label: 'Walking', metric: 'distance' },
 ] as const;
 
@@ -51,7 +51,6 @@ export function buildHomeWorkoutSummary({ records, now = new Date() }: { records
   const totalDurationSeconds = completed.reduce((sum, record) => sum + Number(record.durationSeconds ?? 0), 0);
   const distanceKm = completed.reduce((sum, record) => sum + Number(record.distanceKm ?? 0), 0);
   const totalReps = completed.reduce((sum, record) => sum + Number(record.reps ?? 0), 0);
-  const qualitySeconds = completed.reduce((sum, record) => sum + Number(record.goodSeconds ?? 0), 0);
   const mostActive = mostActiveExercise(completed);
 
   return {
@@ -61,7 +60,7 @@ export function buildHomeWorkoutSummary({ records, now = new Date() }: { records
       { tone: 'orange', label: '반복 횟수', value: `${Math.round(totalReps).toLocaleString()} 회` },
       { tone: 'green', label: '주력 운동', value: mostActive?.label ?? '기록 대기' },
     ],
-    insight: buildInsight({ completed, distanceKm, totalReps, qualitySeconds, mostActive }),
+    insight: buildInsight({ completed, distanceKm, totalReps, mostActive }),
     refreshedAt: now.toISOString(),
     nextRefreshAt: new Date(now.getTime() + CACHE_TTL_MS).toISOString(),
     recordCount: completed.length,
@@ -125,13 +124,11 @@ function buildInsight({
   completed,
   distanceKm,
   totalReps,
-  qualitySeconds,
   mostActive,
 }: {
   completed: ExerciseRecord[];
   distanceKm: number;
   totalReps: number;
-  qualitySeconds: number;
   mostActive?: { type: string; label: string };
 }) {
   if (completed.length === 0) {
@@ -141,12 +138,11 @@ function buildInsight({
   const covered = new Set(completed.map((record) => record.type));
   const missing = exerciseDefinitions.find((definition) => !covered.has(definition.type));
   if (missing) {
-    return `${mostActive?.label ?? '최근 운동'} 흐름이 가장 큽니다. 다음에는 ${missing.label} 기록을 추가하면 균형 분석이 더 좋아집니다.`;
+    return `${mostActive?.label ?? '최근 운동'} 흐름이 가장 셉니다. 다음에는 ${missing.label} 기록을 추가하면 균형 분석이 더 좋아집니다.`;
   }
-  if (qualitySeconds >= 60) return `플랭크 GOOD 자세가 ${Math.round(qualitySeconds)}초 쌓였습니다. 코어 안정성이 좋아지는 흐름입니다.`;
   if (totalReps >= 80) return `최근 반복 운동이 ${Math.round(totalReps)}회입니다. 하체와 상체 루틴이 살아나고 있습니다.`;
-  if (distanceKm >= 5) return `최근 이동 거리가 ${distanceKm.toFixed(1)}km입니다. 유산소 루틴이 안정적으로 쌓이고 있습니다.`;
-  return `${completed.length}개의 최근 운동을 분석했습니다. 운동을 할수록 카드 내용이 더 구체적으로 바뀝니다.`;
+  if (distanceKm >= 5) return `최근 운동 거리가 ${distanceKm.toFixed(1)}km입니다. 유산소 루틴이 안정적으로 쌓이고 있습니다.`;
+  return `${completed.length}개의 최근 운동을 분석했습니다. 운동이 쌓일수록 카드 내용이 더 구체적으로 바뀍니다.`;
 }
 
 function buildActivitySignature(records: ExerciseRecord[]) {

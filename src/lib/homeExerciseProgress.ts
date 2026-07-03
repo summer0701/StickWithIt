@@ -1,4 +1,4 @@
-import type { ExerciseRecord } from './exerciseRecords';
+import { normalizeExerciseRecordType, type ExerciseRecord } from './exerciseRecords';
 
 export type RunLike = Record<string, any>;
 
@@ -7,7 +7,7 @@ export type ExerciseProgressValues = {
   squatReps: number;
   jumpingJackReps: number;
   pushupReps: number;
-  plankGoodSeconds: number;
+  lungeReps: number;
 };
 
 export function buildDailyExerciseProgress({
@@ -26,7 +26,7 @@ export function buildDailyExerciseProgress({
     squatReps: sumRecordMetric(todayRecords, 'squat', 'reps'),
     jumpingJackReps: sumRecordMetric(todayRecords, 'jumping-jack', 'reps'),
     pushupReps: sumRecordMetric(todayRecords, 'push-up', 'reps'),
-    plankGoodSeconds: sumRecordMetric(todayRecords, 'plank', 'goodSeconds'),
+    lungeReps: sumRecordMetric(todayRecords, 'lunge', 'reps'),
   };
 }
 
@@ -38,7 +38,7 @@ export function formatExerciseValue(value: number, unit: 'km' | '회' | '초') {
 
 function sumRecordMetric(records: ExerciseRecord[], type: string, metric: keyof ExerciseRecord) {
   return records
-    .filter((record) => record.type === type && record.completed)
+    .filter((record) => normalizeExerciseRecordType(record.type) === type && record.completed)
     .reduce((sum, record) => sum + Number(record[metric] ?? 0), 0);
 }
 
@@ -90,7 +90,7 @@ function formatSeconds(value: number) {
   const seconds = totalSeconds % 60;
   if (minutes <= 0) return `${seconds}초`;
   if (seconds === 0) return `${minutes}분`;
-  return `${minutes}분${seconds}초`;
+  return `${minutes}분 ${seconds}초`;
 }
 
 function dateKeyFor(date: Date) {

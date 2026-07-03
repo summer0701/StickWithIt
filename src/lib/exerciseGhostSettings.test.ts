@@ -15,21 +15,21 @@ describe('exerciseGhostSettings', () => {
 
   it('stores ghost slots independently for each exercise', () => {
     const squat = readExerciseGhostSettings('user-1', 'squat');
-    const plank = readExerciseGhostSettings('user-1', 'plank');
+    const lunge = readExerciseGhostSettings('user-1', 'lunge');
 
     writeExerciseGhostSettings('user-1', 'squat', [
       { ...squat[0], name: '스쿼트 베스트', averageValue: 42 },
       ...squat.slice(1),
     ]);
-    writeExerciseGhostSettings('user-1', 'plank', [
-      { ...plank[0], name: '플랭크 베스트', averageValue: 75 },
-      ...plank.slice(1),
+    writeExerciseGhostSettings('user-1', 'lunge', [
+      { ...lunge[0], name: '런지 베스트', averageValue: 75 },
+      ...lunge.slice(1),
     ]);
 
     expect(exerciseGhostDisplayName('bestGhost', readExerciseGhostSettings('user-1', 'squat'))).toBe('스쿼트 베스트');
-    expect(exerciseGhostDisplayName('bestGhost', readExerciseGhostSettings('user-1', 'plank'))).toBe('플랭크 베스트');
+    expect(exerciseGhostDisplayName('bestGhost', readExerciseGhostSettings('user-1', 'lunge'))).toBe('런지 베스트');
     expect(readExerciseGhostSettings('user-1', 'squat')[0].averageValue).toBe(42);
-    expect(readExerciseGhostSettings('user-1', 'plank')[0].averageValue).toBe(75);
+    expect(readExerciseGhostSettings('user-1', 'lunge')[0].averageValue).toBe(75);
   });
 
   it('normalizes slot names, metric values, and difficulty settings', () => {

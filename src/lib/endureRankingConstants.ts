@@ -1,9 +1,9 @@
-export type RankingExerciseType = 'running' | 'squat' | 'plank' | 'pushup' | 'extra';
+export type RankingExerciseType = 'running' | 'squat' | 'lunge' | 'pushup' | 'extra';
 export type EndureLevel = 'Rookie' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
 export type GhostProfileType = 'Balanced Ghost' | 'Runner Ghost' | 'Strength Ghost' | 'Endurance Ghost' | 'Lazy Genius Ghost' | 'Rookie Ghost';
 export type RankingTab = 'league' | 'overall' | 'friends' | 'ghosts';
 
-export const RANKING_EXERCISES: RankingExerciseType[] = ['running', 'squat', 'plank', 'pushup', 'extra'];
+export const RANKING_EXERCISES: RankingExerciseType[] = ['running', 'squat', 'lunge', 'pushup', 'extra'];
 export const RANKING_LEAGUE_SIZE = 50;
 export const BASE_ER_MAX = 5000;
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ export const ENDURE_LEVELS: Array<{ level: EndureLevel; min: number; max: number
 export const EXERCISE_LABELS: Record<RankingExerciseType, string> = {
   running: '러닝',
   squat: '스쿼트',
-  plank: '플랭크',
+  lunge: '런지',
   pushup: '푸쉬업',
   extra: '기타',
 };

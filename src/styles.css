@@ -5330,7 +5330,7 @@ button:disabled {
     linear-gradient(160deg, #020a14 0%, #062136 52%, #020b16 100%);
 }
 
-.plank-ready-screen {
+.lunge-ready-screen {
   background:
     radial-gradient(circle at 73% 25%, rgba(120, 244, 255, 0.14), transparent 25%),
     radial-gradient(circle at 18% 39%, rgba(104, 248, 109, 0.11), transparent 23%),
@@ -5354,7 +5354,7 @@ button:disabled {
     radial-gradient(circle at 52% 22%, rgba(99, 255, 156, 0.16), transparent 20%);
 }
 
-.plank-ready-screen::before {
+.lunge-ready-screen::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -5485,14 +5485,14 @@ button:disabled {
   stroke-dasharray: 554 585;
 }
 
-.plank-ready-screen .squat-timer-ring {
+.lunge-ready-screen .squat-timer-ring {
   width: min(58vw, 202px);
   margin-top: 12px;
   margin-bottom: 14px;
   transform: translateX(-22px);
 }
 
-.plank-ready-screen .squat-timer-ring .progress {
+.lunge-ready-screen .squat-timer-ring .progress {
   stroke-dasharray: 482 585;
 }
 
@@ -5524,7 +5524,7 @@ button:disabled {
   height: auto;
 }
 
-.plank-ready-screen .exercise-pose-hero {
+.lunge-ready-screen .exercise-pose-hero {
   top: 176px;
   right: 12px;
   width: min(40vw, 164px);
@@ -5649,7 +5649,7 @@ button:disabled {
     rgba(7, 16, 28, 0.86);
 }
 
-.plank-ready-screen .squat-panel {
+.lunge-ready-screen .squat-panel {
   border-color: rgba(93, 230, 202, 0.28);
   background:
     linear-gradient(145deg, rgba(15, 46, 50, 0.7), rgba(6, 15, 32, 0.9)),
@@ -5668,7 +5668,7 @@ button:disabled {
   margin-top: 4px;
 }
 
-.plank-ready-screen .squat-coach-card {
+.lunge-ready-screen .squat-coach-card {
   grid-template-columns: 98px minmax(0, 1fr);
   gap: 10px 14px;
   margin-top: 8px;
@@ -5708,7 +5708,7 @@ button:disabled {
   white-space: nowrap;
 }
 
-.plank-ready-screen .squat-coach-card > .squat-icon-button {
+.lunge-ready-screen .squat-coach-card > .squat-icon-button {
   grid-column: 2;
   display: inline-flex;
   align-items: center;
@@ -5726,7 +5726,7 @@ button:disabled {
   color: #82f690;
 }
 
-.plank-ready-screen .squat-coach-card > .squat-icon-button::after {
+.lunge-ready-screen .squat-coach-card > .squat-icon-button::after {
   content: "음성 안내";
   font-size: 0.82rem;
   font-weight: 900;
@@ -5738,7 +5738,7 @@ button:disabled {
   font-size: clamp(1.16rem, 5vw, 1.42rem);
 }
 
-.plank-ready-screen .squat-coach-copy h2 {
+.lunge-ready-screen .squat-coach-copy h2 {
   font-size: clamp(1.16rem, 5vw, 1.42rem);
 }
 
@@ -5746,14 +5746,14 @@ button:disabled {
   font-size: clamp(1.16rem, 5vw, 1.42rem);
 }
 
-.plank-ready-screen .squat-coach-badge {
+.lunge-ready-screen .squat-coach-badge {
   border-color: rgba(68, 234, 220, 0.4);
   background:
     radial-gradient(circle, rgba(63, 230, 218, 0.18), transparent 63%),
     rgba(7, 30, 36, 0.62);
 }
 
-.plank-ready-screen .squat-coach-badge img {
+.lunge-ready-screen .squat-coach-badge img {
   width: 82px;
   height: 82px;
 }

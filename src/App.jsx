@@ -6,7 +6,7 @@ import RunPage from './pages/RunPage';
 import SquatPage from './pages/SquatPage';
 import JumpingJackPage from './pages/JumpingJackPage';
 import PushupPage from './pages/PushupPage';
-import PlankPage from './pages/PlankPage';
+import LungePage from './pages/LungePage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
@@ -62,7 +62,7 @@ export default function App() {
 
   const user = session?.user ?? null;
   const isTestUser = user?.app_metadata?.provider === 'local-test';
-  const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'plank'];
+  const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'lunge'];
 
   useEffect(() => {
     if (!user) return;
@@ -127,7 +127,7 @@ export default function App() {
           onSquatStart={() => setPage('squat')}
           onJumpingJackStart={() => setPage('jumping-jack')}
           onPushupStart={() => setPage('push-up')}
-          onPlankStart={() => setPage('plank')}
+          onLungeStart={() => setPage('lunge')}
           onRanking={() => setPage('ranking')}
           onNavigate={setPage}
         />
@@ -135,7 +135,7 @@ export default function App() {
       {page === 'squat' && <SquatPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
       {page === 'jumping-jack' && <JumpingJackPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
       {page === 'push-up' && <PushupPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
-      {page === 'plank' && <PlankPage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
+      {page === 'lunge' && <LungePage userId={user.id} onBack={() => setPage('home')} onComplete={() => setPage('home')} />}
       {page === 'run' && (
         <RunPage
           user={user}

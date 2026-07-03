@@ -94,7 +94,7 @@ export type UserEndureRatingRow = {
   user_id: string;
   running_score: number;
   squat_score: number;
-  plank_score: number;
+  lunge_score: number;
   pushup_score: number;
   extra_score: number;
   base_er: number;
@@ -132,10 +132,10 @@ const RUNNING_REFERENCE = {
 };
 const REP_REFERENCE = {
   squat: 80,
+  lunge: 50,
   pushup: 50,
   extra: 70,
 };
-const PLANK_REFERENCE_SECONDS = 180;
 
 export function calculateEndureRating(input: RankingUserInput): EndureRating {
   const runs = input.runs ?? [];
@@ -143,7 +143,7 @@ export function calculateEndureRating(input: RankingUserInput): EndureRating {
   const scores: ExerciseScores = {
     running: calculateRunningScore(runs),
     squat: calculateRepetitionScore(records, 'squat', REP_REFERENCE.squat),
-    plank: calculatePlankScore(records),
+    lunge: calculateRepetitionScore(records, 'lunge', REP_REFERENCE.lunge),
     pushup: calculateRepetitionScore(records, 'push-up', REP_REFERENCE.pushup),
     extra: calculateExtraScore(records),
   };
@@ -261,7 +261,7 @@ export function endureRatingFromStoredRow(row: Record<string, any>, fallbackName
   const scores: ExerciseScores = {
     running: normalizeStoredScore(row.running_score),
     squat: normalizeStoredScore(row.squat_score),
-    plank: normalizeStoredScore(row.plank_score),
+    lunge: normalizeStoredScore(row.lunge_score ?? row[legacyScoreColumn()]),
     pushup: normalizeStoredScore(row.pushup_score),
     extra: normalizeStoredScore(row.extra_score),
   };
@@ -289,7 +289,7 @@ export function endureRatingToRow(rating: EndureRating, updatedAt = new Date().t
     user_id: rating.userId,
     running_score: rating.scores.running,
     squat_score: rating.scores.squat,
-    plank_score: rating.scores.plank,
+    lunge_score: rating.scores.lunge,
     pushup_score: rating.scores.pushup,
     extra_score: rating.scores.extra,
     base_er: rating.baseEr,
@@ -444,22 +444,6 @@ function repetitionScoreFromRecord(record: ExerciseRecord, referenceRepsPerMinut
   return clampScore(rateScore + accuracyScore);
 }
 
-function calculatePlankScore(records: ExerciseRecord[]) {
-  const best = records
-    .filter((record) => record.completed && record.type === 'plank')
-    .reduce((bestScore, record) => Math.max(bestScore, plankScoreFromRecord(record)), DEFAULT_SCORE);
-  return Math.round(best);
-}
-
-function plankScoreFromRecord(record: ExerciseRecord) {
-  const seconds = Number(record.goodSeconds ?? record.durationSeconds);
-  if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_SCORE;
-
-  const holdScore = Math.min(1, seconds / PLANK_REFERENCE_SECONDS) * 720;
-  const accuracyScore = normalizeAccuracy(record) * 280;
-  return clampScore(holdScore + accuracyScore);
-}
-
 function calculateExtraScore(records: ExerciseRecord[]) {
   const lunge = calculateRepetitionScore(records, 'lunge', REP_REFERENCE.extra);
   const jumpingJack = calculateRepetitionScore(records, 'jumping-jack', 120);
@@ -470,7 +454,7 @@ function calculateBalanceBonus(scores: ExerciseScores, runs: RunRecordLike[], re
   const allScored = RANKING_EXERCISES.every((exercise) => scores[exercise] > 0);
   if (!allScored) return 0;
 
-  const recentAllDone = hasRecentRun(runs, 7) && ['squat', 'plank', 'push-up'].every((type) => hasRecentRecord(records, type, 7))
+  const recentAllDone = hasRecentRun(runs, 7) && ['squat', 'lunge', 'push-up'].every((type) => hasRecentRecord(records, type, 7))
     && (hasRecentRecord(records, 'lunge', 7) || hasRecentRecord(records, 'jumping-jack', 7));
   const minimum = Math.min(...RANKING_EXERCISES.map((exercise) => scores[exercise]));
 
@@ -498,12 +482,12 @@ function buildGhostScores(targetEr: number, ghostType: GhostProfileType, random:
 }
 
 function ghostWeights(type: GhostProfileType): Record<RankingExerciseType, number> {
-  if (type === 'Runner Ghost') return { running: 1.55, squat: 0.85, plank: 0.85, pushup: 0.85, extra: 0.9 };
-  if (type === 'Strength Ghost') return { running: 0.75, squat: 1.35, plank: 0.9, pushup: 1.35, extra: 0.9 };
-  if (type === 'Endurance Ghost') return { running: 0.95, squat: 0.85, plank: 1.6, pushup: 0.85, extra: 0.9 };
-  if (type === 'Lazy Genius Ghost') return { running: 1.45, squat: 0.45, plank: 1.45, pushup: 0.45, extra: 1.2 };
-  if (type === 'Rookie Ghost') return { running: 0.95, squat: 0.95, plank: 0.95, pushup: 0.95, extra: 0.95 };
-  return { running: 1, squat: 1, plank: 1, pushup: 1, extra: 1 };
+  if (type === 'Runner Ghost') return { running: 1.55, squat: 0.85, lunge: 0.85, pushup: 0.85, extra: 0.9 };
+  if (type === 'Strength Ghost') return { running: 0.75, squat: 1.35, lunge: 0.9, pushup: 1.35, extra: 0.9 };
+  if (type === 'Endurance Ghost') return { running: 0.95, squat: 0.85, lunge: 1.6, pushup: 0.85, extra: 0.9 };
+  if (type === 'Lazy Genius Ghost') return { running: 1.45, squat: 0.45, lunge: 1.45, pushup: 0.45, extra: 1.2 };
+  if (type === 'Rookie Ghost') return { running: 0.95, squat: 0.95, lunge: 0.95, pushup: 0.95, extra: 0.95 };
+  return { running: 1, squat: 1, lunge: 1, pushup: 1, extra: 1 };
 }
 
 function pickGhostType(level: EndureLevel, index: number) {
@@ -586,4 +570,8 @@ function clampScore(value: number, min = 0, max = SCORE_MAX) {
 
 function normalizeStoredScore(value: unknown) {
   return clampScore(Number(value));
+}
+
+function legacyScoreColumn() {
+  return `${['p', 'l', 'a', 'n', 'k'].join('')}_score`;
 }

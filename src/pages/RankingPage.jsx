@@ -13,7 +13,7 @@ import { readLocalRuns } from '../lib/localRuns';
 import { supabase } from '../lib/supabaseClient';
 
 const tabs = ['league', 'overall', 'friends', 'ghosts'];
-const exerciseOrder = ['running', 'squat', 'plank', 'pushup', 'extra'];
+const exerciseOrder = ['running', 'squat', 'lunge', 'pushup', 'extra'];
 
 export default function RankingPage({ user, onBack }) {
   const [activeTab, setActiveTab] = useState('league');
@@ -55,7 +55,7 @@ export default function RankingPage({ user, onBack }) {
     let active = true;
     supabase
       .from('user_endure_ratings')
-      .select('user_id,running_score,squat_score,plank_score,pushup_score,extra_score,base_er,bonus_er,total_er,level,updated_at')
+      .select('user_id,running_score,squat_score,lunge_score,pushup_score,extra_score,base_er,bonus_er,total_er,level,updated_at')
       .order('total_er', { ascending: false })
       .limit(200)
       .then(({ data, error }) => {

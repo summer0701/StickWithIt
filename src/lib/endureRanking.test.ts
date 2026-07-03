@@ -21,9 +21,9 @@ describe('endureRanking', () => {
       runs: [{ actual_distance_km: 5, duration_seconds: 1800, ended_at: new Date().toISOString() }],
       exerciseRecords: [
         { userId: 'user-1', type: 'squat', completed: true, durationSeconds: 60, reps: 80, qualityScore: 90, completedAt: new Date().toISOString() },
-        { userId: 'user-1', type: 'plank', completed: true, durationSeconds: 180, goodSeconds: 160, warningSeconds: 10, badSeconds: 10, completedAt: new Date().toISOString() },
+        { userId: 'user-1', type: 'lunge', completed: true, durationSeconds: 60, reps: 50, qualityScore: 90, completedAt: new Date().toISOString() },
         { userId: 'user-1', type: 'push-up', completed: true, durationSeconds: 60, reps: 50, qualityScore: 85, completedAt: new Date().toISOString() },
-        { userId: 'user-1', type: 'lunge', completed: true, durationSeconds: 60, reps: 70, qualityScore: 80, completedAt: new Date().toISOString() },
+        { userId: 'user-1', type: 'jumping-jack', completed: true, durationSeconds: 60, reps: 70, qualityScore: 80, completedAt: new Date().toISOString() },
       ],
     });
 
@@ -48,9 +48,9 @@ describe('endureRanking', () => {
         runs: [{ actual_distance_km: 5, duration_seconds: 1800 }],
         exerciseRecords: [
           { userId: 'user-1', type: 'squat', completed: true, durationSeconds: 60, reps: 80, qualityScore: 90 },
-          { userId: 'user-1', type: 'plank', completed: true, durationSeconds: 180, goodSeconds: 160 },
+          { userId: 'user-1', type: 'lunge', completed: true, durationSeconds: 60, reps: 50, qualityScore: 90 },
           { userId: 'user-1', type: 'push-up', completed: true, durationSeconds: 60, reps: 50, qualityScore: 90 },
-          { userId: 'user-1', type: 'lunge', completed: true, durationSeconds: 60, reps: 70, qualityScore: 90 },
+          { userId: 'user-1', type: 'jumping-jack', completed: true, durationSeconds: 60, reps: 70, qualityScore: 90 },
         ],
       },
       now: new Date('2026-07-01T00:00:00Z'),
@@ -77,7 +77,7 @@ describe('endureRanking', () => {
       user_id: 'user-1',
       running_score: 700,
       squat_score: 700,
-      plank_score: 700,
+      lunge_score: 700,
       pushup_score: 700,
       extra_score: 700,
       base_er: 3500,
@@ -90,7 +90,7 @@ describe('endureRanking', () => {
       user_id: `peer-${index}`,
       running_score: 650,
       squat_score: 650,
-      plank_score: 650,
+      lunge_score: 650,
       pushup_score: 650,
       extra_score: 650,
       base_er: 3250 + index,
@@ -118,7 +118,7 @@ describe('endureRanking', () => {
       rank: 8,
       memberCount: 50,
       isFirstSeason: false,
-      scores: { running: 500, squat: 450, plank: 400, pushup: 420, extra: 380 },
+      scores: { running: 500, squat: 450, lunge: 400, pushup: 420, extra: 380 },
     });
 
     expect(result.outcome).toBe('promotion');

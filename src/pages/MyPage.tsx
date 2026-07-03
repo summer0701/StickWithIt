@@ -6,7 +6,6 @@ import {
   Footprints,
   Ghost,
   LogOut,
-  PersonStanding,
   RotateCcw,
   Settings,
   SlidersHorizontal,
@@ -114,22 +113,6 @@ const exercises: ExerciseConfig[] = [
     customUnit: 'reps',
     durationType: 'squat',
     icon: Dumbbell,
-  },
-  {
-    id: 'plank',
-    label: '플랭크',
-    heroLabel: '플랭크',
-    metricLabel: '평균 유지 시간',
-    summaryMetricLabel: '평균 유지 시간',
-    graphTitle: '구간별 유지 시간 그래프',
-    unit: 'sec',
-    recordBasis: '구간별 유지 안정도',
-    recordType: 'plank',
-    metricKind: 'seconds',
-    difficultyTargets: { beginner: 30, novice: 60, standard: 120 },
-    customUnit: 'sec',
-    durationType: 'plank',
-    icon: PersonStanding,
   },
   {
     id: 'pushup',
@@ -531,7 +514,7 @@ function ExerciseDurationControl({
   title: string;
 }) {
   const [durationSeconds, setDurationSeconds] = useState(() => getExerciseDurationSeconds(userId, exerciseType));
-  const presets = exerciseType === 'plank' ? [30, 60, 120, 180] : [60, 120, 180, 300];
+  const presets = [60, 120, 180, 300];
 
   useEffect(() => {
     setDurationSeconds(getExerciseDurationSeconds(userId, exerciseType));

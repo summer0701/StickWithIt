@@ -73,13 +73,10 @@ class RunningPlugin : Plugin() {
                         put("durationSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, 0))
                         put("reps", intent.getIntExtra(PoseExerciseActivity.EXTRA_REPS, 0))
                     }, true)
-                    PlankPoseActivity.ACTION_PLANK_FINISHED -> notifyListeners("plankFinished", JSObject().apply {
+                    LungePoseActivity.ACTION_LUNGE_FINISHED -> notifyListeners("lungeFinished", JSObject().apply {
                         put("completed", intent.getBooleanExtra(PoseExerciseActivity.EXTRA_COMPLETED, false))
                         put("durationSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, 0))
-                        put("goodSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_GOOD_SECONDS, 0))
-                        put("warningSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_WARNING_SECONDS, 0))
-                        put("badSeconds", intent.getIntExtra(PoseExerciseActivity.EXTRA_BAD_SECONDS, 0))
-                        put("qualityScore", intent.getIntExtra(PoseExerciseActivity.EXTRA_QUALITY_SCORE, 0))
+                        put("reps", intent.getIntExtra(PoseExerciseActivity.EXTRA_REPS, 0))
                     }, true)
                 }
             }
@@ -91,7 +88,7 @@ class RunningPlugin : Plugin() {
             addAction(SquatPoseActivity.ACTION_SQUAT_FINISHED)
             addAction(JumpingJackPoseActivity.ACTION_JUMPING_JACK_FINISHED)
             addAction(PushupPoseActivity.ACTION_PUSHUP_FINISHED)
-            addAction(PlankPoseActivity.ACTION_PLANK_FINISHED)
+            addAction(LungePoseActivity.ACTION_LUNGE_FINISHED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -259,17 +256,8 @@ class RunningPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun openPlankPose(call: PluginCall) {
-        try {
-            context.startActivity(Intent(context, PlankPoseActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra(PoseExerciseActivity.EXTRA_DURATION_SECONDS, call.data.optInt("durationSeconds", 60))
-                putExtra(PoseExerciseActivity.EXTRA_BASE_AVERAGE_GOOD_SECONDS, call.data.optDouble("baseAverageGoodSeconds", 90.0))
-            })
-            call.resolve()
-        } catch (error: Exception) {
-            call.reject("플랭크 포즈 화면을 열지 못했습니다.", error)
-        }
+    fun openLungePose(call: PluginCall) {
+        openRepetitionPoseActivity(call, LungePoseActivity::class.java, "런지")
     }
 
     @PluginMethod

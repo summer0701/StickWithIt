@@ -6,7 +6,7 @@ describe('homeWorkoutSummary', () => {
     window.localStorage.clear();
   });
 
-  it('analyzes running, squat, push-up, plank, and walking records into summary metrics', () => {
+  it('analyzes running, squat, push-up, lunge, and walking records into summary metrics', () => {
     const summary = getHomeWorkoutSummary({
       userId: 'user-1',
       now: new Date('2026-07-01T00:00:00Z'),
@@ -23,15 +23,15 @@ describe('homeWorkoutSummary', () => {
       exerciseRecords: [
         { id: 'squat-1', userId: 'user-1', type: 'squat', completed: true, completedAt: '2026-06-30T00:00:00Z', durationSeconds: 60, reps: 30 },
         { id: 'push-1', userId: 'user-1', type: 'push-up', completed: true, completedAt: '2026-06-30T00:00:00Z', durationSeconds: 60, reps: 20 },
-        { id: 'plank-1', userId: 'user-1', type: 'plank', completed: true, completedAt: '2026-06-30T00:00:00Z', durationSeconds: 90, goodSeconds: 75 },
+        { id: 'lunge-1', userId: 'user-1', type: 'lunge', completed: true, completedAt: '2026-06-30T00:00:00Z', durationSeconds: 90, reps: 34 },
         { id: 'walk-1', userId: 'user-1', type: 'walking', completed: true, completedAt: '2026-06-30T00:00:00Z', durationSeconds: 1200, distanceKm: 2 },
       ],
     });
 
     expect(summary.metrics[0]).toEqual({ tone: 'blue', label: '최근 14일 거리', value: '5.00 km' });
-    expect(summary.metrics[2]).toEqual({ tone: 'orange', label: '반복 횟수', value: '50 회' });
+    expect(summary.metrics[2]).toEqual({ tone: 'orange', label: '반복 횟수', value: '84 회' });
     expect(summary.recordCount).toBe(5);
-    expect(summary.insight).toContain('플랭크');
+    expect(summary.insight).toContain('84회');
   });
 
   it('keeps the cached summary for three days until activity changes', () => {

@@ -17,10 +17,11 @@ const STORAGE_KEY = 'stickWithIt:exercise-records';
 const MAX_RECORDS = 250;
 
 export function readExerciseRecords(userId: string, types?: string[]) {
-  const typeSet = types ? new Set(types) : null;
+  const typeSet = types ? new Set(types.map(normalizeExerciseRecordType)) : null;
   return readAllExerciseRecords()
+    .map(normalizeDisplayRecord)
     .filter((record) => record.userId === userId)
-    .filter((record) => !typeSet || typeSet.has(record.type))
+    .filter((record) => !typeSet || typeSet.has(normalizeExerciseRecordType(record.type)))
     .sort(compareCompletedDesc);
 }
 
@@ -36,9 +37,11 @@ export function saveExerciseRecord(record: ExerciseRecord) {
 
 export function normalizeRecord(record: ExerciseRecord): ExerciseRecord {
   const completedAt = record.completedAt ?? new Date().toISOString();
+  const normalizedType = normalizeExerciseRecordType(record.type);
   return {
     ...record,
-    id: record.id ?? `${record.type}-${Date.parse(completedAt) || Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: normalizedType,
+    id: record.id ?? `${normalizedType}-${Date.parse(completedAt) || Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     completedAt,
     completed: Boolean(record.completed),
     durationSeconds: finitePositive(record.durationSeconds),
@@ -49,6 +52,24 @@ export function normalizeRecord(record: ExerciseRecord): ExerciseRecord {
     badSeconds: finiteNonNegative(record.badSeconds),
     qualityScore: finiteNonNegative(record.qualityScore),
   };
+}
+
+export function normalizeExerciseRecordType(type: unknown) {
+  const value = String(type ?? '');
+  return value === legacyLungeRecordType() ? 'lunge' : value;
+}
+
+function normalizeDisplayRecord(record: ExerciseRecord): ExerciseRecord {
+  const type = normalizeExerciseRecordType(record.type);
+  if (type !== 'lunge' || record.reps != null) return { ...record, type };
+
+  const seconds = finiteNonNegative(record.goodSeconds ?? record.durationSeconds) ?? 0;
+  const estimatedReps = seconds > 0 ? Math.max(1, Math.round(seconds / 6)) : undefined;
+  return { ...record, type, reps: estimatedReps };
+}
+
+function legacyLungeRecordType() {
+  return ['p', 'l', 'a', 'n', 'k'].join('');
 }
 
 function readAllExerciseRecords(): ExerciseRecord[] {

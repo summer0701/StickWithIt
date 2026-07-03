@@ -15,7 +15,7 @@ import {
   RiUserSmileFill,
 } from 'react-icons/ri';
 import { FaDumbbell } from 'react-icons/fa6';
-import { GiJumpAcross, GiMuscleUp, GiPlanks, GiWeightLiftingUp } from 'react-icons/gi';
+import { GiJumpAcross, GiLeg, GiMuscleUp, GiWeightLiftingUp } from 'react-icons/gi';
 import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
 import { readExerciseRecords } from '../lib/exerciseRecords';
@@ -35,7 +35,7 @@ type HomePageProps = {
   onSquatStart: () => void;
   onJumpingJackStart: () => void;
   onPushupStart: () => void;
-  onPlankStart: () => void;
+  onLungeStart: () => void;
   onRanking: () => void;
   onNavigate: (page: string) => void;
 };
@@ -110,17 +110,18 @@ const exercises: Exercise[] = [
     icon: GiMuscleUp,
   },
   {
-    id: 'plank',
-    name: '플랭크',
-    english: 'Plank',
+    id: 'lunge',
+    name: '런지',
+    english: 'Lunge',
     color: '#FF4D4F',
-    goalLabel: '3분',
-    recordLabel: '2분12초',
-    targetValue: 180,
-    currentValue: 132,
-    unit: '초',
-    buttonLabel: '플랭크 시작',
-    icon: GiPlanks,
+    goalLabel: '20회',
+    recordLabel: '0회',
+    targetValue: 20,
+    currentValue: 0,
+    unit: '회',
+    buttonLabel: '런지 시작',
+
+    icon: GiLeg,
   },
 ];
 
@@ -140,7 +141,7 @@ export default function HomePage({
   onSquatStart,
   onJumpingJackStart,
   onPushupStart,
-  onPlankStart,
+  onLungeStart,
   onRanking,
   onNavigate,
 }: HomePageProps) {
@@ -263,8 +264,8 @@ export default function HomePage({
       onPushupStart();
       return;
     }
-    if (exercise.id === 'plank') {
-      onPlankStart();
+    if (exercise.id === 'lunge') {
+      onLungeStart();
       return;
     }
     setToast(`${exercise.name} 운동 화면은 다음 단계에서 연결됩니다.`);
@@ -329,7 +330,7 @@ function HeroSection({
         <motion.img
           className="hero-image"
           src={heroImage}
-          alt="러닝, 스쿼트, 점핑잭, 푸쉬업, 플랭크 선수"
+          alt="러닝, 스쿼트, 점핑잭, 푸쉬업, 런지 선수"
           loading="eager"
           initial={{ scale: 1.02, opacity: 0 }}
           animate={{ scale: [1, 1.03, 1], opacity: 1 }}
@@ -672,7 +673,7 @@ function currentExerciseValue(exerciseId: string, progress: ExerciseProgressValu
   if (exerciseId === 'squat') return progress.squatReps;
   if (exerciseId === 'jumping-jack') return progress.jumpingJackReps;
   if (exerciseId === 'push-up') return progress.pushupReps;
-  if (exerciseId === 'plank') return progress.plankGoodSeconds;
+  if (exerciseId === 'lunge') return progress.lungeReps;
   return 0;
 }
 

@@ -1,4 +1,4 @@
-export type ExerciseDurationType = 'squat' | 'jumpingJack' | 'pushup' | 'plank';
+export type ExerciseDurationType = 'squat' | 'jumpingJack' | 'pushup' | 'lunge';
 
 const STORAGE_PREFIX = 'stickWithIt';
 const LEGACY_SQUAT_STORAGE_PREFIX = 'stickWithit:squat-duration-seconds:';
@@ -6,7 +6,7 @@ const DEFAULT_DURATION_SECONDS: Record<ExerciseDurationType, number> = {
   squat: 60,
   jumpingJack: 60,
   pushup: 60,
-  plank: 60,
+  lunge: 60,
 };
 const MIN_DURATION_SECONDS = 30;
 const MAX_DURATION_SECONDS = 600;
