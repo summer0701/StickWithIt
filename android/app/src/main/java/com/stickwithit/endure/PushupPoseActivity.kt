@@ -1,5 +1,6 @@
 package com.stickwithit.endure
 
+import android.content.pm.ActivityInfo
 import androidx.camera.view.PreviewView
 
 class PushupPoseActivity : PoseExerciseActivity() {
@@ -11,6 +12,7 @@ class PushupPoseActivity : PoseExerciseActivity() {
     override val previewScaleType = PreviewView.ScaleType.FIT_CENTER
     override val requireStableFullBodyBeforeStart = false
     override val startCountdownSeconds = 3
+    override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.PUSHUP)
 

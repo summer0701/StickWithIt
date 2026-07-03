@@ -2,6 +2,7 @@ package com.stickwithit.endure
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -56,6 +57,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     protected open val previewScaleType: PreviewView.ScaleType = PreviewView.ScaleType.FILL_CENTER
     protected open val requireStableFullBodyBeforeStart: Boolean = false
     protected open val startCountdownSeconds: Int = 0
+    protected open val screenOrientation: Int = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: PoseSkeletonOverlayView
@@ -94,6 +96,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = screenOrientation
         targetDurationSeconds = intent.getIntExtra(EXTRA_DURATION_SECONDS, 60).coerceIn(30, 600)
         baseAverageValue = intent.getDoubleExtra(baseAverageExtraName, defaultBaseAverageValue)
             .takeIf { it.isFinite() && it > 0.0 }
@@ -195,6 +198,17 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         root.addView(rankingCard)
         root.addView(metaView)
         setContentView(root)
+        var lastRootWidth = 0
+        var lastRootHeight = 0
+        root.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+            val width = right - left
+            val height = bottom - top
+            if (width > 0 && height > 0 && (width != lastRootWidth || height != lastRootHeight)) {
+                lastRootWidth = width
+                lastRootHeight = height
+                applyHudLayout(view as FrameLayout)
+            }
+        }
         root.post { applyHudLayout(root) }
     }
 
@@ -730,10 +744,10 @@ abstract class PoseExerciseActivity : ComponentActivity() {
 
     private fun buildCountdownText(seconds: Int): SpannableString {
         val countText = seconds.toString()
-        val text = "COUNTDOWN\n${countText}"
+        val text = "COUNTDOWN  ${countText}"
         return SpannableString(text).apply {
             val start = text.indexOf(countText)
-            setSpan(RelativeSizeSpan(2f), start, start + countText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(RelativeSizeSpan(1.7f), start, start + countText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 }

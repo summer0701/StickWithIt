@@ -20,13 +20,13 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
         val shoulder = poseMidpoint(landmarks[11]!!, landmarks[12]!!)
         val elbow = poseMidpoint(landmarks[13]!!, landmarks[14]!!)
         val wrist = poseMidpoint(landmarks[15]!!, landmarks[16]!!)
-        val hasFullBody = requiredVisible(landmarks, fullBodyLandmarks)
-        val hip = if (hasFullBody) poseMidpoint(landmarks[23]!!, landmarks[24]!!) else shoulder
-        val ankle = if (hasFullBody) poseMidpoint(landmarks[27]!!, landmarks[28]!!) else wrist
+        val hasBodyLine = requiredVisible(landmarks, kneeBodyLandmarks)
+        val hip = if (hasBodyLine) poseMidpoint(landmarks[23]!!, landmarks[24]!!) else shoulder
+        val lowerBody = if (hasBodyLine) poseMidpoint(landmarks[25]!!, landmarks[26]!!) else wrist
         val elbowAngle = averageElbowAngle(landmarks)
-        val bodyLine = if (hasFullBody) abs(hip.y - lineYAtX(shoulder, ankle, hip.x)) else 0f
-        val hipTooLow = hasFullBody && hip.y - lineYAtX(shoulder, ankle, hip.x) > 0.08f
-        val hipTooHigh = hasFullBody && lineYAtX(shoulder, ankle, hip.x) - hip.y > 0.08f
+        val bodyLine = if (hasBodyLine) abs(hip.y - lineYAtX(shoulder, lowerBody, hip.x)) else 0f
+        val hipTooLow = hasBodyLine && hip.y - lineYAtX(shoulder, lowerBody, hip.x) > 0.08f
+        val hipTooHigh = hasBodyLine && lineYAtX(shoulder, lowerBody, hip.x) - hip.y > 0.08f
         val shoulderNearElbow = abs(shoulder.y - elbow.y) < 0.08f
 
         val segmentLevels = mutableMapOf<PoseSegment, PoseFeedbackLevel>()
@@ -88,6 +88,6 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
 
     companion object {
         private val upperBodyLandmarks = listOf(11, 12, 13, 14, 15, 16)
-        private val fullBodyLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 27, 28)
+        private val kneeBodyLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 25, 26)
     }
 }
