@@ -13,6 +13,7 @@ type NativeExercisePageProps = {
   poseImageSrc?: string;
   durationSeconds: number;
   baseAverageValue: number;
+  countdownLaunchMessage?: string;
   completionEventName: 'jumpingJackFinished' | 'pushupFinished' | 'lungeFinished';
   onOpenNative: (options: { durationSeconds: number; baseAverageValue: number }) => Promise<void>;
   onCompleted: (payload: any) => void;
@@ -38,6 +39,7 @@ export default function NativeExercisePage({
   poseImageSrc,
   durationSeconds,
   baseAverageValue,
+  countdownLaunchMessage = '카메라 화면으로 이동합니다',
   completionEventName,
   onOpenNative,
   onCompleted,
@@ -191,8 +193,10 @@ export default function NativeExercisePage({
 
       {phase === 'countdown' && (
         <div className="squat-countdown-overlay" role="status" aria-live="polite">
-          <strong>{countdown}</strong>
-          <span>카메라 화면으로 이동합니다</span>
+          <div className="squat-countdown-content">
+            <strong>{countdown}</strong>
+            <span>{countdownLaunchMessage}</span>
+          </div>
         </div>
       )}
     </main>

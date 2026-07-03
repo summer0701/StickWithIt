@@ -16,7 +16,7 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun evaluate(landmarks: Map<Int, PosePoint>): SquatPoseFeedback {
-        if (!requiredVisible(landmarks, upperBodyLandmarks)) return waitingFeedback("상체와 손목, 발목이 모두 보이게 카메라를 옆에 둬 주세요")
+        if (!requiredVisible(landmarks, waistPushupLandmarks)) return waitingFeedback("상체와 허리까지 보이게 카메라를 옆에 둬 주세요")
         val shoulder = poseMidpoint(landmarks[11]!!, landmarks[12]!!)
         val elbow = poseMidpoint(landmarks[13]!!, landmarks[14]!!)
         val wrist = poseMidpoint(landmarks[15]!!, landmarks[16]!!)
@@ -50,18 +50,23 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun updateRepCounter(landmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit) {
-        if (!requiredVisible(landmarks, upperBodyLandmarks)) return
+        if (!requiredVisible(landmarks, waistPushupLandmarks)) return
         val shoulder = poseMidpoint(landmarks[11] ?: return, landmarks[12] ?: return)
         val elbow = poseMidpoint(landmarks[13] ?: return, landmarks[14] ?: return)
+        val wrist = poseMidpoint(landmarks[15] ?: return, landmarks[16] ?: return)
+        val hip = poseMidpoint(landmarks[23] ?: return, landmarks[24] ?: return)
+        val torsoCenter = poseMidpoint(shoulder, hip)
         val elbowAngle = averageElbowAngle(landmarks)
         val downByHeight = abs(shoulder.y - elbow.y) < 0.08f
-        val isDown = elbowAngle <= 115f || downByHeight
-        val isUp = elbowAngle >= 150f
-        if (phase == PushupPhase.UP && isDown) {
+        val downByTorso = torsoCenter.y >= wrist.y - 0.05f || hip.y >= wrist.y - 0.03f
+        val upByTorso = torsoCenter.y <= wrist.y - 0.12f && hip.y <= wrist.y - 0.08f
+        val isDown = downByTorso || elbowAngle <= 115f || downByHeight
+        val isUp = upByTorso || elbowAngle >= 150f
+        if (phase == PushupPhase.UP && isDown && nowMs - lastRepAt > MIN_REP_INTERVAL_MS) {
             phase = PushupPhase.DOWN
             downStartedAt = nowMs
         }
-        if (phase == PushupPhase.DOWN && isUp && nowMs - downStartedAt > 180L && nowMs - lastRepAt > 900L) {
+        if (phase == PushupPhase.DOWN && isUp && nowMs - downStartedAt > 180L && nowMs - lastRepAt > MIN_REP_INTERVAL_MS) {
             phase = PushupPhase.UP
             lastRepAt = nowMs
             onRep()
@@ -87,7 +92,9 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     companion object {
+        private const val MIN_REP_INTERVAL_MS = 900L
         private val upperBodyLandmarks = listOf(11, 12, 13, 14, 15, 16)
+        private val waistPushupLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24)
         private val kneeBodyLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 25, 26)
     }
 }

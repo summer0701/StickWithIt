@@ -6305,13 +6305,22 @@ button:disabled {
   inset: 0;
   z-index: 60;
   display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 16px;
+  place-items: center;
   background: rgba(2, 8, 16, 0.78);
   color: #fff;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+.squat-countdown-content {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  transform-origin: center;
+}
+
+.pushup-ready-screen .squat-countdown-content {
+  transform: rotate(90deg);
 }
 
 .squat-countdown-overlay strong {
