@@ -6,6 +6,7 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     override val metric = PoseExerciseMetric.REPETITION
     private var phase = PushupPhase.UP
     private var lastRepAt = 0L
+    private var downStartedAt = 0L
 
     override fun update(rawLandmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit): SquatPoseFrame {
         val landmarks = smooth(rawLandmarks)
@@ -15,16 +16,17 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun evaluate(landmarks: Map<Int, PosePoint>): SquatPoseFeedback {
-        if (!requiredVisible(landmarks, requiredLandmarks)) return waitingFeedback("상체와 손목, 발목이 모두 보이게 카메라를 옆에 둬 주세요")
+        if (!requiredVisible(landmarks, upperBodyLandmarks)) return waitingFeedback("상체와 손목, 발목이 모두 보이게 카메라를 옆에 둬 주세요")
         val shoulder = poseMidpoint(landmarks[11]!!, landmarks[12]!!)
         val elbow = poseMidpoint(landmarks[13]!!, landmarks[14]!!)
         val wrist = poseMidpoint(landmarks[15]!!, landmarks[16]!!)
-        val hip = poseMidpoint(landmarks[23]!!, landmarks[24]!!)
-        val ankle = poseMidpoint(landmarks[27]!!, landmarks[28]!!)
+        val hasFullBody = requiredVisible(landmarks, fullBodyLandmarks)
+        val hip = if (hasFullBody) poseMidpoint(landmarks[23]!!, landmarks[24]!!) else shoulder
+        val ankle = if (hasFullBody) poseMidpoint(landmarks[27]!!, landmarks[28]!!) else wrist
         val elbowAngle = averageElbowAngle(landmarks)
-        val bodyLine = abs(hip.y - lineYAtX(shoulder, ankle, hip.x))
-        val hipTooLow = hip.y - lineYAtX(shoulder, ankle, hip.x) > 0.08f
-        val hipTooHigh = lineYAtX(shoulder, ankle, hip.x) - hip.y > 0.08f
+        val bodyLine = if (hasFullBody) abs(hip.y - lineYAtX(shoulder, ankle, hip.x)) else 0f
+        val hipTooLow = hasFullBody && hip.y - lineYAtX(shoulder, ankle, hip.x) > 0.08f
+        val hipTooHigh = hasFullBody && lineYAtX(shoulder, ankle, hip.x) - hip.y > 0.08f
         val shoulderNearElbow = abs(shoulder.y - elbow.y) < 0.08f
 
         val segmentLevels = mutableMapOf<PoseSegment, PoseFeedbackLevel>()
@@ -48,15 +50,18 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun updateRepCounter(landmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit) {
-        if (!requiredVisible(landmarks, requiredLandmarks)) return
+        if (!requiredVisible(landmarks, upperBodyLandmarks)) return
         val shoulder = poseMidpoint(landmarks[11] ?: return, landmarks[12] ?: return)
         val elbow = poseMidpoint(landmarks[13] ?: return, landmarks[14] ?: return)
         val elbowAngle = averageElbowAngle(landmarks)
         val downByHeight = abs(shoulder.y - elbow.y) < 0.08f
-        val isDown = elbowAngle <= 90f || downByHeight
+        val isDown = elbowAngle <= 115f || downByHeight
         val isUp = elbowAngle >= 150f
-        if (phase == PushupPhase.UP && isDown) phase = PushupPhase.DOWN
-        if (phase == PushupPhase.DOWN && isUp && nowMs - lastRepAt > 900L) {
+        if (phase == PushupPhase.UP && isDown) {
+            phase = PushupPhase.DOWN
+            downStartedAt = nowMs
+        }
+        if (phase == PushupPhase.DOWN && isUp && nowMs - downStartedAt > 180L && nowMs - lastRepAt > 900L) {
             phase = PushupPhase.UP
             lastRepAt = nowMs
             onRep()
@@ -82,6 +87,7 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     companion object {
-        private val requiredLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28)
+        private val upperBodyLandmarks = listOf(11, 12, 13, 14, 15, 16)
+        private val fullBodyLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 27, 28)
     }
 }

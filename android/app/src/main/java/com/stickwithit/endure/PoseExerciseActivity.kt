@@ -53,6 +53,9 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     protected abstract val defaultBaseAverageValue: Double
     protected abstract val musicQuery: String
     protected open val baseAverageExtraName: String = EXTRA_BASE_AVERAGE_REPS
+    protected open val previewScaleType: PreviewView.ScaleType = PreviewView.ScaleType.FILL_CENTER
+    protected open val requireStableFullBodyBeforeStart: Boolean = false
+    protected open val startCountdownSeconds: Int = 0
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: PoseSkeletonOverlayView
@@ -82,6 +85,9 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     private var lastFrameAt = 0L
     private var lastNarrationAt = 0L
     private var lastQualityAt = 0L
+    private var workoutStarted = true
+    private var stablePoseStartedAt = 0L
+    private var countdownStartedAt = 0L
     private var goodMs = 0L
     private var warningMs = 0L
     private var badMs = 0L
@@ -93,6 +99,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             .takeIf { it.isFinite() && it > 0.0 }
             ?: defaultBaseAverageValue
         startedAt = SystemClock.elapsedRealtime()
+        workoutStarted = startCountdownSeconds <= 0 && !requireStableFullBodyBeforeStart
         lastNarrationAt = startedAt
         lastQualityAt = startedAt
         ttsEngine.init()
@@ -129,8 +136,8 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             setBackgroundColor(Color.BLACK)
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
-        previewView = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
-        overlayView = PoseSkeletonOverlayView(this)
+        previewView = PreviewView(this).apply { scaleType = previewScaleType }
+        overlayView = PoseSkeletonOverlayView(this).apply { guideEnabled = requireStableFullBodyBeforeStart }
         finishButton = hudTextView(20f).apply {
             text = "종료하기"
             gravity = Gravity.CENTER
@@ -192,8 +199,11 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     }
 
     private fun applyHudLayout(root: FrameLayout) {
-        val sx = root.width / REF_WIDTH
-        val sy = root.height / REF_HEIGHT
+        val landscape = root.width > root.height
+        val refWidth = if (landscape) REF_HEIGHT else REF_WIDTH
+        val refHeight = if (landscape) REF_WIDTH else REF_HEIGHT
+        val sx = root.width / refWidth
+        val sy = root.height / refHeight
         val scale = minOf(sx, sy)
 
         fun place(view: View, width: Float, height: Float, left: Float? = null, top: Float? = null, right: Float? = null, bottom: Float? = null) {
@@ -213,13 +223,23 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         timerView.setTextPx(88f, scale)
         rankingCard.findViewWithTag<TextView>("rankingTitle")?.setTextPx(26f, scale)
         updateRankingCardLayout(sx, sy, scale)
-        place(finishButton, 190f, 84f, left = 30f, top = 96f)
-        place(countView, 240f, 234f, right = 26f, top = 192f)
-        place(feedbackView, 300f, 62f, left = 276f, top = 54f)
-        place(rankingCard, 312f, 454f, right = 36f, top = 916f)
-        place(musicButton, 88f, 88f, left = 38f, bottom = 470f)
-        place(metaView, 780f, 304f, left = 36f, bottom = 138f)
-        metaView.setPadding(px(28f, sx), px(24f, sy), px(28f, sx), px(24f, sy))
+        if (landscape) {
+            place(finishButton, 176f, 66f, left = 30f, top = 30f)
+            place(countView, 246f, 170f, right = 30f, top = 30f)
+            place(feedbackView, 620f, 70f, left = 612f, top = 26f)
+            place(rankingCard, 294f, 360f, right = 30f, top = 220f)
+            place(musicButton, 74f, 74f, left = 30f, bottom = 34f)
+            place(metaView, 620f, 146f, left = 612f, bottom = 34f)
+            metaView.setPadding(px(22f, sx), px(14f, sy), px(22f, sx), px(14f, sy))
+        } else {
+            place(finishButton, 190f, 84f, left = 30f, top = 96f)
+            place(countView, 240f, 234f, right = 26f, top = 192f)
+            place(feedbackView, 300f, 62f, left = 276f, top = 54f)
+            place(rankingCard, 312f, 454f, right = 36f, top = 916f)
+            place(musicButton, 88f, 88f, left = 38f, bottom = 470f)
+            place(metaView, 780f, 304f, left = 36f, bottom = 138f)
+            metaView.setPadding(px(28f, sx), px(24f, sy), px(28f, sx), px(24f, sy))
+        }
     }
 
     private fun buildRankingCard(): LinearLayout =
@@ -338,7 +358,13 @@ abstract class PoseExerciseActivity : ComponentActivity() {
                     val points = result.landmarks().firstOrNull()?.mapIndexed { index, landmark ->
                         index to PosePoint(landmark.x(), landmark.y(), landmark.visibility().orElse(1f))
                     }?.toMap().orEmpty()
+                    if (startCountdownSeconds > 0 && !workoutStarted && shouldHoldForStartCountdown(now)) return@setResultListener
                     if (points.isEmpty()) return@setResultListener
+                    if (requireStableFullBodyBeforeStart && !workoutStarted) {
+                        val frame = buildReadinessFrame(points, now).copy(modelTier = modelTier.label, fps = averageFps())
+                        runOnUiThread { updateReadinessHud(frame) }
+                        return@setResultListener
+                    }
                     val evaluated = evaluator.update(points, now) { reps += 1 }
                     val frame = evaluated.copy(modelTier = modelTier.label, fps = averageFps())
                     runOnUiThread { updateHud(frame) }
@@ -394,6 +420,91 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             return
         }
         speakSummaryIfNeeded(frame, displayElapsedSeconds, currentRank())
+    }
+
+    private fun updateReadinessHud(frame: SquatPoseFrame) {
+        overlayView.render(frame)
+        feedbackView.text = "${frame.feedback.label} · ${frame.feedback.detail}"
+        feedbackView.setTextColor(
+            when (frame.feedback.level) {
+                PoseFeedbackLevel.GOOD -> Color.rgb(136, 255, 150)
+                PoseFeedbackLevel.WARNING -> Color.rgb(255, 222, 95)
+                PoseFeedbackLevel.BAD -> Color.rgb(255, 100, 100)
+            }
+        )
+        countView.text = buildCountText(0)
+        timerView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        progressView.progress = 0
+    }
+
+    private fun shouldHoldForStartCountdown(now: Long): Boolean {
+        if (countdownStartedAt == 0L) countdownStartedAt = now
+        val durationMs = startCountdownSeconds * 1000L
+        val elapsedMs = now - countdownStartedAt
+        if (elapsedMs >= durationMs) {
+            workoutStarted = true
+            startedAt = now
+            lastNarrationAt = now
+            lastQualityAt = now
+            return false
+        }
+
+        val remaining = ((durationMs - elapsedMs + 999L) / 1000L).toInt().coerceIn(1, startCountdownSeconds)
+        runOnUiThread { updateCountdownHud(remaining) }
+        return true
+    }
+
+    private fun updateCountdownHud(remainingSeconds: Int) {
+        feedbackView.text = "준비 · 핸드폰을 가로로 눕히세요."
+        feedbackView.setTextColor(Color.rgb(255, 222, 95))
+        countView.text = buildCountdownText(remainingSeconds)
+        timerView.text = "00:00 / ${formatClock(targetDurationSeconds)}"
+        progressView.progress = 0
+    }
+
+    private fun buildReadinessFrame(landmarks: Map<Int, PosePoint>, now: Long): SquatPoseFrame {
+        val feedback = fullBodyReadinessFeedback(landmarks, now)
+        return SquatPoseFrame(landmarks = landmarks, feedback = feedback, modelTier = "", fps = 0f)
+    }
+
+    private fun fullBodyReadinessFeedback(landmarks: Map<Int, PosePoint>, now: Long): SquatPoseFeedback {
+        val visible = fullBodyStartLandmarks.all { index -> (landmarks[index]?.visibility ?: 0f) >= START_VISIBILITY }
+        if (!visible) {
+            stablePoseStartedAt = 0L
+            return SquatPoseFeedback(PoseFeedbackLevel.WARNING, "준비", "전신이 보이도록 카메라 앞에 서 주세요.")
+        }
+
+        val points = fullBodyStartLandmarks.mapNotNull { landmarks[it] }
+        val minX = points.minOf { it.x }
+        val maxX = points.maxOf { it.x }
+        val minY = points.minOf { it.y }
+        val maxY = points.maxOf { it.y }
+        val bodyWidth = maxX - minX
+        val bodyHeight = maxY - minY
+        val centerX = (minX + maxX) / 2f
+        val nearEdge = minX < 0.07f || maxX > 0.93f || minY < 0.04f || maxY > 0.96f
+        val detail = when {
+            nearEdge || bodyHeight > 0.88f || bodyWidth > 0.82f -> "카메라에서 너무 가깝습니다. 조금 뒤로 이동해주세요."
+            bodyHeight < 0.48f -> "조금 앞으로 와주세요."
+            centerX < 0.35f || centerX > 0.65f -> "중앙으로 이동해주세요."
+            else -> null
+        }
+
+        if (detail != null) {
+            stablePoseStartedAt = 0L
+            return SquatPoseFeedback(PoseFeedbackLevel.WARNING, "준비", detail)
+        }
+
+        if (stablePoseStartedAt == 0L) stablePoseStartedAt = now
+        val stableEnough = now - stablePoseStartedAt >= STABLE_POSE_START_MS
+        if (stableEnough) {
+            workoutStarted = true
+            startedAt = now
+            lastNarrationAt = now
+            lastQualityAt = now
+            return SquatPoseFeedback(PoseFeedbackLevel.GOOD, "좋음", "좋습니다!")
+        }
+        return SquatPoseFeedback(PoseFeedbackLevel.GOOD, "준비", "좋습니다! 자세를 유지하세요.")
     }
 
     private fun accumulateQuality(level: PoseFeedbackLevel) {
@@ -602,6 +713,8 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         private const val REQUEST_CAMERA = 6201
         private const val NARRATION_INTERVAL_MS = 15_000L
         private const val COMPLETION_NARRATION_DELAY_MS = 2_500L
+        private const val STABLE_POSE_START_MS = 1_500L
+        private const val START_VISIBILITY = 0.50f
         private const val REF_WIDTH = 852f
         private const val REF_HEIGHT = 1844f
         private const val BASE_DURATION_SECONDS = 120.0
@@ -612,6 +725,16 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             "G4 Elite" to 1.12,
             "G5 Legend" to 1.24
         )
+        private val fullBodyStartLandmarks = listOf(0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28)
+    }
+
+    private fun buildCountdownText(seconds: Int): SpannableString {
+        val countText = seconds.toString()
+        val text = "COUNTDOWN\n${countText}"
+        return SpannableString(text).apply {
+            val start = text.indexOf(countText)
+            setSpan(RelativeSizeSpan(2f), start, start + countText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
     }
 }
 

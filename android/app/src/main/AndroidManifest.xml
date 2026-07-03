@@ -41,7 +41,7 @@
         <activity
             android:name=".PushupPoseActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize"
-            android:screenOrientation="portrait"
+            android:screenOrientation="landscape"
             android:theme="@style/AppTheme.NoActionBar"
             android:exported="false" />
 

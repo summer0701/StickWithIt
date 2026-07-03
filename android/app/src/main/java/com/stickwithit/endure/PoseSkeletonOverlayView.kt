@@ -3,6 +3,7 @@ package com.stickwithit.endure
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 
@@ -19,7 +20,21 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
     private val pointPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
+    private val guidePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+        color = Color.argb(150, 135, 235, 26)
+    }
+    private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.argb(24, 135, 235, 26)
+    }
     private var frame: SquatPoseFrame? = null
+    var guideEnabled: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     fun render(nextFrame: SquatPoseFrame) {
         frame = nextFrame
@@ -28,6 +43,7 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
 
     override fun onDraw(canvas: android.graphics.Canvas) {
         super.onDraw(canvas)
+        if (guideEnabled) drawGuide(canvas)
         val current = frame ?: return
         connections.forEach { connection ->
             val start = current.landmarks[connection.from] ?: return@forEach
@@ -47,6 +63,17 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
     }
 
     private fun mirrorX(x: Float): Float = 1f - x
+
+    private fun drawGuide(canvas: android.graphics.Canvas) {
+        val left = width * 0.15f
+        val top = height * 0.08f
+        val right = width * 0.85f
+        val bottom = height * 0.92f
+        val rect = RectF(left, top, right, bottom)
+        canvas.drawRoundRect(rect, width * 0.08f, width * 0.08f, guideFillPaint)
+        canvas.drawRoundRect(rect, width * 0.08f, width * 0.08f, guidePaint)
+        canvas.drawLine(width * 0.5f, top, width * 0.5f, bottom, guidePaint)
+    }
 
     private fun colorFor(level: PoseFeedbackLevel, alpha: Int): Int =
         when (level) {

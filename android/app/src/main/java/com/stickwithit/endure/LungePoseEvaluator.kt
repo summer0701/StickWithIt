@@ -5,8 +5,6 @@ import kotlin.math.abs
 class LungePoseEvaluator : SmoothedPoseEvaluator() {
     override val metric = PoseExerciseMetric.REPETITION
     private var phase = LungePhase.STANDING
-    private var activeSide: LungeSide? = null
-    private var lastCountedSide: LungeSide? = null
     private var lastRepAt = 0L
 
     override fun update(rawLandmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit): SquatPoseFrame {
@@ -17,20 +15,23 @@ class LungePoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun evaluate(landmarks: Map<Int, PosePoint>): SquatPoseFeedback {
-        if (!requiredVisible(landmarks, requiredLandmarks)) {
+        if (visibleSides(landmarks).isEmpty()) {
             return waitingFeedback("전신이 보이도록 카메라 앞에 서 주세요.")
         }
 
         val leftKneeAngle = kneeAngle(landmarks, LungeSide.LEFT)
         val rightKneeAngle = kneeAngle(landmarks, LungeSide.RIGHT)
-        val torsoTilt = abs((landmarks[11]!!.y - landmarks[12]!!.y) + (landmarks[23]!!.y - landmarks[24]!!.y))
+        val torsoTilt = if (requiredVisible(landmarks, torsoLandmarks)) {
+            abs((landmarks[11]!!.y - landmarks[12]!!.y) + (landmarks[23]!!.y - landmarks[24]!!.y))
+        } else {
+            0f
+        }
         val side = detectLungeSide(leftKneeAngle, rightKneeAngle)
         val segmentLevels = mutableMapOf<PoseSegment, PoseFeedbackLevel>()
         val warnings = mutableListOf<String>()
 
         if (torsoTilt > 0.12f) warnings += "허리를 곧게 유지하세요."
         if (side == null && phase == LungePhase.STANDING) warnings += "왼쪽, 오른쪽을 번갈아 천천히 내려가세요."
-        if (side != null && side == lastCountedSide) warnings += "${side.opposite().label} 다리로 번갈아 수행하세요."
         if (side != null && frontKneePastToe(landmarks, side)) {
             warnings += "앞무릎은 발끝을 넘지 않습니다."
             segmentLevels[side.shinSegment] = PoseFeedbackLevel.WARNING
@@ -46,50 +47,53 @@ class LungePoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun updateRepCounter(landmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit) {
-        if (!requiredVisible(landmarks, requiredLandmarks)) return
+        if (visibleSides(landmarks).isEmpty()) return
 
         val leftKneeAngle = kneeAngle(landmarks, LungeSide.LEFT)
         val rightKneeAngle = kneeAngle(landmarks, LungeSide.RIGHT)
         val side = detectLungeSide(leftKneeAngle, rightKneeAngle)
-        val standing = leftKneeAngle > 152f && rightKneeAngle > 152f
+        val standing = listOfNotNull(leftKneeAngle, rightKneeAngle).all { it > 145f }
 
-        if (phase == LungePhase.STANDING && side != null && side != lastCountedSide) {
+        if (phase == LungePhase.STANDING && side != null && nowMs - lastRepAt > 650L) {
             phase = LungePhase.DOWN
-            activeSide = side
+            lastRepAt = nowMs
+            onRep()
         }
 
-        if (phase == LungePhase.DOWN && standing && nowMs - lastRepAt > 650L) {
-            val completedSide = activeSide
+        if (phase == LungePhase.DOWN && standing) {
             phase = LungePhase.STANDING
-            activeSide = null
-            if (completedSide != null) {
-                lastCountedSide = completedSide
-                lastRepAt = nowMs
-                onRep()
-            }
         }
     }
 
-    private fun detectLungeSide(leftKneeAngle: Float, rightKneeAngle: Float): LungeSide? {
-        val leftDown = leftKneeAngle in 70f..122f && rightKneeAngle > 128f
-        val rightDown = rightKneeAngle in 70f..122f && leftKneeAngle > 128f
+    private fun detectLungeSide(leftKneeAngle: Float?, rightKneeAngle: Float?): LungeSide? {
+        val leftDown = leftKneeAngle != null && leftKneeAngle in 55f..135f && (rightKneeAngle == null || rightKneeAngle > 112f)
+        val rightDown = rightKneeAngle != null && rightKneeAngle in 55f..135f && (leftKneeAngle == null || leftKneeAngle > 112f)
         return when {
             leftDown && !rightDown -> LungeSide.LEFT
             rightDown && !leftDown -> LungeSide.RIGHT
+            leftDown && rightDown -> if ((leftKneeAngle ?: 180f) <= (rightKneeAngle ?: 180f)) LungeSide.LEFT else LungeSide.RIGHT
             else -> null
         }
     }
 
-    private fun kneeAngle(landmarks: Map<Int, PosePoint>, side: LungeSide): Float =
-        poseAngle(landmarks[side.hip]!!, landmarks[side.knee]!!, landmarks[side.ankle]!!)
+    private fun kneeAngle(landmarks: Map<Int, PosePoint>, side: LungeSide): Float? =
+        if (requiredVisible(landmarks, side.landmarks)) {
+            poseAngle(landmarks[side.hip]!!, landmarks[side.knee]!!, landmarks[side.ankle]!!)
+        } else {
+            null
+        }
 
     private fun frontKneePastToe(landmarks: Map<Int, PosePoint>, side: LungeSide): Boolean {
+        if (!requiredVisible(landmarks, side.landmarks)) return false
         val hip = landmarks[side.hip]!!
         val knee = landmarks[side.knee]!!
         val ankle = landmarks[side.ankle]!!
         val forward = if (ankle.x >= hip.x) 1 else -1
         return (knee.x - ankle.x) * forward > 0.06f
     }
+
+    private fun visibleSides(landmarks: Map<Int, PosePoint>): List<LungeSide> =
+        LungeSide.entries.filter { side -> requiredVisible(landmarks, side.landmarks) }
 
     private enum class LungePhase {
         STANDING,
@@ -106,10 +110,10 @@ class LungePoseEvaluator : SmoothedPoseEvaluator() {
         LEFT("왼쪽", 23, 25, 27, PoseSegment.LEFT_SHIN),
         RIGHT("오른쪽", 24, 26, 28, PoseSegment.RIGHT_SHIN);
 
-        fun opposite(): LungeSide = if (this == LEFT) RIGHT else LEFT
+        val landmarks: List<Int> get() = listOf(hip, knee, ankle)
     }
 
     companion object {
-        private val requiredLandmarks = listOf(11, 12, 23, 24, 25, 26, 27, 28)
+        private val torsoLandmarks = listOf(11, 12, 23, 24)
     }
 }

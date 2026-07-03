@@ -1,11 +1,16 @@
 package com.stickwithit.endure
 
+import androidx.camera.view.PreviewView
+
 class PushupPoseActivity : PoseExerciseActivity() {
     override val exerciseName = "푸쉬업"
     override val evaluator = PushupPoseEvaluator()
     override val completionAction = ACTION_PUSHUP_FINISHED
     override val defaultBaseAverageValue = 25.0
     override val musicQuery = "푸쉬업 운동할 때 듣기 좋은 음악"
+    override val previewScaleType = PreviewView.ScaleType.FIT_CENTER
+    override val requireStableFullBodyBeforeStart = false
+    override val startCountdownSeconds = 3
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.PUSHUP)
 
