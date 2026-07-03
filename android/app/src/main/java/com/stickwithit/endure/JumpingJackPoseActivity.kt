@@ -1,5 +1,7 @@
 package com.stickwithit.endure
 
+import android.content.pm.ActivityInfo
+
 class JumpingJackPoseActivity : PoseExerciseActivity() {
     override val exerciseName = "점핑잭"
     override val evaluator = JumpingJackPoseEvaluator()
@@ -8,9 +10,22 @@ class JumpingJackPoseActivity : PoseExerciseActivity() {
     override val musicQuery = "점핑잭 운동할 때 듣기 좋은 음악"
     override val requireStableFullBodyBeforeStart = true
     override val startCountdownSeconds = 5
-    override val readinessMissingDetail = "머리부터 발끝까지 화면에 들어오게 서 주세요."
+    override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    override val useGameHud = true
+    override val gameHudLabel = "JUMPING JACK"
+    override val topInstructionText = "준비 · 전신이 모두 보이도록 카메라를 멀리 두세요."
+    override val readinessMissingDetail = "전신이 모두 보이도록 카메라를 멀리 두세요."
     override val readinessAcceptedDetail = "좋습니다. 5초 뒤 점핑잭을 시작합니다."
     override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
+    override val goodFeedbackLines = listOf("✔ 팔 높이 OK", "✔ 리듬 GOOD", "🔥 Excellent")
+    override val warningFeedbackLines = listOf("▲ 팔을 끝까지 올려주세요", "✔ 리듬 GOOD")
+    override val badFeedbackLines = listOf("▲ 팔과 발을 크게 움직여주세요", "▲ 리듬을 다시 맞춰주세요")
+    override val guideBounds = PoseSkeletonOverlayView.GuideBounds(
+        left = 0.09f,
+        top = 0.11f,
+        right = 0.91f,
+        bottom = 0.87f
+    )
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.JUMPING_JACK)
 

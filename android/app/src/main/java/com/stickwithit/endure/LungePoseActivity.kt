@@ -1,5 +1,7 @@
 package com.stickwithit.endure
 
+import android.content.pm.ActivityInfo
+
 class LungePoseActivity : PoseExerciseActivity() {
     override val exerciseName = "런지"
     override val evaluator = LungePoseEvaluator()
@@ -8,9 +10,23 @@ class LungePoseActivity : PoseExerciseActivity() {
     override val musicQuery = "런지 운동할 때 듣기 좋은 음악"
     override val requireStableFullBodyBeforeStart = true
     override val startCountdownSeconds = 5
-    override val readinessMissingDetail = "전신이 보이도록 카메라 앞에 서 주세요."
+    override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    override val useGameHud = true
+    override val gameHudLabel = "LUNGES"
+    override val topInstructionText = "준비 · 다리 전체가 보이도록 카메라를 세워주세요."
+    override val readinessMissingDetail = "다리 전체가 보이도록 카메라를 세워주세요."
     override val readinessAcceptedDetail = "좋습니다. 5초 뒤 런지를 시작합니다."
     override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
+    override val goodFeedbackLines = listOf("✔ 오른쪽 런지", "✔ 왼쪽 런지", "✔ 상체 OK")
+    override val warningFeedbackLines = listOf("▲ 무릎 각도 부족", "▲ 상체를 세워주세요")
+    override val badFeedbackLines = listOf("▲ 앞무릎 위치 확인", "▲ 천천히 다시 올라오세요")
+    override val guideBounds = PoseSkeletonOverlayView.GuideBounds(
+        left = 0.16f,
+        top = 0.13f,
+        right = 0.84f,
+        bottom = 0.86f
+    )
+    override val guideFootMarkersEnabled = true
 
     private val coachSession = RepetitionGhostRaceCoachNarration.Session(RepetitionRaceExercise.LUNGE)
 

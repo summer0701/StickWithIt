@@ -48,6 +48,11 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
             field = value
             invalidate()
         }
+    var guideFootMarkersEnabled: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     fun render(nextFrame: SquatPoseFrame) {
         frame = nextFrame
@@ -92,6 +97,30 @@ class PoseSkeletonOverlayView @JvmOverloads constructor(
         canvas.drawRoundRect(rect, radius, radius, guideFillPaint)
         canvas.drawRoundRect(rect, radius, radius, guidePaint)
         canvas.drawLine(width * 0.5f, top, width * 0.5f, bottom, guidePaint)
+        if (guideFootMarkersEnabled) drawFootMarkers(canvas, rect)
+    }
+
+    private fun drawFootMarkers(canvas: android.graphics.Canvas, rect: RectF) {
+        val footWidth = rect.width() * 0.18f
+        val footHeight = rect.height() * 0.045f
+        val y = rect.bottom - rect.height() * 0.12f
+        val leftCenter = rect.left + rect.width() * 0.34f
+        val rightCenter = rect.left + rect.width() * 0.66f
+        val markerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.argb(48, 124, 255, 77)
+        }
+        val markerStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+            color = Color.argb(120, 124, 255, 77)
+            pathEffect = DashPathEffect(floatArrayOf(14f, 10f), 0f)
+        }
+        listOf(leftCenter, rightCenter).forEach { cx ->
+            val foot = RectF(cx - footWidth / 2f, y - footHeight / 2f, cx + footWidth / 2f, y + footHeight / 2f)
+            canvas.drawOval(foot, markerPaint)
+            canvas.drawOval(foot, markerStroke)
+        }
     }
 
     private fun colorFor(level: PoseFeedbackLevel, alpha: Int): Int =

@@ -6,14 +6,15 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
-class SquatPoseEvaluator {
+class SquatPoseEvaluator : PoseExerciseEvaluator {
+    override val metric = PoseExerciseMetric.REPETITION
     private var smoothed: MutableMap<Int, PosePoint> = mutableMapOf()
     private val highlightUntil = mutableMapOf<PoseSegment, Long>()
     private var ankleCenter: PosePoint? = null
     private var squatPhase = SquatPhase.UP
     private var lastRepAt = 0L
 
-    fun update(
+    override fun update(
         rawLandmarks: Map<Int, PosePoint>,
         nowMs: Long,
         onRep: () -> Unit
