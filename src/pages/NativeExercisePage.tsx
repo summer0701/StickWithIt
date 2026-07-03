@@ -27,7 +27,6 @@ const ghostDistance = [
   { id: 'G4', status: 'Elite', tone: 'average' },
   { id: '나', status: '', tone: 'current' },
   { id: 'G2', status: 'Rookie', tone: 'yesterday' },
-  { id: 'G1', status: 'Starter', tone: 'worst' },
 ];
 
 export default function NativeExercisePage({
@@ -166,7 +165,7 @@ export default function NativeExercisePage({
           <h2>{title} 자세 안내</h2>
           <p>{guide}</p>
         </div>
-        <button className="squat-icon-button" type="button" onClick={openMusic} aria-label="운동 음악 열기">
+        <button className="squat-icon-button" type="button" onClick={openMusic} aria-label="음성 안내">
           <Headphones size={24} />
         </button>
       </section>
