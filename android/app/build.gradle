@@ -31,6 +31,11 @@ android {
     kotlinOptions {
         jvmTarget = '21'
     }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
 }
 
 repositories {
@@ -62,6 +67,106 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+abstract class CheckElfLoadAlignmentTask extends DefaultTask {
+    @InputFile
+    abstract RegularFileProperty getBundleOrApk()
+
+    @Input
+    abstract Property<Integer> getRequiredAlignment()
+
+    @TaskAction
+    void checkAlignment() {
+        def archive = bundleOrApk.get().asFile
+        def required = requiredAlignment.get()
+        def failures = []
+        def checked = []
+
+        new java.util.zip.ZipFile(archive).withCloseable { zip ->
+            zip.entries().findAll { !it.directory && it.name.endsWith('.so') }.each { entry ->
+                def bytes = zip.getInputStream(entry).bytes
+                def alignments = CheckElfLoadAlignmentTask.loadSegmentAlignments(bytes)
+                checked << [name: entry.name, alignments: alignments]
+                def badAlignments = alignments.findAll { it < required }
+                if (!badAlignments.isEmpty()) {
+                    failures << "${entry.name}: UNALIGNED ${badAlignments.collect { '0x' + Long.toHexString(it) }.join(', ')}"
+                }
+            }
+        }
+
+        if (checked.isEmpty()) {
+            logger.lifecycle("No native .so libraries found in ${archive.name}.")
+            return
+        }
+
+        logger.lifecycle("Checked ${checked.size()} native .so libraries in ${archive.name}.")
+        checked.each { item ->
+            logger.lifecycle("  ${item.name}: ${item.alignments.collect { '0x' + Long.toHexString(it) }.join(', ')}")
+        }
+
+        if (!failures.isEmpty()) {
+            throw new GradleException(
+                "ELF LOAD segment alignment check failed. Required >= 0x${Integer.toHexString(required)}:\n" +
+                failures.join('\n')
+            )
+        }
+    }
+
+    private static List<Long> loadSegmentAlignments(byte[] bytes) {
+        if (bytes.length < 64 || bytes[0] != 0x7f || bytes[1] != 0x45 || bytes[2] != 0x4c || bytes[3] != 0x46) {
+            throw new GradleException("Invalid ELF file")
+        }
+
+        boolean is64Bit = bytes[4] == 2
+        boolean littleEndian = bytes[5] == 1
+        if (bytes[5] != 1 && bytes[5] != 2) {
+            throw new GradleException("Unsupported ELF byte order")
+        }
+
+        long programHeaderOffset = readUnsigned(bytes, is64Bit ? 32 : 28, is64Bit ? 8 : 4, littleEndian)
+        int programHeaderEntrySize = (int) readUnsigned(bytes, is64Bit ? 54 : 42, 2, littleEndian)
+        int programHeaderCount = (int) readUnsigned(bytes, is64Bit ? 56 : 44, 2, littleEndian)
+        int alignOffset = is64Bit ? 48 : 28
+        def alignments = []
+
+        for (int i = 0; i < programHeaderCount; i++) {
+            int offset = (int) programHeaderOffset + i * programHeaderEntrySize
+            long type = readUnsigned(bytes, offset, 4, littleEndian)
+            if (type == 1L) {
+                alignments << readUnsigned(bytes, offset + alignOffset, is64Bit ? 8 : 4, littleEndian)
+            }
+        }
+
+        return alignments
+    }
+
+    private static long readUnsigned(byte[] bytes, int offset, int size, boolean littleEndian) {
+        long value = 0
+        for (int i = 0; i < size; i++) {
+            int index = littleEndian ? offset + i : offset + size - 1 - i
+            value |= (bytes[index] & 0xffL) << (8 * i)
+        }
+        return value
+    }
+}
+
+tasks.register('checkDebugElfAlignment', CheckElfLoadAlignmentTask) {
+    dependsOn 'assembleDebug'
+    bundleOrApk = layout.buildDirectory.file('outputs/apk/debug/app-debug.apk')
+    requiredAlignment = 0x4000
+}
+
+tasks.register('checkReleaseElfAlignment', CheckElfLoadAlignmentTask) {
+    dependsOn 'assembleRelease'
+    bundleOrApk = layout.buildDirectory.file('outputs/apk/release/app-release-unsigned.apk')
+    requiredAlignment = 0x4000
+}
+
+tasks.register('checkReleaseBundleElfAlignment', CheckElfLoadAlignmentTask) {
+    dependsOn 'bundleRelease'
+    bundleOrApk = layout.buildDirectory.file('outputs/bundle/release/app-release.aab')
+    requiredAlignment = 0x4000
+}
 
 try {
     def servicesJSON = file('google-services.json')

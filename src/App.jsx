@@ -10,6 +10,7 @@ import PlankPage from './pages/PlankPage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
+import appIcon from './assets/icon_si.png';
 import { supabase } from './lib/supabaseClient';
 import { ghostDifficultyTargetKm, readGhostDifficulty } from './lib/ghostSettings';
 import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth';
@@ -93,7 +94,11 @@ export default function App() {
   }, [page]);
 
   if (loading) {
-    return <main className="screen center">불러오는 중...</main>;
+    return (
+      <main className="app-loading" aria-label="앱 로딩">
+        <img src={appIcon} alt="" />
+      </main>
+    );
   }
 
   if (!user) {
