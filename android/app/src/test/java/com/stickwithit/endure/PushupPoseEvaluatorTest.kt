@@ -19,6 +19,21 @@ class PushupPoseEvaluatorTest {
         assertEquals(1, reps)
     }
 
+    @Test
+    fun countsShallowPushupMovementMoreEasily() {
+        val evaluator = PushupPoseEvaluator()
+        var reps = 0
+        var now = 1_000L
+
+        repeatFrame(evaluator, pushupLandmarks(torsoY = 0.54f), now) { reps += 1 }
+        now += 800L
+        repeatFrame(evaluator, pushupLandmarks(torsoY = 0.61f), now) { reps += 1 }
+        now += 800L
+        repeatFrame(evaluator, pushupLandmarks(torsoY = 0.55f), now) { reps += 1 }
+
+        assertEquals(1, reps)
+    }
+
     private fun repeatFrame(
         evaluator: PushupPoseEvaluator,
         landmarks: Map<Int, PosePoint>,

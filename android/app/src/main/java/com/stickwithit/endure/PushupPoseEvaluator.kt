@@ -7,6 +7,8 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
     private var phase = PushupPhase.UP
     private var lastRepAt = 0L
     private var downStartedAt = 0L
+    private var topTorsoY: Float? = null
+    private var bottomTorsoY: Float? = null
 
     override fun update(rawLandmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit): SquatPoseFrame {
         val landmarks = smooth(rawLandmarks)
@@ -56,19 +58,27 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
         val wrist = poseMidpoint(landmarks[15] ?: return, landmarks[16] ?: return)
         val hip = poseMidpoint(landmarks[23] ?: return, landmarks[24] ?: return)
         val torsoCenter = poseMidpoint(shoulder, hip)
+        val torsoY = torsoCenter.y
+        topTorsoY = topTorsoY?.let { minOf(it, torsoY) } ?: torsoY
         val elbowAngle = averageElbowAngle(landmarks)
         val downByHeight = abs(shoulder.y - elbow.y) < 0.08f
+        val downByMovement = torsoY - (topTorsoY ?: torsoY) >= EASY_DOWN_DELTA
         val downByTorso = torsoCenter.y >= wrist.y - 0.05f || hip.y >= wrist.y - 0.03f
-        val upByTorso = torsoCenter.y <= wrist.y - 0.12f && hip.y <= wrist.y - 0.08f
-        val isDown = downByTorso || elbowAngle <= 115f || downByHeight
-        val isUp = upByTorso || elbowAngle >= 150f
+        val upByMovement = (bottomTorsoY ?: torsoY) - torsoY >= EASY_UP_DELTA
+        val upByTorso = torsoCenter.y <= wrist.y - 0.09f && hip.y <= wrist.y - 0.05f
+        val isDown = downByMovement || downByTorso || elbowAngle <= 125f || downByHeight
+        val isUp = upByMovement || upByTorso || elbowAngle >= 140f
         if (phase == PushupPhase.UP && isDown && nowMs - lastRepAt > MIN_REP_INTERVAL_MS) {
             phase = PushupPhase.DOWN
             downStartedAt = nowMs
+            bottomTorsoY = torsoY
         }
+        if (phase == PushupPhase.DOWN) bottomTorsoY = bottomTorsoY?.let { maxOf(it, torsoY) } ?: torsoY
         if (phase == PushupPhase.DOWN && isUp && nowMs - downStartedAt > 180L && nowMs - lastRepAt > MIN_REP_INTERVAL_MS) {
             phase = PushupPhase.UP
             lastRepAt = nowMs
+            topTorsoY = torsoY
+            bottomTorsoY = null
             onRep()
         }
     }
@@ -93,6 +103,8 @@ class PushupPoseEvaluator : SmoothedPoseEvaluator() {
 
     companion object {
         private const val MIN_REP_INTERVAL_MS = 900L
+        private const val EASY_DOWN_DELTA = 0.045f
+        private const val EASY_UP_DELTA = 0.035f
         private val upperBodyLandmarks = listOf(11, 12, 13, 14, 15, 16)
         private val waistPushupLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24)
         private val kneeBodyLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 25, 26)
