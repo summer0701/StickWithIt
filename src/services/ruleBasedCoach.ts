@@ -1,4 +1,3 @@
-import { runningCoachPhrases } from '../data/runningCoachPhrases';
 import { applyGhostSettingsToRunners, defaultGhostDifficulty, defaultGhostSettings, ghostDifficultyTargetKm } from '../lib/ghostSettings';
 import { createHeuristicGhostPack, ghostPackRouteToRunner } from '../lib/naturalGhostPack';
 
@@ -237,14 +236,13 @@ export function rememberSpokenMessage(spokenMessages, message, limit = DEFAULT_R
 }
 
 function buildCue(category, spokenMessages) {
-  const phrases = runningCoachPhrases[category] ?? runningCoachPhrases.warmup;
-  const fallbackText = pickFresh(phrases, spokenMessages);
+  void spokenMessages;
   return {
     type: category,
     category,
     priority: priorityForCategory(category),
-    fallbackText,
-    message: fallbackText,
+    fallbackText: null,
+    message: null,
   };
 }
 
@@ -292,10 +290,6 @@ function priorityForCategory(category) {
 
 function ghostStatusFromCategory(category) {
   return String(category ?? '').split('_').pop();
-}
-
-function pickFresh(messages, spokenMessages) {
-  return messages.find((message) => !spokenMessages.includes(message)) ?? messages[0];
 }
 
 function pickPriorityGhost(comparisons) {

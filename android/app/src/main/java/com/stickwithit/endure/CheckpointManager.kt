@@ -20,7 +20,6 @@ class CheckpointManager(
     }
 
     private var lastCheckpointElapsedSeconds = 0
-    private var lastCoachElapsedSeconds = 0
 
     fun maybeCreateCheckpoint(
         sessionId: String,
@@ -33,8 +32,7 @@ class CheckpointManager(
         val paceSecondsPerKm = if (distanceKm > 0.0) (elapsedSeconds / distanceKm).roundToInt() else null
         val elapsedHours = elapsedSeconds / 3600.0
         val averageSpeedKmh = if (elapsedHours > 0.0) distanceKm / elapsedHours else 0.0
-        val shouldCoach = force || elapsedSeconds - lastCoachElapsedSeconds >= COACH_INTERVAL_SECONDS
-        val cue = if (shouldCoach) coach.createCue(
+        val cue = if (!force) coach.createCue(
             elapsedSeconds = elapsedSeconds,
             distanceMeters = sample.distanceMeters,
             paceSecondsPerKm = paceSecondsPerKm,
@@ -45,7 +43,6 @@ class CheckpointManager(
 
         if (!force && elapsedSeconds - lastCheckpointElapsedSeconds < CHECKPOINT_INTERVAL_SECONDS) {
             cue?.let {
-                lastCoachElapsedSeconds = elapsedSeconds
                 scope.launch {
                     withContext(Dispatchers.Main) {
                         ttsEngine.speak(it)
@@ -72,7 +69,6 @@ class CheckpointManager(
         scope.launch {
             withContext(Dispatchers.Main) {
                 cue?.let {
-                    lastCoachElapsedSeconds = elapsedSeconds
                     ttsEngine.speak(it)
                 }
             }

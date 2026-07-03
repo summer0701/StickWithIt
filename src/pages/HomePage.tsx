@@ -24,6 +24,7 @@ import { getHomeWorkoutSummary, type HomeWorkoutSummary } from '../lib/homeWorko
 import { isTestUserId } from '../lib/testAuth';
 import { achievementRate } from '../lib/runningProgress';
 import dashboardBg from '../assets/home-dashboard-bg.webp';
+import podiumBg from '../assets/home-top3-podium.webp';
 import heroImage from '../assets/iron-five-hero.webp';
 
 type HomePageProps = {
@@ -536,7 +537,7 @@ function CircularProgress({ value }: { value: number }) {
 
 function RankingPodium({ onRanking }: { onRanking: () => void }) {
   return (
-    <section className="ranking-card glass-panel">
+    <section className="ranking-card glass-panel" style={{ '--home-podium-bg': `url(${podiumBg})` } as React.CSSProperties}>
       <div className="ranking-title">
         <div>
           <span>오늘의 랭킹</span>

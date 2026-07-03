@@ -142,16 +142,25 @@ describe('ruleBasedCoach', () => {
     expect(cue.category).toBe('one_km_left');
   });
 
-  it('does not repeat an identical fallback phrase when alternatives exist', () => {
-    const spokenMessages = rememberSpokenMessage([], '3초 차이다. 거의 붙었다.');
+  it('keeps recent spoken messages bounded for native handoff bookkeeping', () => {
+    const spokenMessages = Array.from({ length: 12 }, (_, index) => `message-${index + 1}`);
+    const remembered = rememberSpokenMessage(spokenMessages, 'message-13');
+
+    expect(remembered).toHaveLength(12);
+    expect(remembered[0]).toBe('message-2');
+    expect(remembered.at(-1)).toBe('message-13');
+  });
+
+  it('does not use legacy cached phrase fallbacks', () => {
     const cue = ruleBasedCoach({
       currentCheckpoint: { elapsed_seconds: 300, distance_meters: 1030, pace_seconds_per_km: 291 },
       recentRuns,
       recentCheckpoints,
-      spokenMessages,
     });
 
-    expect(cue.fallbackText).not.toBe('3초 차이다. 거의 붙었다.');
+    expect(cue.fallbackText).toBeNull();
+    expect(cue.message).toBeNull();
+    expect(cue.comparisonText).toContain('G4');
   });
 
   it('uses only completed runs as ghost candidates', () => {

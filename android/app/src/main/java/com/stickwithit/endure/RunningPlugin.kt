@@ -131,6 +131,12 @@ class RunningPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun cancelRun(call: PluginCall) {
+        sendAction(RunningForegroundService.ACTION_CANCEL)
+        call.resolve()
+    }
+
+    @PluginMethod
     fun pauseRun(call: PluginCall) {
         sendAction(RunningForegroundService.ACTION_PAUSE)
         call.resolve()

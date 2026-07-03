@@ -1,40 +1,18 @@
 import argparse
 import asyncio
 import json
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 
 import edge_tts
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PHRASE_MODULE = ROOT / "src" / "data" / "runningCoachPhrases.js"
 OUTPUT_DIR = ROOT / "public" / "tts-cache"
 DEFAULT_VOICE = "ko-KR-SunHiNeural"
 
 
 def load_phrase_items():
-    node = shutil.which("node")
-    if not node:
-        raise RuntimeError("node executable was not found.")
-
-    script = (
-        f"import('{PHRASE_MODULE.as_uri()}').then((mod) => "
-        "console.log(JSON.stringify({ voice: mod.RUNNING_COACH_VOICE, items: mod.getCoachPhraseItems() })))"
-        ".catch((error) => { console.error(error); process.exit(1); });"
-    )
-    result = subprocess.run(
-        [node, "--input-type=module", "-e", script],
-        cwd=ROOT,
-        text=True,
-        encoding="utf-8",
-        capture_output=True,
-        check=True,
-    )
-    payload = json.loads(result.stdout)
-    return payload.get("voice") or DEFAULT_VOICE, payload["items"]
+    return DEFAULT_VOICE, []
 
 
 async def generate(text, voice, output):
@@ -83,6 +61,8 @@ async def generate_all(items, voice, force):
         "\n\n".join(f"{item['key']}.mp3\n{item['text']}" for item in items) + "\n",
         encoding="utf-8",
     )
+    if not items:
+        print("no cached running coach phrases remain; wrote empty TTS cache manifest")
     print(f"wrote {manifest_path.relative_to(ROOT)}")
     print(f"wrote {dialogues_path.relative_to(ROOT)}")
     print(f"wrote {script_path.relative_to(ROOT)}")
@@ -103,8 +83,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except subprocess.CalledProcessError as error:
-        sys.stderr.write(error.stderr or str(error))
-        sys.exit(error.returncode)
+    main()

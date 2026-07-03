@@ -36,6 +36,7 @@ class RunningForegroundService : Service() {
     private var paused = false
     private var lastSample: LocationSample? = null
     private var lastElapsedCoachSeconds = 0
+    @Volatile private var stopping = false
 
     override fun onCreate() {
         super.onCreate()
@@ -47,9 +48,16 @@ class RunningForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        if (stopping && action != ACTION_START && action != ACTION_CANCEL) {
+            broadcastDebug("action_ignored_while_stopping:$action")
+            return START_NOT_STICKY
+        }
+
+        when (action) {
             ACTION_START -> startRun(intent)
             ACTION_STOP -> stopRun()
+            ACTION_CANCEL -> cancelRun()
             ACTION_PAUSE -> paused = true
             ACTION_RESUME -> paused = false
             ACTION_SPEAK -> intent.getStringExtra(EXTRA_TEXT)?.let { ttsEngine.speak(it) }
@@ -69,7 +77,7 @@ class RunningForegroundService : Service() {
                 stopSelf(startId)
                 return START_NOT_STICKY
             }
-            else -> broadcastDebug("unknown_action_ignored:${intent.action}")
+            else -> broadcastDebug("unknown_action_ignored:$action")
         }
         return START_STICKY
     }
@@ -78,7 +86,7 @@ class RunningForegroundService : Service() {
         checkpointTickerJob?.cancel()
         locationTracker?.stop()
         ttsEngine.shutdown()
-        wakeLock?.takeIf { it.isHeld }?.release()
+        releaseWakeLock()
         scope.cancel()
         super.onDestroy()
     }
@@ -86,6 +94,7 @@ class RunningForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun startRun(intent: Intent?) {
+        stopping = false
         sessionId = intent?.getStringExtra(EXTRA_SESSION_ID).orEmpty().ifBlank { "native-${System.currentTimeMillis()}" }
         targetDistanceMeters = intent?.getDoubleExtra(EXTRA_TARGET_DISTANCE_METERS, 0.0) ?: 0.0
         ghostRunners = GhostRunnerParser.parse(intent?.getStringExtra(EXTRA_GHOST_RUNNERS_JSON))
@@ -118,30 +127,48 @@ class RunningForegroundService : Service() {
         ).also { it.start() }
         startCheckpointTicker()
 
-        ttsEngine.speak(coach.startCue(ghostRunners))
-        broadcastDebug("coach_start_tts_requested")
+        coach.startCue(ghostRunners)?.let {
+            ttsEngine.speak(it)
+            broadcastDebug("coach_start_tts_requested")
+        }
         broadcastDebug("run_started:$sessionId")
     }
 
     private fun stopRun() {
+        if (stopping) return
+        stopping = true
         checkpointTickerJob?.cancel()
+        checkpointTickerJob = null
         val sample = lastSample
         if (sample != null && sessionId.isNotBlank()) {
             checkpointManager?.maybeCreateCheckpoint(sessionId, elapsedSeconds(), sample, targetDistanceMeters, force = true)
         }
         locationTracker?.stop()
-        ttsEngine.speak(
-            coach.completedCue(
+        locationTracker = null
+        coach.completedCue(
                 elapsedSeconds = elapsedSeconds(),
                 distanceMeters = sample?.distanceMeters ?: 0.0,
                 ghostRunners = ghostRunners
-            )
-        )
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        )?.let { ttsEngine.speak(it) }
+        stopForegroundCompat()
         scope.launch {
             delay(2_500L)
+            releaseWakeLock()
             stopSelf()
         }
+    }
+
+    private fun cancelRun() {
+        if (stopping) return
+        stopping = true
+        checkpointTickerJob?.cancel()
+        checkpointTickerJob = null
+        locationTracker?.stop()
+        locationTracker = null
+        ttsEngine.stop()
+        stopForegroundCompat()
+        releaseWakeLock()
+        stopSelf()
     }
 
     private fun startCheckpointTicker() {
@@ -238,6 +265,15 @@ class RunningForegroundService : Service() {
             .build()
     }
 
+    private fun stopForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val channel = NotificationChannel(CHANNEL_ID, "Running coach", NotificationManager.IMPORTANCE_LOW)
@@ -245,6 +281,7 @@ class RunningForegroundService : Service() {
     }
 
     private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "StickWithIt:RunningWakeLock").apply {
             setReferenceCounted(false)
@@ -252,11 +289,17 @@ class RunningForegroundService : Service() {
         }
     }
 
+    private fun releaseWakeLock() {
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
+    }
+
     companion object {
         const val CHANNEL_ID = "running_coach"
         const val NOTIFICATION_ID = 8801
         const val ACTION_START = "com.stickwithit.endure.RUN_START"
         const val ACTION_STOP = "com.stickwithit.endure.RUN_STOP"
+        const val ACTION_CANCEL = "com.stickwithit.endure.RUN_CANCEL"
         const val ACTION_PAUSE = "com.stickwithit.endure.RUN_PAUSE"
         const val ACTION_RESUME = "com.stickwithit.endure.RUN_RESUME"
         const val ACTION_SPEAK = "com.stickwithit.endure.RUN_SPEAK"

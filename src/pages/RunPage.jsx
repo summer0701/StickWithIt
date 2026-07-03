@@ -33,7 +33,7 @@ import runningHudBg from '../assets/running-hud-bg.jpg';
 const CHECKPOINT_INTERVAL_SECONDS = 60;
 const FINISH_HOLD_MS = 3000;
 const HOLD_RING_CIRCUMFERENCE = 264;
-const START_COACH_TEXT = '고스트 런 시작. 오늘의 상대는 어제의 나다.';
+const START_COACH_TEXT = '러닝 추적을 시작했습니다.';
 
 export default function RunPage({ user, targetDistanceKm, onTargetChange, onCancel, onComplete }) {
   const isNativePlatform = Capacitor.isNativePlatform();
@@ -226,8 +226,15 @@ export default function RunPage({ user, targetDistanceKm, onTargetChange, onCanc
 
   useEffect(() => {
     return () => {
-      trackerRef.current?.stop?.();
+      if (usingNativeRunRef.current && !sessionEndedRef.current) {
+        RunningPlugin.cancelRun().catch((error) => {
+          console.debug('[RunPage] Failed to cancel native run during cleanup.', error);
+        });
+      } else {
+        trackerRef.current?.stop?.();
+      }
       nativeListenerCleanupRef.current.forEach((cleanup) => cleanup?.());
+      nativeListenerCleanupRef.current = [];
       cancelFinishHold(false);
     };
   }, []);

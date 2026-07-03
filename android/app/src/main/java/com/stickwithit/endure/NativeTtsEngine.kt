@@ -16,6 +16,7 @@ class NativeTtsEngine(private val context: Context) {
     @Volatile private var ready = false
     @Volatile private var enabled = true
     @Volatile private var speaking = false
+    @Volatile private var activePriority = 0
 
     fun init() {
         if (textToSpeech != null) return
@@ -37,11 +38,13 @@ class NativeTtsEngine(private val context: Context) {
                     }
                     override fun onDone(utteranceId: String?) {
                         speaking = false
+                        activePriority = 0
                         audioFocusManager.abandonFocus()
                     }
                     @Deprecated("Deprecated in Java")
                     override fun onError(utteranceId: String?) {
                         speaking = false
+                        activePriority = 0
                         audioFocusManager.abandonFocus()
                     }
                 })
@@ -67,20 +70,22 @@ class NativeTtsEngine(private val context: Context) {
     fun speak(cue: NativeTtsCue) {
         if (!enabled) return
         if (cue.text.isBlank()) return
+        if (isSpeaking() && !cue.immediate && cue.priority <= activePriority) return
         if (!ready) {
-            pendingMessages.offer(cue)
+            offerPending(cue)
             init()
             return
         }
 
         if (!audioFocusManager.requestFocus()) {
-            pendingMessages.offer(cue)
+            offerPending(cue)
             return
         }
 
         setSpeechRate(cue.speechRate)
         setPitch(cue.pitch)
         val utteranceId = UUID.randomUUID().toString()
+        activePriority = cue.priority
         textToSpeech?.speak(cue.text, if (cue.immediate) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, Bundle(), utteranceId)
     }
 
@@ -88,6 +93,7 @@ class NativeTtsEngine(private val context: Context) {
         pendingMessages.clear()
         textToSpeech?.stop()
         speaking = false
+        activePriority = 0
         audioFocusManager.abandonFocus()
     }
 
@@ -131,5 +137,10 @@ class NativeTtsEngine(private val context: Context) {
             val text = pendingMessages.poll() ?: break
             speak(text)
         }
+    }
+
+    private fun offerPending(cue: NativeTtsCue) {
+        if (pendingMessages.any { it.templateId == cue.templateId }) return
+        pendingMessages.offer(cue)
     }
 }

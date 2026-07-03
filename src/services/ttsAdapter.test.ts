@@ -37,7 +37,7 @@ describe('ttsAdapter', () => {
   });
 
   it('does not fall back to Web Speech outside the native app', async () => {
-    await expect(speakCoachMessage('고스트 런 시작')).resolves.toBe(false);
+    await expect(speakCoachMessage('테스트 문구')).resolves.toBe(false);
 
     expect(ttsMocks.runningPluginSpeak).not.toHaveBeenCalled();
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
@@ -48,15 +48,15 @@ describe('ttsAdapter', () => {
     ttsMocks.runningPluginSpeak.mockRejectedValueOnce(new Error('service not ready'));
     ttsMocks.nativeTextToSpeechSpeak.mockResolvedValueOnce(undefined);
 
-    await expect(speakCoachMessage('고스트 런 시작')).resolves.toBe(true);
+    await expect(speakCoachMessage('테스트 문구')).resolves.toBe(true);
 
-    expect(ttsMocks.runningPluginSpeak).toHaveBeenCalledWith({ text: '고스트 런 시작' });
-    expect(ttsMocks.nativeTextToSpeechSpeak).toHaveBeenCalledWith({ text: '고스트 런 시작', language: 'ko-KR' });
+    expect(ttsMocks.runningPluginSpeak).toHaveBeenCalledWith({ text: '테스트 문구' });
+    expect(ttsMocks.nativeTextToSpeechSpeak).toHaveBeenCalledWith({ text: '테스트 문구', language: 'ko-KR' });
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
   });
 
   it('keeps the Web Speech helper disabled', () => {
-    expect(speakWithWebSpeech('고스트 런 시작')).toBe(false);
+    expect(speakWithWebSpeech('테스트 문구')).toBe(false);
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
   });
 });

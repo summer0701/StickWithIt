@@ -52,6 +52,7 @@ export type RunningPluginApi = {
     ghostRunnersJson?: string;
   }): Promise<void>;
   stopRun(): Promise<void>;
+  cancelRun(): Promise<void>;
   pauseRun(): Promise<void>;
   resumeRun(): Promise<void>;
   speak(options: { text: string }): Promise<void>;

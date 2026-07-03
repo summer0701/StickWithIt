@@ -5,16 +5,25 @@ import kotlin.math.roundToInt
 
 class RuleBasedCoach {
     private var lastSpokenAtMillis = 0L
+    private val lastCategorySpokenAtMillis = mutableMapOf<String, Long>()
+    private val spokenTemplateIds = mutableSetOf<String>()
     private var previousRank: Int? = null
     private var previousSpeedKmh: Double? = null
-    private val recentTexts = ArrayDeque<String>()
     private val previousGhostDeltas = mutableMapOf<String, Double>()
-    private val minimumSpeakGapMillis = 15_000L
+    private var lastFrontGhostId: String? = null
+    private var lastBackGhostId: String? = null
+    private var lastFrontDistanceBucket: DistanceBucket? = null
+    private var lastBackDistanceBucket: DistanceBucket? = null
+    private var completedSpoken = false
 
     fun resetGhostState() {
         previousGhostDeltas.clear()
         previousRank = null
         previousSpeedKmh = null
+        lastFrontGhostId = null
+        lastBackGhostId = null
+        lastFrontDistanceBucket = null
+        lastBackDistanceBucket = null
     }
 
     fun createCue(
@@ -26,103 +35,181 @@ class RuleBasedCoach {
         ghostRunners: List<GhostRunner>,
         nowMillis: Long = System.currentTimeMillis()
     ): NativeTtsCue? {
-        val decision = decideCategory(
-            elapsedSeconds = elapsedSeconds,
-            distanceMeters = distanceMeters,
-            paceSecondsPerKm = paceSecondsPerKm,
-            speedKmh = speedKmh,
-            targetDistanceMeters = targetDistanceMeters,
-            ghostRunners = ghostRunners
-        )
+        val context = buildRaceContext(elapsedSeconds, distanceMeters, paceSecondsPerKm, speedKmh, targetDistanceMeters, ghostRunners)
+        val decision = decideCategory(context) ?: return null
+        rememberContext(context)
 
-        if (nowMillis - lastSpokenAtMillis < minimumSpeakGapMillis) return null
+        if (!canSpeak(decision, nowMillis)) return null
 
-        lastSpokenAtMillis = nowMillis
         val cue = GhostTtsCatalog.buildCue(
             category = decision.category,
             priority = priorityFor(decision.category),
             immediate = decision.immediate,
-            recentTexts = recentTexts,
+            spokenTemplateIds = spokenTemplateIds,
             ghostName = decision.ghostName,
             distance = decision.distanceText,
             seconds = decision.seconds,
             rank = decision.rank
-        )
-        remember(cue.text)
+        ) ?: return null
+
+        rememberSpoken(cue, nowMillis, context)
         return cue
     }
 
-    fun startCue(ghostRunners: List<GhostRunner> = emptyList()): NativeTtsCue {
+    fun startCue(ghostRunners: List<GhostRunner> = emptyList(), nowMillis: Long = System.currentTimeMillis()): NativeTtsCue? {
         val target = ghostRunners.firstOrNull()
-        lastSpokenAtMillis = System.currentTimeMillis()
-        return rememberAndBuild(
+        val cue = GhostTtsCatalog.buildCue(
             category = "start",
+            priority = priorityFor("start"),
             immediate = true,
+            spokenTemplateIds = spokenTemplateIds,
             ghostName = target?.label,
-            distanceText = target?.totalDistanceMeters?.let { formatDistance(it) },
-            rank = previousRank ?: 6
-        )
+            distance = target?.totalDistanceMeters?.let { formatDistance(it) },
+            rank = previousRank ?: (ghostRunners.size + 1).coerceAtLeast(1)
+        ) ?: return null
+
+        rememberSpoken(cue, nowMillis, null)
+        return cue
     }
 
     fun completedCue(
         elapsedSeconds: Int = 0,
         distanceMeters: Double = 0.0,
-        ghostRunners: List<GhostRunner> = emptyList()
-    ): NativeTtsCue {
+        ghostRunners: List<GhostRunner> = emptyList(),
+        nowMillis: Long = System.currentTimeMillis()
+    ): NativeTtsCue? {
+        if (completedSpoken) return null
         val comparisons = compareGhosts(elapsedSeconds, distanceMeters, ghostRunners)
         val rank = comparisons.takeIf { it.isNotEmpty() }?.let { rankFromComparisons(it) } ?: previousRank
-        lastSpokenAtMillis = System.currentTimeMillis()
-        return rememberAndBuild("completed", immediate = true, rank = rank)
+        val cue = GhostTtsCatalog.buildCue(
+            category = "completed",
+            priority = priorityFor("completed"),
+            immediate = true,
+            spokenTemplateIds = spokenTemplateIds,
+            rank = rank
+        ) ?: return null
+
+        completedSpoken = true
+        rememberSpoken(cue, nowMillis, null)
+        return cue
     }
 
-    private fun decideCategory(
+    private fun decideCategory(context: RaceContext): CueDecision? {
+        val transition = transitionDecision(context.comparisons, context.rank)
+        val rankChange = rankChangeDecision(context.rank, transition)
+        val paceDecision = paceDecision(context)
+
+        return when {
+            transition != null -> transition
+            rankChange != null -> rankChange
+            context.front != null && abs(context.front.deltaMeters) <= CLOSE_GHOST_METERS ->
+                decisionFor("close_front", context.front, context.rank, immediate = true)
+            context.back != null && context.back.deltaMeters <= CLOSE_GHOST_METERS ->
+                decisionFor("close_back", context.back, context.rank, immediate = true)
+            context.front?.ghost?.key == PERSONAL_BEST_GHOST_KEY ->
+                decisionFor("personal_best", context.front, context.rank)
+            context.rank == 2 && context.front != null ->
+                decisionFor("last_ghost", context.front, context.rank)
+            context.targetDistanceMeters > 0.0 && context.remainingMeters in 0.0..300.0 ->
+                decisionFor("finish_push", context.front ?: context.target, context.rank, immediate = true, fallbackDistanceMeters = context.remainingMeters)
+            context.targetDistanceMeters > 0.0 && context.remainingMeters in 0.0..1000.0 ->
+                decisionFor("one_km_left", context.front ?: context.target, context.rank, immediate = true, fallbackDistanceMeters = context.remainingMeters)
+            context.front != null && hasDistanceBucketChanged(context.front, isFront = true) ->
+                decisionFor("front_distance", context.front, context.rank)
+            context.back != null && hasDistanceBucketChanged(context.back, isFront = false) ->
+                decisionFor("back_distance", context.back, context.rank)
+            context.front != null ->
+                decisionFor("gap_time", context.front, context.rank)
+            paceDecision != null -> paceDecision
+            context.target != null ->
+                decisionFor("current_rank", context.target, context.rank, fallbackDistanceMeters = abs(context.target.deltaMeters))
+            else ->
+                CueDecision("fallback")
+        }
+    }
+
+    private fun canSpeak(decision: CueDecision, nowMillis: Long): Boolean {
+        val policy = policyFor(decision.category)
+        val elapsedSinceLast = nowMillis - lastSpokenAtMillis
+        val lastCategoryAt = lastCategorySpokenAtMillis[decision.category]
+        val elapsedSinceCategory = lastCategoryAt?.let { nowMillis - it } ?: Long.MAX_VALUE
+
+        if (!policy.ignoresGlobalCooldown && elapsedSinceLast < policy.globalCooldownMillis) return false
+        if (elapsedSinceCategory < policy.categoryCooldownMillis) return false
+        return true
+    }
+
+    private fun policyFor(category: String): SpeakPolicy =
+        when (category) {
+            "completed", "overtake", "overtaken", "rank_up", "rank_down" ->
+                SpeakPolicy(globalCooldownMillis = 0L, categoryCooldownMillis = 0L, ignoresGlobalCooldown = true)
+            "close_front", "close_back" ->
+                SpeakPolicy(globalCooldownMillis = 20_000L, categoryCooldownMillis = 20_000L)
+            "finish_push" ->
+                SpeakPolicy(globalCooldownMillis = 15_000L, categoryCooldownMillis = 15_000L)
+            "one_km_left" ->
+                SpeakPolicy(globalCooldownMillis = 30_000L, categoryCooldownMillis = 30_000L)
+            else ->
+                SpeakPolicy(globalCooldownMillis = 45_000L, categoryCooldownMillis = 60_000L)
+        }
+
+    private fun rememberSpoken(cue: NativeTtsCue, nowMillis: Long, context: RaceContext?) {
+        lastSpokenAtMillis = nowMillis
+        lastCategorySpokenAtMillis[cue.category] = nowMillis
+        spokenTemplateIds.add(cue.templateId)
+        context?.let { rememberDistanceBuckets(it) }
+    }
+
+    private fun rememberContext(context: RaceContext) {
+        previousRank = context.rank
+        previousSpeedKmh = context.speedKmh.takeIf { it > 0.0 } ?: previousSpeedKmh
+        previousGhostDeltas.clear()
+        context.comparisons.forEach { previousGhostDeltas[it.ghost.key] = it.deltaMeters }
+    }
+
+    private fun rememberDistanceBuckets(context: RaceContext) {
+        context.front?.let {
+            lastFrontGhostId = it.ghost.key
+            lastFrontDistanceBucket = DistanceBucket.from(abs(it.deltaMeters))
+        }
+        context.back?.let {
+            lastBackGhostId = it.ghost.key
+            lastBackDistanceBucket = DistanceBucket.from(abs(it.deltaMeters))
+        }
+    }
+
+    private fun hasDistanceBucketChanged(comparison: GhostComparison, isFront: Boolean): Boolean {
+        val nextBucket = DistanceBucket.from(abs(comparison.deltaMeters))
+        val lastGhostId = if (isFront) lastFrontGhostId else lastBackGhostId
+        val lastBucket = if (isFront) lastFrontDistanceBucket else lastBackDistanceBucket
+        return lastGhostId != comparison.ghost.key || lastBucket != nextBucket
+    }
+
+    private fun buildRaceContext(
         elapsedSeconds: Int,
         distanceMeters: Double,
         paceSecondsPerKm: Int?,
         speedKmh: Double,
         targetDistanceMeters: Double,
         ghostRunners: List<GhostRunner>
-    ): CueDecision {
+    ): RaceContext {
         val comparisons = compareGhosts(elapsedSeconds, distanceMeters, ghostRunners)
         val rank = rankFromComparisons(comparisons)
         val front = comparisons.filter { it.deltaMeters < 0.0 }.maxByOrNull { it.deltaMeters }
         val back = comparisons.filter { it.deltaMeters >= 0.0 }.minByOrNull { it.deltaMeters }
-        val target = front ?: back
-        val remainingMeters = targetDistanceMeters - distanceMeters
-
-        val transition = transitionDecision(comparisons, rank)
-        rememberGhostDeltas(comparisons)
-        val rankChange = rankChangeDecision(rank, transition)
-        previousRank = rank
-
-        val paceDecision = paceDecision(speedKmh, front, back, rank)
-        previousSpeedKmh = speedKmh.takeIf { it > 0.0 } ?: previousSpeedKmh
-
-        return when {
-            transition != null -> transition
-            rankChange != null -> rankChange
-            targetDistanceMeters > 0.0 && remainingMeters in 0.0..500.0 ->
-                decisionFor("finish_push", target, rank, immediate = true, fallbackDistanceMeters = remainingMeters)
-            targetDistanceMeters > 0.0 && remainingMeters in 0.0..1000.0 ->
-                decisionFor("one_km_left", front ?: target, rank, immediate = true, fallbackDistanceMeters = remainingMeters)
-            front != null && abs(front.deltaMeters) <= CLOSE_GHOST_METERS ->
-                decisionFor("close_front", front, rank, immediate = true)
-            back != null && back.deltaMeters <= CLOSE_GHOST_METERS ->
-                decisionFor("close_back", back, rank, immediate = true)
-            front?.ghost?.key == "bestGhost" ->
-                decisionFor("personal_best", front, rank)
-            rank == 2 && front != null ->
-                decisionFor("last_ghost", front, rank)
-            paceDecision != null -> paceDecision
-            front != null && elapsedSeconds % 90 < 45 ->
-                decisionFor("front_distance", front, rank)
-            back != null && elapsedSeconds % 135 < 45 ->
-                decisionFor("back_distance", back, rank)
-            front != null && elapsedSeconds % 180 < 45 ->
-                decisionFor("gap_time", front, rank)
-            else ->
-                decisionFor("current_rank", target, rank, fallbackDistanceMeters = abs(target?.deltaMeters ?: 0.0))
-        }
+        return RaceContext(
+            elapsedSeconds = elapsedSeconds,
+            distanceMeters = distanceMeters,
+            paceSecondsPerKm = paceSecondsPerKm,
+            speedKmh = speedKmh,
+            targetDistanceMeters = targetDistanceMeters,
+            remainingMeters = targetDistanceMeters - distanceMeters,
+            comparisons = comparisons,
+            rank = rank,
+            front = front,
+            back = back,
+            target = front ?: back
+        )
     }
 
     private fun compareGhosts(
@@ -163,14 +250,13 @@ class RuleBasedCoach {
         }
     }
 
-    private fun paceDecision(speedKmh: Double, front: GhostComparison?, back: GhostComparison?, rank: Int): CueDecision? {
+    private fun paceDecision(context: RaceContext): CueDecision? {
         val previousSpeed = previousSpeedKmh ?: return null
-        if (speedKmh <= 0.0) return null
+        if (context.speedKmh <= 0.0 || context.target == null) return null
         return when {
-            speedKmh - previousSpeed >= 0.6 -> decisionFor("pace_change", front ?: back, rank)
-            previousSpeed - speedKmh >= 0.6 -> decisionFor("pace_change", front ?: back, rank)
-            front != null && abs(front.deltaMeters) <= 80.0 -> decisionFor("pace_change", front, rank)
-            back != null && back.deltaMeters <= 80.0 -> decisionFor("pace_change", back, rank)
+            abs(context.speedKmh - previousSpeed) >= 0.6 -> decisionFor("pace_change", context.target, context.rank)
+            context.front != null && abs(context.front.deltaMeters) <= 80.0 -> decisionFor("pace_change", context.front, context.rank)
+            context.back != null && context.back.deltaMeters <= 80.0 -> decisionFor("pace_change", context.back, context.rank)
             else -> null
         }
     }
@@ -202,55 +288,20 @@ class RuleBasedCoach {
         return before.distanceMeters + (after.distanceMeters - before.distanceMeters) * ratio
     }
 
-    private fun rememberGhostDeltas(comparisons: List<GhostComparison>) {
-        previousGhostDeltas.clear()
-        comparisons.forEach { previousGhostDeltas[it.ghost.key] = it.deltaMeters }
-    }
-
     private fun priorityFor(category: String): Int =
         when (category) {
             "completed" -> 110
-            "finish_push" -> 100
-            "one_km_left" -> 95
+            "overtake", "overtaken" -> 100
             "rank_up", "rank_down" -> 92
-            "personal_best" -> 90
-            "overtake" -> 88
-            "overtaken" -> 86
-            "close_front", "close_back" -> 80
-            "last_ghost" -> 78
-            "next_target" -> 76
+            "close_front", "close_back" -> 84
+            "last_ghost", "next_target", "personal_best" -> 78
             "front_distance", "back_distance", "gap_time" -> 70
             "pace_change" -> 60
+            "one_km_left" -> 58
+            "finish_push" -> 56
             "current_rank" -> 45
             else -> 20
         }
-
-    private fun remember(text: String) {
-        recentTexts.addLast(text)
-        while (recentTexts.size > 12) recentTexts.removeFirst()
-    }
-
-    private fun rememberAndBuild(
-        category: String,
-        immediate: Boolean,
-        ghostName: String? = null,
-        distanceText: String? = null,
-        seconds: Int? = null,
-        rank: Int? = null
-    ): NativeTtsCue {
-        val cue = GhostTtsCatalog.buildCue(
-            category = category,
-            priority = priorityFor(category),
-            immediate = immediate,
-            recentTexts = recentTexts,
-            ghostName = ghostName,
-            distance = distanceText,
-            seconds = seconds,
-            rank = rank
-        )
-        remember(cue.text)
-        return cue
-    }
 
     private fun decisionFor(
         category: String,
@@ -295,8 +346,29 @@ class RuleBasedCoach {
     companion object {
         private const val CLOSE_GHOST_METERS = 30.0
         private const val GHOST_EVENT_METERS = 10.0
+        private const val PERSONAL_BEST_GHOST_KEY = "bestGhost"
     }
 }
+
+private data class SpeakPolicy(
+    val globalCooldownMillis: Long,
+    val categoryCooldownMillis: Long,
+    val ignoresGlobalCooldown: Boolean = false
+)
+
+private data class RaceContext(
+    val elapsedSeconds: Int,
+    val distanceMeters: Double,
+    val paceSecondsPerKm: Int?,
+    val speedKmh: Double,
+    val targetDistanceMeters: Double,
+    val remainingMeters: Double,
+    val comparisons: List<GhostComparison>,
+    val rank: Int,
+    val front: GhostComparison?,
+    val back: GhostComparison?,
+    val target: GhostComparison?
+)
 
 private data class CueDecision(
     val category: String,
@@ -306,3 +378,22 @@ private data class CueDecision(
     val seconds: Int? = null,
     val rank: Int? = null
 )
+
+private enum class DistanceBucket {
+    TEN,
+    THIRTY,
+    FIFTY,
+    HUNDRED,
+    FAR;
+
+    companion object {
+        fun from(distanceMeters: Double): DistanceBucket =
+            when {
+                distanceMeters <= 10.0 -> TEN
+                distanceMeters <= 30.0 -> THIRTY
+                distanceMeters <= 50.0 -> FIFTY
+                distanceMeters <= 100.0 -> HUNDRED
+                else -> FAR
+            }
+    }
+}

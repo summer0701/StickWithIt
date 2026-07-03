@@ -11,6 +11,8 @@ import android.graphics.YuvImage
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.SpannableString
 import android.text.Spanned
@@ -68,6 +70,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     private val ttsEngine by lazy { NativeTtsEngine(this) }
     private val recentNarrations = ArrayDeque<String>()
     private val fpsSamples = ArrayDeque<Float>()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val switchingModel = AtomicBoolean(false)
     private var poseLandmarker: PoseLandmarker? = null
     private var modelTier: ModelTier = ModelTier.FULL
@@ -113,6 +116,8 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (!durationFinished) cancelWorkout()
+        mainHandler.removeCallbacksAndMessages(null)
         poseLandmarker?.close()
         ttsEngine.shutdown()
         analyzerExecutor.shutdown()
@@ -406,14 +411,30 @@ abstract class PoseExerciseActivity : ComponentActivity() {
     private fun finishAfterDuration() {
         if (durationFinished) return
         durationFinished = true
-        broadcastFinished(completed = true)
-        finish()
+        completeWorkout()
+    }
+
+    private fun completeWorkout() {
+        val completedCue = buildCompletionNarrationCue(currentRank(), SystemClock.elapsedRealtime())
+        if (completedCue == null) {
+            broadcastFinished(completed = true)
+            finish()
+            return
+        }
+        ttsEngine.speak(completedCue)
+        mainHandler.postDelayed({
+            broadcastFinished(completed = true)
+            finish()
+        }, COMPLETION_NARRATION_DELAY_MS)
     }
 
     private fun finishWithoutCompletion() {
+        cancelWorkout()
         if (!durationFinished) broadcastFinished(completed = false)
         finish()
     }
+
+    protected open fun cancelWorkout() = Unit
 
     private fun broadcastFinished(completed: Boolean) {
         val goodSeconds = (goodMs / 1000L).toInt().coerceAtMost(targetDurationSeconds)
@@ -439,12 +460,25 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         if (now - lastNarrationAt < NARRATION_INTERVAL_MS) return
         if (ttsEngine.isSpeaking()) return
         lastNarrationAt = now
+        val cue = buildNarrationCue(frame, elapsedSeconds, rank, ghostCounts(elapsedSeconds)) ?: return
+        rememberNarration(cue.text)
+        ttsEngine.speak(cue)
+    }
+
+    protected open fun buildCompletionNarrationCue(rank: Int, nowMillis: Long): NativeTtsCue? = null
+
+    protected open fun buildNarrationCue(
+        frame: SquatPoseFrame,
+        elapsedSeconds: Int,
+        rank: Int,
+        ghosts: List<Pair<String, Int>>
+    ): NativeTtsCue? {
         val postureText = when (frame.feedback.level) {
             PoseFeedbackLevel.GOOD -> "${exerciseName} 좋아요. ${frame.feedback.detail}"
             PoseFeedbackLevel.WARNING -> "주의. ${frame.feedback.detail}"
             PoseFeedbackLevel.BAD -> "교정 필요. ${frame.feedback.detail}"
         }
-        val front = ghostCounts(elapsedSeconds).filter { it.second > currentMetricValue() }.minByOrNull { it.second - currentMetricValue() }
+        val front = ghosts.filter { it.second > currentMetricValue() }.minByOrNull { it.second - currentMetricValue() }
         val ghostText = front?.let { "${it.first}까지 ${it.second - currentMetricValue()}${metricUnit()} 남았습니다." }
             ?: "현재 ${rank}위입니다. 흐름을 유지하세요."
         val candidates = listOf(
@@ -452,14 +486,17 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             "$ghostText $postureText",
             "현재 ${currentMetricValue()}${metricUnit()}입니다. $postureText"
         )
-        val text = candidates.filterNot { recentNarrations.contains(it) }.ifEmpty { candidates }[(reps + elapsedSeconds + rank).mod(candidates.size)]
-        recentNarrations.addLast(text)
-        while (recentNarrations.size > 6) recentNarrations.removeFirst()
+        val text = candidates.filterNot { recentNarrations.contains(it) }.ifEmpty { candidates }[(currentMetricValue() + elapsedSeconds + rank).mod(candidates.size)]
         val profile = GhostTtsCatalog.profileFor("encouragement")
-        ttsEngine.speak(NativeTtsCue("exercise_pose", text, 36, profile.speechRate, profile.pitch, false))
+        return NativeTtsCue("exercise_pose", text, 36, profile.speechRate, profile.pitch, false)
     }
 
-    private fun currentMetricValue(): Int =
+    protected fun rememberNarration(text: String) {
+        recentNarrations.addLast(text)
+        while (recentNarrations.size > 6) recentNarrations.removeFirst()
+    }
+
+    protected fun currentMetricValue(): Int =
         if (evaluator.metric == PoseExerciseMetric.HOLD) (goodMs / 1000L).toInt() else reps
 
     private fun metricUnit(): String =
@@ -564,6 +601,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         const val EXTRA_QUALITY_SCORE = "qualityScore"
         private const val REQUEST_CAMERA = 6201
         private const val NARRATION_INTERVAL_MS = 15_000L
+        private const val COMPLETION_NARRATION_DELAY_MS = 2_500L
         private const val REF_WIDTH = 852f
         private const val REF_HEIGHT = 1844f
         private const val BASE_DURATION_SECONDS = 120.0
@@ -601,3 +639,4 @@ private fun rotateExerciseBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
     val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees.toFloat()) }
     return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
 }
+
