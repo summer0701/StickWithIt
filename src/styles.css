@@ -9011,14 +9011,14 @@ button:disabled {
   overflow: hidden;
   margin-top: 11px;
   border-radius: 2px;
-  padding: 8px 12px;
+  padding: 8px 38px 8px 12px;
   background: linear-gradient(90deg, #f5c400, #ffdd33 88%, transparent);
 }
 
 .impact-contribution::after {
   position: absolute;
   top: 0;
-  right: -1px;
+  right: -28px;
   width: 44px;
   height: 100%;
   content: "";

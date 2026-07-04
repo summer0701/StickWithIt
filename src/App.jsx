@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Dumbbell, Flag, History, Home, Settings } from 'lucide-react';
+import { Flag, History, Home, Settings } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
@@ -19,7 +19,6 @@ import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth'
 
 const bottomRoutes = [
   { id: 'home', label: '홈', icon: Home },
-  { id: 'workout', label: '운동', icon: Dumbbell },
   { id: 'challenge', label: '챌린지', icon: Flag },
   { id: 'history', label: '내 기록', icon: History },
   { id: 'my', label: '마이', icon: Settings },
@@ -65,7 +64,6 @@ export default function App() {
   const user = session?.user ?? null;
   const isTestUser = user?.app_metadata?.provider === 'local-test';
   const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'lunge'];
-  const isWorkoutDashboard = page === 'home' || page === 'workout';
 
   useEffect(() => {
     if (!user) return;
@@ -110,7 +108,7 @@ export default function App() {
 
   return (
     <div className="app-shell fitness-shell">
-      {!fullScreenExercisePages.includes(page) && !['home', 'workout', 'my', 'challenge'].includes(page) && (
+      {!fullScreenExercisePages.includes(page) && !['home', 'my', 'challenge'].includes(page) && (
         <header className="topbar fitness-topbar">
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}
@@ -121,7 +119,7 @@ export default function App() {
         </header>
       )}
 
-      {isWorkoutDashboard && (
+      {page === 'home' && (
         <HomePage
           user={user}
           targetDistanceKm={targetDistanceKm}
