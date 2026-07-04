@@ -168,7 +168,6 @@ class NativeTtsEngine(private val context: Context) {
 
     private fun buildSpeechParts(text: String): List<String> {
         return splitSentences(text)
-            .flatMap { splitLongSentence(it) }
             .map { ensureSpeechPunctuation(it.trim()) }
             .filter { it.isNotBlank() }
     }
@@ -189,46 +188,16 @@ class NativeTtsEngine(private val context: Context) {
         return sentences
     }
 
-    private fun splitLongSentence(sentence: String): List<String> {
-        val cleanSentence = sentence.trim()
-        if (cleanSentence.length <= MAX_COACHING_CHARS) return listOf(cleanSentence)
-
-        val parts = mutableListOf<String>()
-        var current = StringBuilder()
-        cleanSentence.split(Regex("\\s+")).forEach { word ->
-            if (word.isBlank()) return@forEach
-            if (word.length > MAX_COACHING_CHARS) {
-                if (current.isNotBlank()) {
-                    parts.add(current.toString())
-                    current = StringBuilder()
-                }
-                word.chunked(MAX_COACHING_CHARS).forEach { parts.add(it) }
-                return@forEach
-            }
-
-            val separator = if (current.isEmpty()) "" else " "
-            if (current.length + separator.length + word.length <= MAX_COACHING_CHARS) {
-                current.append(separator).append(word)
-            } else {
-                parts.add(current.toString())
-                current = StringBuilder(word)
-            }
-        }
-        if (current.isNotBlank()) parts.add(current.toString())
-        return parts.ifEmpty { listOf(cleanSentence.take(MAX_COACHING_CHARS)) }
-    }
-
     private fun ensureSpeechPunctuation(text: String): String {
         if (text.isBlank() || isSentenceBoundary(text.last())) return text
         return "$text."
     }
 
     private fun isSentenceBoundary(char: Char): Boolean {
-        return char == '.' || char == '!' || char == '?'
+        return char == '.'
     }
 
     companion object {
         private const val SENTENCE_PAUSE_MS = 300L
-        private const val MAX_COACHING_CHARS = 15
     }
 }

@@ -1,5 +1,6 @@
 package com.stickwithit.endure
 
+import android.util.Log
 import kotlin.math.abs
 
 class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
@@ -8,6 +9,11 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
     private var opened = false
     private var lastRepAt = 0L
     private var closedAnkleWidth: Float? = null
+    private val closedAnkleSamples = ArrayDeque<Float>()
+    private var lastWristsUpAt = 0L
+    private var lastWristsDownAt = 0L
+    private var openFrameCount = 0
+    private var closedFrameCount = 0
 
     override fun update(rawLandmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit): SquatPoseFrame {
         val landmarks = smooth(rawLandmarks)
@@ -76,25 +82,137 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
         val leftAnkle = landmarks[27] ?: return
         val rightAnkle = landmarks[28] ?: return
         val ankleWidth = poseDistance(leftAnkle, rightAnkle)
-        if (phase == JumpingJackPhase.CLOSED || ankleWidth < (closedAnkleWidth ?: Float.MAX_VALUE)) {
-            closedAnkleWidth = closedAnkleWidth?.let { it * 0.9f + ankleWidth * 0.1f } ?: ankleWidth
+        val baseline = stableClosedAnkleWidth()
+        val ankleVisibilityReliable = leftAnkle.visibility >= BASELINE_VISIBILITY &&
+            rightAnkle.visibility >= BASELINE_VISIBILITY
+        if (!ankleVisibilityReliable) {
+            openFrameCount = 0
+            closedFrameCount = 0
+            debugCounterState(
+                ankleWidth = ankleWidth,
+                baseline = baseline,
+                openThreshold = baseline * OPEN_ANKLE_MULTIPLIER,
+                closeThreshold = baseline * CLOSE_ANKLE_MULTIPLIER,
+                wristsVisible = false,
+                recentWristsUp = nowMs - lastWristsUpAt <= ARM_GRACE_MS,
+                recentWristsDown = nowMs - lastWristsDownAt <= ARM_GRACE_MS,
+                stableOpen = false,
+                stableClosed = false
+            )
+            return
         }
-        val baseline = closedAnkleWidth?.coerceAtLeast(0.06f) ?: 0.10f
-        val wristsUp = leftWrist.y < head.y + 0.06f && rightWrist.y < head.y + 0.06f
-        val wristsDown = leftWrist.y > head.y + 0.16f && rightWrist.y > head.y + 0.16f
-        val isOpen = ankleWidth > baseline * 1.45f && wristsUp
-        val isClosed = ankleWidth < baseline * 1.18f && wristsDown
+        if (phase == JumpingJackPhase.CLOSED &&
+            ankleVisibilityReliable &&
+            shouldLearnClosedBaseline(ankleWidth, baseline)
+        ) {
+            updateClosedAnkleBaseline(ankleWidth)
+        }
 
-        if (phase == JumpingJackPhase.CLOSED && isOpen) {
-            phase = JumpingJackPhase.OPEN
-            opened = true
+        val wristsVisible = leftWrist.visibility >= WRIST_VISIBILITY &&
+            rightWrist.visibility >= WRIST_VISIBILITY
+        val wristsUp = wristsVisible &&
+            leftWrist.y < head.y + WRIST_UP_HEAD_OFFSET &&
+            rightWrist.y < head.y + WRIST_UP_HEAD_OFFSET
+        val wristsDown = wristsVisible &&
+            leftWrist.y > head.y + WRIST_DOWN_HEAD_OFFSET &&
+            rightWrist.y > head.y + WRIST_DOWN_HEAD_OFFSET
+        if (wristsUp) lastWristsUpAt = nowMs
+        if (wristsDown) lastWristsDownAt = nowMs
+
+        val recentWristsUp = nowMs - lastWristsUpAt <= ARM_GRACE_MS
+        val recentWristsDown = nowMs - lastWristsDownAt <= ARM_GRACE_MS
+        val handMissing = !wristsVisible
+        val openThreshold = baseline * if (handMissing) OPEN_ANKLE_HAND_MISSING_MULTIPLIER else OPEN_ANKLE_MULTIPLIER
+        val closeThreshold = baseline * if (handMissing) CLOSE_ANKLE_HAND_MISSING_MULTIPLIER else CLOSE_ANKLE_MULTIPLIER
+        val feetClearlyOpen = ankleWidth > baseline * FEET_CLEARLY_OPEN_MULTIPLIER
+        val feetOpen = ankleWidth > openThreshold
+        val feetClearlyClosed = ankleWidth < baseline * FEET_CLEARLY_CLOSED_MULTIPLIER
+        val feetClosed = ankleWidth < closeThreshold
+        val isOpen = feetClearlyOpen || (feetOpen && (handMissing || recentWristsUp || wristsUp))
+        val isClosed = feetClearlyClosed || (feetClosed && (handMissing || recentWristsDown || wristsDown))
+
+        openFrameCount = if (isOpen) openFrameCount + 1 else 0
+        closedFrameCount = if (isClosed) closedFrameCount + 1 else 0
+        val stableOpen = openFrameCount >= REQUIRED_STABLE_FRAMES
+        val stableClosed = closedFrameCount >= REQUIRED_STABLE_FRAMES
+
+        debugCounterState(
+            ankleWidth = ankleWidth,
+            baseline = baseline,
+            openThreshold = openThreshold,
+            closeThreshold = closeThreshold,
+            wristsVisible = wristsVisible,
+            recentWristsUp = recentWristsUp,
+            recentWristsDown = recentWristsDown,
+            stableOpen = stableOpen,
+            stableClosed = stableClosed
+        )
+
+        when (phase) {
+            JumpingJackPhase.CLOSED -> {
+                if (stableOpen) {
+                    phase = JumpingJackPhase.OPEN
+                    opened = true
+                    openFrameCount = 0
+                    closedFrameCount = 0
+                }
+            }
+            JumpingJackPhase.OPEN -> {
+                if (opened && stableClosed && nowMs - lastRepAt > REP_COOLDOWN_MS) {
+                    onRep()
+                    lastRepAt = nowMs
+                    phase = JumpingJackPhase.CLOSED
+                    opened = false
+                    openFrameCount = 0
+                    closedFrameCount = 0
+                }
+            }
         }
-        if (phase == JumpingJackPhase.OPEN && opened && isClosed && nowMs - lastRepAt > 600L) {
-            phase = JumpingJackPhase.CLOSED
-            opened = false
-            lastRepAt = nowMs
-            onRep()
+    }
+
+    private fun stableClosedAnkleWidth(): Float {
+        return (closedAnkleWidth ?: DEFAULT_CLOSED_ANKLE_WIDTH)
+            .coerceIn(MIN_CLOSED_ANKLE_WIDTH, MAX_CLOSED_ANKLE_WIDTH)
+    }
+
+    private fun updateClosedAnkleBaseline(ankleWidth: Float) {
+        val safeWidth = ankleWidth.coerceIn(MIN_CLOSED_ANKLE_WIDTH, MAX_CLOSED_ANKLE_WIDTH)
+        closedAnkleSamples.addLast(safeWidth)
+        while (closedAnkleSamples.size > CLOSED_SAMPLE_LIMIT) {
+            closedAnkleSamples.removeFirst()
         }
+        val median = closedAnkleSamples.sorted()[closedAnkleSamples.size / 2]
+        closedAnkleWidth = closedAnkleWidth?.let { previous ->
+            previous * BASELINE_SMOOTHING_KEEP + median * (1f - BASELINE_SMOOTHING_KEEP)
+        } ?: median
+    }
+
+    private fun shouldLearnClosedBaseline(ankleWidth: Float, baseline: Float): Boolean {
+        if (closedAnkleWidth == null) {
+            return ankleWidth in MIN_CLOSED_ANKLE_WIDTH..MAX_CLOSED_ANKLE_WIDTH
+        }
+        return ankleWidth < baseline * BASELINE_SAMPLE_MAX_MULTIPLIER
+    }
+
+    private fun debugCounterState(
+        ankleWidth: Float,
+        baseline: Float,
+        openThreshold: Float,
+        closeThreshold: Float,
+        wristsVisible: Boolean,
+        recentWristsUp: Boolean,
+        recentWristsDown: Boolean,
+        stableOpen: Boolean,
+        stableClosed: Boolean
+    ) {
+        if (!runCatching { Log.isLoggable(TAG, Log.DEBUG) }.getOrDefault(false)) return
+        Log.d(
+            TAG,
+            "ankleWidth=$ankleWidth baseline=$baseline openThreshold=$openThreshold " +
+                "closeThreshold=$closeThreshold wristsVisible=$wristsVisible " +
+                "recentWristsUp=$recentWristsUp recentWristsDown=$recentWristsDown " +
+                "phase=$phase stableOpen=$stableOpen stableClosed=$stableClosed"
+        )
     }
 
     private enum class JumpingJackPhase {
@@ -103,6 +221,26 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     companion object {
+        private const val TAG = "JumpingJackCounter"
         private val requiredLandmarks = listOf(0, 15, 16, 27, 28)
+        private const val CLOSED_SAMPLE_LIMIT = 12
+        private const val BASELINE_VISIBILITY = 0.45f
+        private const val WRIST_VISIBILITY = 0.35f
+        private const val DEFAULT_CLOSED_ANKLE_WIDTH = 0.12f
+        private const val MIN_CLOSED_ANKLE_WIDTH = 0.055f
+        private const val MAX_CLOSED_ANKLE_WIDTH = 0.18f
+        private const val BASELINE_SAMPLE_MAX_MULTIPLIER = 1.20f
+        private const val BASELINE_SMOOTHING_KEEP = 0.86f
+        private const val OPEN_ANKLE_MULTIPLIER = 1.28f
+        private const val OPEN_ANKLE_HAND_MISSING_MULTIPLIER = 1.35f
+        private const val CLOSE_ANKLE_MULTIPLIER = 1.18f
+        private const val CLOSE_ANKLE_HAND_MISSING_MULTIPLIER = 1.12f
+        private const val FEET_CLEARLY_OPEN_MULTIPLIER = 1.35f
+        private const val FEET_CLEARLY_CLOSED_MULTIPLIER = 1.10f
+        private const val WRIST_UP_HEAD_OFFSET = 0.18f
+        private const val WRIST_DOWN_HEAD_OFFSET = 0.20f
+        private const val ARM_GRACE_MS = 450L
+        private const val REQUIRED_STABLE_FRAMES = 2
+        private const val REP_COOLDOWN_MS = 600L
     }
 }
