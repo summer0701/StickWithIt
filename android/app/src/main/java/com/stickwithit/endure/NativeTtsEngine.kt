@@ -7,10 +7,12 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class NativeTtsEngine(private val context: Context) {
     private val pendingMessages = ConcurrentLinkedQueue<NativeTtsCue>()
+    private val finalUtteranceIds = ConcurrentHashMap.newKeySet<String>()
     private val audioFocusManager = AudioFocusManager(context)
     private var textToSpeech: TextToSpeech? = null
     @Volatile private var ready = false
@@ -37,12 +39,19 @@ class NativeTtsEngine(private val context: Context) {
                         speaking = true
                     }
                     override fun onDone(utteranceId: String?) {
-                        speaking = false
-                        activePriority = 0
-                        audioFocusManager.abandonFocus()
+                        completeUtterance(utteranceId)
                     }
                     @Deprecated("Deprecated in Java")
                     override fun onError(utteranceId: String?) {
+                        completeUtterance(utteranceId)
+                    }
+
+                    override fun onError(utteranceId: String?, errorCode: Int) {
+                        completeUtterance(utteranceId)
+                    }
+
+                    private fun completeUtterance(utteranceId: String?) {
+                        if (utteranceId != null && !finalUtteranceIds.remove(utteranceId)) return
                         speaking = false
                         activePriority = 0
                         audioFocusManager.abandonFocus()
@@ -84,13 +93,26 @@ class NativeTtsEngine(private val context: Context) {
 
         setSpeechRate(cue.speechRate)
         setPitch(cue.pitch)
-        val utteranceId = UUID.randomUUID().toString()
+        val speechParts = buildSpeechParts(cue.text)
+        if (speechParts.isEmpty()) return
+        val utteranceGroupId = UUID.randomUUID().toString()
+        val finalUtteranceId = "$utteranceGroupId:${speechParts.lastIndex}"
+        finalUtteranceIds.add(finalUtteranceId)
         activePriority = cue.priority
-        textToSpeech?.speak(cue.text, if (cue.immediate) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, Bundle(), utteranceId)
+        speaking = true
+        speechParts.forEachIndexed { index, speechPart ->
+            val utteranceId = "$utteranceGroupId:$index"
+            val queueMode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+            textToSpeech?.speak(speechPart, queueMode, Bundle(), utteranceId)
+            if (index < speechParts.lastIndex) {
+                textToSpeech?.playSilentUtterance(SENTENCE_PAUSE_MS, TextToSpeech.QUEUE_ADD, "$utteranceGroupId:pause:$index")
+            }
+        }
     }
 
     fun stop() {
         pendingMessages.clear()
+        finalUtteranceIds.clear()
         textToSpeech?.stop()
         speaking = false
         activePriority = 0
@@ -142,5 +164,71 @@ class NativeTtsEngine(private val context: Context) {
     private fun offerPending(cue: NativeTtsCue) {
         if (pendingMessages.any { it.templateId == cue.templateId }) return
         pendingMessages.offer(cue)
+    }
+
+    private fun buildSpeechParts(text: String): List<String> {
+        return splitSentences(text)
+            .flatMap { splitLongSentence(it) }
+            .map { ensureSpeechPunctuation(it.trim()) }
+            .filter { it.isNotBlank() }
+    }
+
+    private fun splitSentences(text: String): List<String> {
+        val sentences = mutableListOf<String>()
+        val current = StringBuilder()
+        text.forEach { char ->
+            current.append(char)
+            if (isSentenceBoundary(char)) {
+                val sentence = current.toString().trim()
+                if (sentence.isNotBlank()) sentences.add(sentence)
+                current.clear()
+            }
+        }
+        val tail = current.toString().trim()
+        if (tail.isNotBlank()) sentences.add(tail)
+        return sentences
+    }
+
+    private fun splitLongSentence(sentence: String): List<String> {
+        val cleanSentence = sentence.trim()
+        if (cleanSentence.length <= MAX_COACHING_CHARS) return listOf(cleanSentence)
+
+        val parts = mutableListOf<String>()
+        var current = StringBuilder()
+        cleanSentence.split(Regex("\\s+")).forEach { word ->
+            if (word.isBlank()) return@forEach
+            if (word.length > MAX_COACHING_CHARS) {
+                if (current.isNotBlank()) {
+                    parts.add(current.toString())
+                    current = StringBuilder()
+                }
+                word.chunked(MAX_COACHING_CHARS).forEach { parts.add(it) }
+                return@forEach
+            }
+
+            val separator = if (current.isEmpty()) "" else " "
+            if (current.length + separator.length + word.length <= MAX_COACHING_CHARS) {
+                current.append(separator).append(word)
+            } else {
+                parts.add(current.toString())
+                current = StringBuilder(word)
+            }
+        }
+        if (current.isNotBlank()) parts.add(current.toString())
+        return parts.ifEmpty { listOf(cleanSentence.take(MAX_COACHING_CHARS)) }
+    }
+
+    private fun ensureSpeechPunctuation(text: String): String {
+        if (text.isBlank() || isSentenceBoundary(text.last())) return text
+        return "$text."
+    }
+
+    private fun isSentenceBoundary(char: Char): Boolean {
+        return char == '.' || char == '!' || char == '?'
+    }
+
+    companion object {
+        private const val SENTENCE_PAUSE_MS = 300L
+        private const val MAX_COACHING_CHARS = 15
     }
 }
