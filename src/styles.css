@@ -8980,6 +8980,23 @@ button:disabled {
   line-height: 1.45;
 }
 
+.ranking-location-status {
+  font-size: clamp(10px, 2.7vw, 11px) !important;
+  letter-spacing: 0;
+  line-height: 1.35 !important;
+}
+
+.ranking-location-note {
+  display: block;
+  width: 100%;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(157, 255, 58, 0.09);
+  color: rgba(255, 255, 255, 0.9) !important;
+  line-height: 1.4 !important;
+  overflow-wrap: anywhere;
+}
+
 .ranking-inline-verify {
   align-self: stretch;
   min-height: 46px;

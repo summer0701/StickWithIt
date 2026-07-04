@@ -135,11 +135,10 @@ export default function RankingPage({ user, onBack }) {
   const displayedContribution = mine?.score ?? ranking.contribution;
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '시/도 미인증';
   const neighborhoodName = profile?.districtName ?? '동네 미인증';
+  const locationTitle = isPersonal ? scopeName : neighborhoodName;
   const locationDetail = isPersonal
     ? '개인 기록 기준'
-    : profile
-      ? `현재 위치동네: ${profile.districtName}`
-      : 'GPS 인증 후 현재 시/도와 동네가 표시됩니다';
+    : 'GPS 인증 후 현재 시/도와 동네가 표시됩니다';
   const rankTitle = isPersonal ? '개인 순위' : '시/도 순위';
   const progressPercent = Math.min(100, Math.round((displayedContribution / 300) * 100));
 
@@ -169,12 +168,11 @@ export default function RankingPage({ user, onBack }) {
           </div>
           <div className="ranking-location-copy">
             <div>
-              <strong>{scopeName}</strong>
+              <strong>{locationTitle}</strong>
               <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
             </div>
-            <p>{locationDetail}</p>
-            {!isPersonal && profile && <small>시/도: {scopeName} · 동네: {neighborhoodName}</small>}
-            <small>{isPersonal ? '오늘 내 운동 기록이 개인 순위에 반영돼요.' : '오늘 내 시/도에 기여했어요!'}</small>
+            {(isPersonal || !profile) && <p className="ranking-location-status">{locationDetail}</p>}
+            {isPersonal && <small className="ranking-location-note">오늘 내 운동 기록이 개인 순위에 반영돼요.</small>}
           </div>
           {!profile && !isPersonal && (
             <button className="ranking-inline-verify" type="button" onClick={handleVerify}>
