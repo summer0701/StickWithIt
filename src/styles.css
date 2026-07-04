@@ -8850,7 +8850,7 @@ button:disabled {
 .simple-ranking-screen {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
   width: min(100%, 720px);
   height: 100dvh;
   min-height: 100dvh;
@@ -8903,6 +8903,7 @@ button:disabled {
 .ranking-rank-status-card,
 .ranking-search-card,
 .simple-ranking-table {
+  box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   background:
@@ -8914,11 +8915,17 @@ button:disabled {
 
 .ranking-location-card {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 14px;
-  min-height: 168px;
-  padding: 24px;
+  min-height: 72px;
+  padding: 12px 18px;
+}
+
+.ranking-location-card.gps-verify-card {
+  justify-content: center;
+  min-height: 78px;
+  max-height: 84px;
 }
 
 .ranking-location-icon {
@@ -8940,8 +8947,10 @@ button:disabled {
 .ranking-location-copy {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  width: 100%;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .ranking-location-copy > div {
@@ -8954,7 +8963,7 @@ button:disabled {
 .ranking-location-copy strong {
   flex: 1 1 160px;
   color: #ffffff;
-  font-size: clamp(22px, 6vw, 28px);
+  font-size: clamp(18px, 5vw, 24px);
   font-weight: 1000;
   line-height: 1.2;
 }
@@ -8986,23 +8995,18 @@ button:disabled {
   line-height: 1.35 !important;
 }
 
-.ranking-location-note {
-  display: block;
-  width: 100%;
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: rgba(157, 255, 58, 0.09);
-  color: rgba(255, 255, 255, 0.9) !important;
-  line-height: 1.4 !important;
-  overflow-wrap: anywhere;
-}
-
 .ranking-inline-verify {
-  align-self: stretch;
-  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  min-height: 52px;
+  height: auto;
   border-radius: 999px;
-  padding: 0 18px;
+  padding: 12px 18px;
   font-size: 14px;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .ranking-auth-status {
@@ -9024,8 +9028,57 @@ button:disabled {
 .ranking-period-card {
   display: flex;
   align-items: center;
-  min-height: 92px;
-  padding: 18px;
+  min-height: 72px;
+  padding: 10px 12px;
+}
+
+.ranking-error-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.ranking-error-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(100%, 360px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 24px;
+  padding: 24px;
+  background: rgba(12, 18, 16, 0.96);
+  color: #ffffff;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.46);
+}
+
+.ranking-error-dialog strong {
+  font-size: 20px;
+  font-weight: 1000;
+  line-height: 1.25;
+}
+
+.ranking-error-dialog p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.ranking-error-dialog button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  background: #9dff3a;
+  color: #07110a;
+  font-size: 15px;
+  font-weight: 1000;
 }
 
 .ranking-period-filter button {
@@ -9039,14 +9092,15 @@ button:disabled {
 .ranking-score-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  justify-content: center;
+  gap: 16px;
   min-height: 150px;
-  padding: 24px;
+  padding: 22px 24px;
 }
 
 .ranking-score-card > strong {
   color: #9dff3a;
-  font-size: clamp(42px, 12vw, 58px);
+  font-size: clamp(38px, 11vw, 54px);
   font-weight: 1000;
   line-height: 1;
 }
@@ -9144,12 +9198,19 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  min-height: 60px;
   padding: 0 18px;
 }
 
 .ranking-search-card input {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 16px;
   line-height: 1.4;
+  outline: none;
 }
 
 .simple-ranking-table {
@@ -9186,6 +9247,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  list-style: none;
   margin: 0;
   padding: 0;
 }
@@ -9198,12 +9260,17 @@ button:disabled {
 
 .simple-ranking-row-content {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(44px, auto);
   align-items: center;
   gap: 12px;
   min-height: 58px;
   border-radius: 16px;
   padding: 12px;
+  box-sizing: border-box;
+}
+
+.simple-ranking-row-content strong {
+  text-align: center;
 }
 
 .simple-ranking-row-content span {
@@ -9211,11 +9278,41 @@ button:disabled {
   white-space: normal;
 }
 
+.simple-ranking-row-content b {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .ranking-preparing-card {
   width: 100%;
   margin: 0;
   padding: 24px;
   text-align: center;
+}
+
+.ranking-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 220px;
+  padding: 24px;
+  text-align: center;
+}
+
+.ranking-empty-state strong {
+  color: #ffffff;
+  font-size: clamp(24px, 7vw, 32px);
+  font-weight: 1000;
+  line-height: 1.25;
+}
+
+.ranking-empty-state span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(15px, 4vw, 17px);
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 @media (max-width: 430px) {
@@ -9235,7 +9332,15 @@ button:disabled {
   .ranking-score-card,
   .ranking-rank-status-card,
   .simple-ranking-table {
-    padding: 20px;
+    padding: 18px;
+  }
+
+  .ranking-location-card {
+    min-height: 72px;
+  }
+
+  .ranking-inline-verify {
+    min-height: 52px;
   }
 
   .simple-ranking-table-heading span {

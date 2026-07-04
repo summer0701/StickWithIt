@@ -1,7 +1,7 @@
-import { Geolocation } from '@capacitor/geolocation';
 import { MapPin, Search, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { readExerciseRecords } from '../lib/exerciseRecords';
+import { LOCATION_PERMISSION_MESSAGE, LocationPermissionError, requestCurrentPosition } from '../lib/locationPermission';
 import {
   buildRankingView,
   movementText,
@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabaseClient';
 
 const tabs = [
   { id: 'country', label: '국가별', searchLabel: '국가명 검색' },
-  { id: 'neighborhood', label: '시/도별', searchLabel: '시/도명 검색' },
+  { id: 'neighborhood', label: '동네별', searchLabel: '동네명 검색' },
   { id: 'personal', label: '개인별', searchLabel: '닉네임 검색' },
 ];
 
@@ -31,12 +31,13 @@ export default function RankingPage({ user, onBack }) {
   const [query, setQuery] = useState('');
   const [profile, setProfile] = useState(() => readNeighborhoodProfile(user?.id ?? 'anonymous'));
   const [authMessage, setAuthMessage] = useState('');
+  const [errorDialog, setErrorDialog] = useState('');
   const [remoteRanking, setRemoteRanking] = useState(null);
   const [rankingStatus, setRankingStatus] = useState('local');
   const records = useMemo(() => readExerciseRecords(user?.id ?? 'anonymous'), [user?.id]);
   const localRanking = useMemo(() => buildRankingView(profile, records, period), [period, profile, records]);
   const ranking = remoteRanking ?? localRanking;
-  const effectiveTab = activeTab === 'neighborhood' && !profile ? 'personal' : activeTab;
+  const effectiveTab = activeTab;
   const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
 
   useEffect(() => {
@@ -93,30 +94,34 @@ export default function RankingPage({ user, onBack }) {
 
   async function handleVerify() {
     setAuthMessage('GPS 확인 중');
+    setErrorDialog('');
+    let step = '위치 권한 확인';
     try {
-      const permission = await Geolocation.requestPermissions();
-      if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
-        setAuthMessage('인증 필요');
-        return;
-      }
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      });
+      setAuthMessage('위치 권한 확인 중');
+      const position = await requestCurrentPosition();
+
+      step = '동네 조회';
+      setAuthMessage('현재 위치로 동네 조회 중');
       const nextProfile = await resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
+
+      step = '기기 저장';
       const saved = saveNeighborhoodProfile(user?.id ?? 'anonymous', nextProfile);
+
       if (user?.id && user?.app_metadata?.provider !== 'local-test') {
-        await supabase.from('profiles').upsert({
+        step = '서버 프로필 저장';
+        const { error: profileError } = await supabase.from('profiles').upsert({
           id: user.id,
           nickname: user.email?.split('@')[0] ?? '러너',
           ...neighborhoodProfileToRow(saved),
         });
+        if (profileError) throw profileError;
       }
       setProfile(saved);
       setAuthMessage(`${saved.neighborhoodName} 인증 완료`);
-    } catch {
-      setAuthMessage('동네를 확인하지 못했어요. GPS 권한을 확인하거나 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      const message = gpsAuthErrorMessage(error, step);
+      setAuthMessage(message);
+      setErrorDialog(message);
     }
   }
 
@@ -133,13 +138,13 @@ export default function RankingPage({ user, onBack }) {
     : ranking.neighborhoodEntries.find((entry) => entry.isMine);
   const isPersonal = effectiveTab === 'personal';
   const displayedContribution = mine?.score ?? ranking.contribution;
-  const scopeName = isPersonal ? '나' : profile?.regionName ?? '시/도 미인증';
+  const scopeName = isPersonal ? '나' : profile?.regionName ?? '동네 미인증';
   const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const locationTitle = isPersonal ? scopeName : neighborhoodName;
   const locationDetail = isPersonal
     ? '개인 기록 기준'
-    : 'GPS 인증 후 현재 시/도와 동네가 표시됩니다';
-  const rankTitle = isPersonal ? '개인 순위' : '시/도 순위';
+    : 'GPS 인증 후 현재 동네가 표시됩니다';
+  const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
   const progressPercent = Math.min(100, Math.round((displayedContribution / 300) * 100));
 
   return (
@@ -154,36 +159,20 @@ export default function RankingPage({ user, onBack }) {
               setActiveTab(tab.id);
               setQuery('');
             }}
-            disabled={tab.id === 'neighborhood' && !profile}
           >
             {tab.label}
           </button>
         ))}
       </nav>
 
-      {effectiveTab !== 'country' && (
-        <section className="ranking-location-card">
-          <div className="ranking-location-icon">
-            {isPersonal ? <UserRound size={30} /> : <MapPin size={32} />}
-          </div>
-          <div className="ranking-location-copy">
-            <div>
-              <strong>{locationTitle}</strong>
-              <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
-            </div>
-            {!isPersonal && profile && <p className="ranking-location-status">{profile.districtName}</p>}
-            {(isPersonal || !profile) && <p className="ranking-location-status">{locationDetail}</p>}
-            {isPersonal && <small className="ranking-location-note">오늘 내 운동 기록이 개인 순위에 반영돼요.</small>}
-          </div>
-          {!profile && !isPersonal && (
-            <button className="ranking-inline-verify" type="button" onClick={handleVerify}>
-              GPS로 시/도 인증하기
-            </button>
-          )}
-        </section>
-      )}
-
-      {!isPersonal && authMessage && <p className="ranking-auth-status">{authMessage}</p>}
+      <section className="ranking-search-card">
+        <Search size={18} />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={currentTab.searchLabel}
+        />
+      </section>
 
       <section className="ranking-period-card">
         <div className="ranking-period-filter" aria-label="기간 필터">
@@ -196,44 +185,43 @@ export default function RankingPage({ user, onBack }) {
       </section>
 
       {effectiveTab !== 'country' && (
-        <>
-          <section className="ranking-score-card">
-            <strong>+{displayedContribution.toLocaleString()}점</strong>
-            <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
-              <span style={{ width: `${progressPercent}%` }} />
-            </div>
-            <div className="ranking-progress-caption">
-              <span>오늘 목표 300점</span>
-              <span>{progressPercent}%</span>
-            </div>
-          </section>
-
-          <section className="ranking-rank-status-card">
-            {mine ? (
-              <div className="ranking-rank-content">
-                <span>오늘 순위</span>
-                <strong>{formatRankingHeroRank(mine.rank)}</strong>
-                <p>지난 순위 대비</p>
-                <b>{movementText(mine.movement)}</b>
+        <section className={`ranking-location-card ${!profile && !isPersonal ? 'gps-verify-card' : ''}`}>
+          {!profile && !isPersonal ? (
+            <button className="ranking-inline-verify" type="button" onClick={handleVerify}>
+              GPS로 동네 인증하기
+            </button>
+          ) : (
+            <>
+              <div className="ranking-location-icon">
+                {isPersonal ? <UserRound size={30} /> : <MapPin size={32} />}
               </div>
-            ) : (
-              <div className="ranking-rank-empty">
-                <strong>아직 순위가 없습니다.</strong>
-                <p>오늘 첫 운동을 하면<br />개인 랭킹에 등록됩니다.</p>
+              <div className="ranking-location-copy">
+                <div>
+                  <strong>{locationTitle}</strong>
+                  <span>{isPersonal ? '개인 랭킹' : '인증 완료'}</span>
+                </div>
+                {!isPersonal && profile && <p className="ranking-location-status">{profile.districtName}</p>}
+                {isPersonal && <p className="ranking-location-status">{locationDetail}</p>}
               </div>
-            )}
-          </section>
-        </>
+            </>
+          )}
+        </section>
       )}
 
-      <section className="ranking-search-card">
-        <Search size={18} />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={currentTab.searchLabel}
-        />
-      </section>
+      {!isPersonal && authMessage && <p className="ranking-auth-status">{authMessage}</p>}
+
+      {effectiveTab !== 'country' && (
+        <section className="ranking-score-card">
+          <strong>+{displayedContribution.toLocaleString()}점</strong>
+          <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
+            <span style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="ranking-progress-caption">
+            <span>오늘 목표 300점</span>
+            <span>{progressPercent}%</span>
+          </div>
+        </section>
+      )}
 
       <section className="ranking-table-card simple-ranking-table">
         <div className="simple-ranking-table-heading">
@@ -249,6 +237,18 @@ export default function RankingPage({ user, onBack }) {
           <RankingRows rows={rows} isPersonal={isPersonal} />
         )}
       </section>
+
+      {errorDialog && (
+        <div className="ranking-error-dialog-backdrop" role="presentation">
+          <section className="ranking-error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="ranking-error-title">
+            <strong id="ranking-error-title">동네 인증 오류</strong>
+            <p>{errorDialog}</p>
+            <button type="button" onClick={() => setErrorDialog('')}>
+              확인
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
@@ -257,8 +257,8 @@ function RankingRows({ rows, isPersonal }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
   if (rows.length === 0) {
     return (
-      <div className="ranking-preparing-card">
-        <strong>아직 실제 랭킹 데이터가 없습니다</strong>
+      <div className="ranking-empty-state">
+        <strong>아직 순위가 없습니다.</strong>
         <span>운동을 완료하면 랭킹에 반영됩니다.</span>
       </div>
     );
@@ -278,6 +278,27 @@ function RankingRows({ rows, isPersonal }) {
       ))}
     </ol>
   );
+}
+
+function gpsAuthErrorMessage(error, fallbackStep) {
+  const failedStep = error instanceof LocationPermissionError
+    ? locationPermissionStepLabel(error.step)
+    : fallbackStep;
+  const reason = error instanceof Error && error.message
+    ? error.message
+    : '알 수 없는 오류가 발생했어요.';
+  const guide = reason === LOCATION_PERMISSION_MESSAGE
+    ? '앱 또는 브라우저 위치 권한을 허용한 뒤 다시 시도해 주세요.'
+    : '잠시 후 다시 시도해 주세요. 같은 단계에서 반복되면 네트워크와 GPS 상태를 확인해 주세요.';
+
+  return `걸린 단계: ${failedStep}\n원인: ${reason}\n다음 조치: ${guide}`;
+}
+
+function locationPermissionStepLabel(step) {
+  if (step === 'check-permission') return '위치 권한 상태 확인';
+  if (step === 'request-permission') return '위치 권한 요청';
+  if (step === 'get-position') return '현재 위치 가져오기';
+  return '위치 확인';
 }
 
 async function loadRemoteRankingView({ userId, profile, period, localRanking }) {
@@ -376,7 +397,7 @@ function remoteRowToEntry(row, kind, profile, userId) {
     name: String(row.neighborhood_name ?? '동네'),
     score,
     movement: 0,
-    isMine: Boolean(profile?.regionCode && code.toLowerCase() === profile.regionCode.toLowerCase()),
+    isMine: Boolean(profile?.neighborhoodCode && code.toLowerCase() === profile.neighborhoodCode.toLowerCase()),
   };
 }
 

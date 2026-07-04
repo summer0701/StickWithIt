@@ -1,5 +1,4 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { Geolocation } from '@capacitor/geolocation';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
   RiArrowRightSLine,
@@ -21,6 +20,7 @@ import { buildDailyExerciseProgress, formatExerciseValue, type ExerciseProgressV
 import { getHomeWorkoutSummary, type HomeWorkoutSummary } from '../lib/homeWorkoutSummary';
 import { isTestUserId } from '../lib/testAuth';
 import { achievementRate } from '../lib/runningProgress';
+import { LOCATION_PERMISSION_MESSAGE, requestCurrentPosition } from '../lib/locationPermission';
 import {
   buildHomeRankingSummary,
   neighborhoodProfileFromRow,
@@ -298,16 +298,7 @@ export default function HomePage({
   async function handleNeighborhoodCertification() {
     setNeighborhoodMessage('GPS 확인 중');
     try {
-      const permission = await Geolocation.requestPermissions();
-      if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
-        setNeighborhoodMessage('인증 필요');
-        return;
-      }
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      });
+      const position = await requestCurrentPosition();
       const profile = await resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
       const saved = saveNeighborhoodProfile(user.id, profile);
       if (!isTestUserId(user.id)) {
@@ -319,8 +310,10 @@ export default function HomePage({
       }
       setNeighborhoodProfile(saved);
       setNeighborhoodMessage(`${saved.neighborhoodName} 인증 완료`);
-    } catch {
-      setNeighborhoodMessage('동네를 확인하지 못했어요. GPS 권한을 확인하거나 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setNeighborhoodMessage(error instanceof Error && error.message === LOCATION_PERMISSION_MESSAGE
+        ? LOCATION_PERMISSION_MESSAGE
+        : '동네를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
     }
   }
 
