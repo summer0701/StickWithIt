@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Dumbbell, History, Home, Trophy, User } from 'lucide-react';
+import { Dumbbell, Flag, History, Home, Settings } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
@@ -10,17 +10,19 @@ import LungePage from './pages/LungePage';
 import ResultPage from './pages/ResultPage';
 import RankingPage from './pages/RankingPage';
 import MyPage from './pages/MyPage';
+import HistoryPage from './pages/HistoryPage';
+import ChallengePage from './pages/ChallengePage';
 import appIcon from './assets/icon_si.png';
 import { supabase } from './lib/supabaseClient';
 import { ghostDifficultyTargetKm, readGhostDifficulty } from './lib/ghostSettings';
 import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth';
 
 const bottomRoutes = [
-  { id: 'home', label: 'Home', icon: Home },
-  { id: 'challenge', label: 'Challenge', icon: Dumbbell },
-  { id: 'history', label: 'History', icon: History },
-  { id: 'ranking', label: '랭킹', icon: Trophy },
-  { id: 'my', label: 'My', icon: User },
+  { id: 'home', label: '홈', icon: Home },
+  { id: 'workout', label: '운동', icon: Dumbbell },
+  { id: 'challenge', label: '챌린지', icon: Flag },
+  { id: 'history', label: '내 기록', icon: History },
+  { id: 'my', label: '마이', icon: Settings },
 ];
 
 export default function App() {
@@ -63,6 +65,7 @@ export default function App() {
   const user = session?.user ?? null;
   const isTestUser = user?.app_metadata?.provider === 'local-test';
   const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'lunge'];
+  const isWorkoutDashboard = page === 'home' || page === 'workout';
 
   useEffect(() => {
     if (!user) return;
@@ -88,7 +91,7 @@ export default function App() {
     if (page === 'ranking') return '오늘의 랭킹';
     if (page === 'challenge') return '철인 5종 챌린지';
     if (page === 'history') return '기록';
-    if (page === 'my') return '마이페이지';
+    if (page === 'my') return '설정';
     if (page === 'result') return '결과';
     return '끝까지 버텨라';
   }, [page]);
@@ -107,7 +110,7 @@ export default function App() {
 
   return (
     <div className="app-shell fitness-shell">
-      {!fullScreenExercisePages.includes(page) && page !== 'home' && page !== 'my' && (
+      {!fullScreenExercisePages.includes(page) && !['home', 'workout', 'my', 'challenge'].includes(page) && (
         <header className="topbar fitness-topbar">
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}
@@ -118,7 +121,7 @@ export default function App() {
         </header>
       )}
 
-      {page === 'home' && (
+      {isWorkoutDashboard && (
         <HomePage
           user={user}
           targetDistanceKm={targetDistanceKm}
@@ -157,9 +160,17 @@ export default function App() {
         />
       )}
       {page === 'ranking' && <RankingPage user={user} onBack={() => setPage('home')} />}
+      {page === 'history' && <HistoryPage user={user} onStart={() => setPage('challenge')} onRanking={() => setPage('ranking')} />}
       {page === 'my' && <MyPage user={user} onSignOut={handleSignOut} onDifficultyTargetChange={setTargetDistanceKm} />}
-      {['challenge', 'history'].includes(page) && (
-        <PlaceholderPage title={pageTitle} onHome={() => setPage('home')} />
+      {page === 'challenge' && (
+        <ChallengePage
+          user={user}
+          onHistory={() => setPage('history')}
+          onStartExercise={(type) => {
+            if (type === 'running') setTargetDistanceKm(0.8);
+            setPage(type);
+          }}
+        />
       )}
 
       {!fullScreenExercisePages.includes(page) && (
@@ -196,19 +207,4 @@ async function signInTestAccount() {
     password: TEST_ACCOUNT.password,
     options: { data: { nickname: TEST_ACCOUNT.login } },
   });
-}
-
-function PlaceholderPage({ title, onHome }) {
-  return (
-    <main className="screen premium-placeholder">
-      <section className="glass-panel">
-        <BarChart3 size={32} />
-        <p>곧 열릴 화면</p>
-        <h1>{title}</h1>
-        <button className="premium-button" type="button" onClick={onHome}>
-          홈으로 돌아가기
-        </button>
-      </section>
-    </main>
-  );
 }

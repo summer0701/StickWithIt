@@ -105,6 +105,11 @@ export default function RankingPage({ user, onBack }) {
   const isPersonal = effectiveTab === 'personal';
   const scopeLabel = isPersonal ? '내 랭킹' : '내 동네';
   const scopeName = isPersonal ? '나' : profile?.districtName ?? '동네 미인증';
+  const locationDetail = isPersonal
+    ? '개인 기록 기준'
+    : profile
+      ? `현재 위치 동네: ${profile.districtName}`
+      : 'GPS 인증 후 현재 동네가 표시됩니다';
   const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
   const progressPercent = Math.min(100, Math.round((ranking.contribution / 300) * 100));
 
@@ -146,6 +151,7 @@ export default function RankingPage({ user, onBack }) {
               <strong>{scopeName}</strong>
               <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
             </div>
+            <small className="ranking-location-detail">{locationDetail}</small>
             <p>{isPersonal ? '오늘 내 운동 기록이 개인 순위에 반영돼요.' : '오늘 우리 동네에 기여했어요!'}</p>
             <b>+{ranking.contribution}점</b>
             <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
