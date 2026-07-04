@@ -206,7 +206,7 @@ export default function HomePage({
     async function loadNeighborhoodProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('neighborhood_name,neighborhood_code,neighborhood_verified_at')
+        .select('neighborhood_name,neighborhood_code,region_name,region_code,neighborhood_verified_at')
         .eq('id', user.id)
         .maybeSingle();
       const remoteProfile = neighborhoodProfileFromRow(data);

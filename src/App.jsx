@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Flag, History, Home, Settings } from 'lucide-react';
+import { Flag, History, Home, Settings, Trophy } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
@@ -20,6 +20,7 @@ import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth'
 const bottomRoutes = [
   { id: 'home', label: '홈', icon: Home },
   { id: 'challenge', label: '챌린지', icon: Flag },
+  { id: 'ranking', label: '랭킹', icon: Trophy },
   { id: 'history', label: '내 기록', icon: History },
   { id: 'my', label: '마이', icon: Settings },
 ];
@@ -108,7 +109,7 @@ export default function App() {
 
   return (
     <div className="app-shell fitness-shell">
-      {!fullScreenExercisePages.includes(page) && !['home', 'my', 'challenge'].includes(page) && (
+      {!fullScreenExercisePages.includes(page) && !['home', 'my', 'challenge', 'ranking', 'history'].includes(page) && (
         <header className="topbar fitness-topbar">
           <button className="ghost-button" type="button" onClick={() => setPage('home')}>
             {pageTitle}

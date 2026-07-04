@@ -22,8 +22,8 @@ export type ChallengeDashboard = {
   streak: number;
   bestStreak: number;
   neighborhood: {
-    currentRank: number;
-    targetRank: number;
+    currentRank: number | null;
+    targetRank: number | null;
     pointsToTarget: number;
   };
   achievements: Array<{ label: string; complete: boolean; progress: number }>;
@@ -46,16 +46,13 @@ export type ChallengeAchievementDisplay = {
   statusText: string;
 };
 
-const WEEKLY_TARGET_DAYS = 5;
-const REFERENCE_DEFAULTS = {
-  progress: 12,
-  contribution: 35,
-  weeklyCompletedDays: 3,
-  streak: 7,
-  bestStreak: 15,
-  achievementProgress: [100, 100, 74, 40],
-  achievementIconText: ['첫', '7', '74%', '40%'],
+export type ChallengeNeighborhoodImpact = {
+  currentRank?: number | null;
+  targetRank?: number | null;
+  pointsToTarget?: number | null;
 };
+
+const WEEKLY_TARGET_DAYS = 5;
 
 export const dailyChallenges: DailyChallenge[] = [
   { type: 'push-up', label: '푸시업', target: 20, unit: '회', estimate: '약 1분이면 완료' },
@@ -66,20 +63,21 @@ export const dailyChallenges: DailyChallenge[] = [
 ];
 
 export function getDailyChallenge(userId: string, dateKey: string) {
-  void userId;
-  void dateKey;
-  return dailyChallenges[0];
+  const index = stableHash(`${userId}:${dateKey}`) % dailyChallenges.length;
+  return dailyChallenges[index];
 }
 
 export function buildChallengeDashboard({
   userId,
   exerciseRecords = [],
   runs = [],
+  neighborhoodImpact,
   now = new Date(),
 }: {
   userId: string;
   exerciseRecords?: ExerciseRecord[];
   runs?: ChallengeRunLike[];
+  neighborhoodImpact?: ChallengeNeighborhoodImpact | null;
   now?: Date;
 }): ChallengeDashboard {
   const todayKey = toDateKey(now);
@@ -107,41 +105,36 @@ export function buildChallengeDashboard({
     weekDays,
     streak: calculateStreak(activeDateKeys, todayKey),
     bestStreak: calculateBestStreak(activeDateKeys),
-    neighborhood: buildNeighborhoodImpact(contribution),
+    neighborhood: buildNeighborhoodImpact(neighborhoodImpact),
     achievements: buildAchievements(workouts, activeDateKeys),
   };
 }
 
 export function buildChallengeDisplayModel(dashboard: ChallengeDashboard): ChallengeDisplayModel {
-  const progress = dashboard.progress > 0 ? Math.round(dashboard.progress) : REFERENCE_DEFAULTS.progress;
-  const weeklyCompletedDays = dashboard.weeklyCompletedDays > 0
-    ? dashboard.weeklyCompletedDays
-    : REFERENCE_DEFAULTS.weeklyCompletedDays;
+  const progress = Math.round(dashboard.progress);
+  const weeklyCompletedDays = dashboard.weeklyCompletedDays;
 
   return {
     progress,
     progressPercent: percent(progress, dashboard.challenge.target),
-    contribution: dashboard.contribution > 0 ? dashboard.contribution : REFERENCE_DEFAULTS.contribution,
+    contribution: dashboard.contribution,
     weeklyCompletedDays,
     remainingWeekDays: Math.max(0, dashboard.weeklyTargetDays - weeklyCompletedDays),
-    streak: dashboard.streak > 0 ? dashboard.streak : REFERENCE_DEFAULTS.streak,
-    bestStreak: dashboard.bestStreak > 0 ? dashboard.bestStreak : REFERENCE_DEFAULTS.bestStreak,
+    streak: dashboard.streak,
+    bestStreak: dashboard.bestStreak,
   };
 }
 
 export function buildChallengeAchievementDisplay(
   achievements: ChallengeDashboard['achievements'],
 ): ChallengeAchievementDisplay[] {
-  const hasCompletedAchievement = achievements.some((achievement) => achievement.complete);
-  return achievements.map((achievement, index) => {
-    const fallbackProgress = REFERENCE_DEFAULTS.achievementProgress[index] ?? 0;
-    const complete = achievement.complete || (!hasCompletedAchievement && index < 2);
-    const progress = Math.max(achievement.progress, fallbackProgress);
+  return achievements.map((achievement) => {
+    const progress = achievement.progress;
     return {
       label: achievement.label,
-      complete,
-      iconText: complete ? (REFERENCE_DEFAULTS.achievementIconText[index] ?? '완') : `${progress}%`,
-      statusText: complete ? '완료' : `${progress}%`,
+      complete: achievement.complete,
+      iconText: achievement.complete ? '완' : `${progress}%`,
+      statusText: achievement.complete ? '완료' : `${progress}%`,
     };
   });
 }
@@ -179,11 +172,15 @@ function workoutScore(workout: Workout) {
   return Math.round(workout.reps + workout.durationSeconds / 10);
 }
 
-function buildNeighborhoodImpact(todayContribution: number) {
-  const currentRank = Math.max(1, 12 - Math.floor(todayContribution / 80));
-  const targetRank = Math.max(1, currentRank - 2);
-  const pointsToTarget = Math.max(0, 1420 - todayContribution);
-  return { currentRank, targetRank, pointsToTarget };
+function buildNeighborhoodImpact(impact?: ChallengeNeighborhoodImpact | null) {
+  const currentRank = finiteNullable(impact?.currentRank);
+  const targetRank = finiteNullable(impact?.targetRank);
+  const pointsToTarget = finiteNullable(impact?.pointsToTarget);
+  return {
+    currentRank,
+    targetRank,
+    pointsToTarget: pointsToTarget ?? 0,
+  };
 }
 
 function buildWeekDays(activeDateKeys: string[], now: Date) {
@@ -281,8 +278,21 @@ function finite(value: unknown) {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+function finiteNullable(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number) : null;
+}
+
 function sum(values: number[]) {
   return values.reduce((total, value) => total + value, 0);
+}
+
+function stableHash(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
 }
 
 type Workout = {

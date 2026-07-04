@@ -9,10 +9,7 @@ import {
 describe('challengeDashboard', () => {
   it('selects the same daily challenge for the same user and date', () => {
     expect(getDailyChallenge('user-1', '2026-07-04')).toEqual(getDailyChallenge('user-1', '2026-07-04'));
-    expect(getDailyChallenge('user-1', '2026-07-04')).toMatchObject({
-      type: 'push-up',
-      target: 20,
-    });
+    expect(getDailyChallenge('user-1', '2026-07-04')).toHaveProperty('target');
   });
 
   it('builds progress, weekly days, streaks, neighborhood impact, and achievements', () => {
@@ -34,6 +31,11 @@ describe('challengeDashboard', () => {
         { id: 'push-2', userId: 'user-1', type: 'push-up', completed: true, completedAt: '2026-07-03T07:00:00.000Z', reps: 30, durationSeconds: 160 },
         { id: 'squat-1', userId: 'user-1', type: 'squat', completed: true, completedAt: '2026-07-02T07:00:00.000Z', reps: 40, durationSeconds: 180 },
       ],
+      neighborhoodImpact: {
+        currentRank: 8,
+        targetRank: 7,
+        pointsToTarget: 42,
+      },
     });
 
     expect(dashboard.challenge.label).toBeTruthy();
@@ -41,40 +43,41 @@ describe('challengeDashboard', () => {
     expect(dashboard.weeklyCompletedDays).toBe(3);
     expect(dashboard.streak).toBe(3);
     expect(dashboard.bestStreak).toBe(3);
-    expect(dashboard.neighborhood.targetRank).toBeLessThanOrEqual(dashboard.neighborhood.currentRank);
+    expect(dashboard.neighborhood).toMatchObject({ currentRank: 8, targetRank: 7, pointsToTarget: 42 });
     expect(dashboard.achievements.find((achievement) => achievement.label === '첫 운동')).toMatchObject({ complete: true });
     expect(dashboard.achievements.find((achievement) => achievement.label === '푸시업 100회')).toMatchObject({ complete: true });
   });
 
-  it('uses reference-image display defaults when there is no workout data', () => {
+  it('uses zero display values when there is no workout data', () => {
     const dashboard = buildChallengeDashboard({
       userId: 'empty-user',
       now: new Date('2026-07-04T09:00:00.000Z'),
     });
 
     expect(buildChallengeDisplayModel(dashboard)).toMatchObject({
-      progress: 12,
-      progressPercent: 60,
-      contribution: 35,
-      weeklyCompletedDays: 3,
-      remainingWeekDays: 2,
-      streak: 7,
-      bestStreak: 15,
+      progress: 0,
+      progressPercent: 0,
+      contribution: 0,
+      weeklyCompletedDays: 0,
+      remainingWeekDays: 5,
+      streak: 0,
+      bestStreak: 0,
     });
   });
 
   it('uses real workout values instead of reference defaults when data exists', () => {
+    const challenge = getDailyChallenge('active-user', '2026-07-04');
     const dashboard = buildChallengeDashboard({
       userId: 'active-user',
       now: new Date('2026-07-04T09:00:00.000Z'),
       exerciseRecords: [
-        { id: 'push-1', userId: 'active-user', type: 'push-up', completed: true, completedAt: '2026-07-04T07:00:00.000Z', reps: 18, durationSeconds: 120 },
+        { id: 'workout-1', userId: 'active-user', type: challenge.type, completed: true, completedAt: '2026-07-04T07:00:00.000Z', reps: 18, durationSeconds: 120 },
       ],
     });
 
+    const expectedProgress = challenge.type === 'running' ? 120 : 18;
     expect(buildChallengeDisplayModel(dashboard)).toMatchObject({
-      progress: 18,
-      progressPercent: 90,
+      progress: expectedProgress,
       weeklyCompletedDays: 1,
       remainingWeekDays: 4,
       streak: 1,
@@ -82,17 +85,17 @@ describe('challengeDashboard', () => {
     });
   });
 
-  it('uses reference-image achievement display defaults when achievements are empty', () => {
+  it('does not complete achievements when achievements are empty', () => {
     const dashboard = buildChallengeDashboard({
       userId: 'empty-user',
       now: new Date('2026-07-04T09:00:00.000Z'),
     });
 
     expect(buildChallengeAchievementDisplay(dashboard.achievements)).toEqual([
-      expect.objectContaining({ iconText: '첫', statusText: '완료', complete: true }),
-      expect.objectContaining({ iconText: '7', statusText: '완료', complete: true }),
-      expect.objectContaining({ iconText: '74%', statusText: '74%', complete: false }),
-      expect.objectContaining({ iconText: '40%', statusText: '40%', complete: false }),
+      expect.objectContaining({ iconText: '0%', statusText: '0%', complete: false }),
+      expect.objectContaining({ iconText: '0%', statusText: '0%', complete: false }),
+      expect.objectContaining({ iconText: '0%', statusText: '0%', complete: false }),
+      expect.objectContaining({ iconText: '0%', statusText: '0%', complete: false }),
     ]);
   });
 });

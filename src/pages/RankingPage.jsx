@@ -1,5 +1,5 @@
 import { Geolocation } from '@capacitor/geolocation';
-import { ChevronRight, MapPin, Search, UserRound } from 'lucide-react';
+import { MapPin, Search, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import {
@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabaseClient';
 
 const tabs = [
   { id: 'country', label: '국가별', searchLabel: '국가명 검색' },
-  { id: 'neighborhood', label: '동네별', searchLabel: '동네명 검색' },
+  { id: 'neighborhood', label: '시/도별', searchLabel: '시/도명 검색' },
   { id: 'personal', label: '개인별', searchLabel: '닉네임 검색' },
 ];
 
@@ -31,8 +31,11 @@ export default function RankingPage({ user, onBack }) {
   const [query, setQuery] = useState('');
   const [profile, setProfile] = useState(() => readNeighborhoodProfile(user?.id ?? 'anonymous'));
   const [authMessage, setAuthMessage] = useState('');
+  const [remoteRanking, setRemoteRanking] = useState(null);
+  const [rankingStatus, setRankingStatus] = useState('local');
   const records = useMemo(() => readExerciseRecords(user?.id ?? 'anonymous'), [user?.id]);
-  const ranking = useMemo(() => buildRankingView(profile, records, period), [period, profile, records]);
+  const localRanking = useMemo(() => buildRankingView(profile, records, period), [period, profile, records]);
+  const ranking = remoteRanking ?? localRanking;
   const effectiveTab = activeTab === 'neighborhood' && !profile ? 'personal' : activeTab;
   const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
 
@@ -44,7 +47,7 @@ export default function RankingPage({ user, onBack }) {
     let active = true;
     supabase
       .from('profiles')
-      .select('neighborhood_name,neighborhood_code,neighborhood_verified_at')
+        .select('neighborhood_name,neighborhood_code,region_name,region_code,neighborhood_verified_at')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -59,6 +62,34 @@ export default function RankingPage({ user, onBack }) {
       active = false;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || user?.app_metadata?.provider === 'local-test') {
+      setRemoteRanking(null);
+      setRankingStatus('local');
+      return undefined;
+    }
+
+    let active = true;
+    setRankingStatus('loading');
+
+    loadRemoteRankingView({ userId: user.id, profile, period, localRanking })
+      .then((nextRanking) => {
+        if (!active) return;
+        setRemoteRanking(nextRanking);
+        setRankingStatus('remote');
+      })
+      .catch((error) => {
+        console.debug('[RankingPage] Failed to load remote rankings.', error);
+        if (!active) return;
+        setRemoteRanking(null);
+        setRankingStatus('local');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [localRanking, period, profile, user?.app_metadata?.provider, user?.id]);
 
   async function handleVerify() {
     setAuthMessage('GPS 확인 중');
@@ -97,35 +128,22 @@ export default function RankingPage({ user, onBack }) {
     return source.filter((entry) => entry.name.toLowerCase().includes(normalized));
   }, [effectiveTab, query, ranking.neighborhoodEntries, ranking.personalEntries]);
 
-  const rival = effectiveTab === 'personal' ? ranking.personalRival : ranking.neighborhoodRival;
-  const prediction = effectiveTab === 'personal' ? ranking.personalPrediction : ranking.neighborhoodPrediction;
   const mine = effectiveTab === 'personal'
     ? ranking.personalEntries.find((entry) => entry.isMine)
     : ranking.neighborhoodEntries.find((entry) => entry.isMine);
   const isPersonal = effectiveTab === 'personal';
-  const scopeLabel = isPersonal ? '내 랭킹' : '내 동네';
-  const scopeName = isPersonal ? '나' : profile?.districtName ?? '동네 미인증';
+  const displayedContribution = mine?.score ?? ranking.contribution;
+  const scopeName = isPersonal ? '나' : profile?.regionName ?? '시/도 미인증';
   const locationDetail = isPersonal
     ? '개인 기록 기준'
     : profile
-      ? `현재 위치 동네: ${profile.districtName}`
-      : 'GPS 인증 후 현재 동네가 표시됩니다';
-  const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
-  const progressPercent = Math.min(100, Math.round((ranking.contribution / 300) * 100));
+      ? `현재 위치 시/도: ${profile.regionName}`
+      : 'GPS 인증 후 현재 시/도가 표시됩니다';
+  const rankTitle = isPersonal ? '개인 순위' : '시/도 순위';
+  const progressPercent = Math.min(100, Math.round((displayedContribution / 300) * 100));
 
   return (
     <main className="ranking-league-screen simple-ranking-screen">
-      <header className="ranking-league-header simple-ranking-header">
-        <div>
-          <span>랭킹</span>
-          <h1>오늘 운동하면 우리 동네가 올라갑니다.</h1>
-          <p>내 운동이 우리 동네 점수에 바로 더해집니다.</p>
-        </div>
-        <button className="ranking-close-button" type="button" onClick={onBack}>
-          닫기
-        </button>
-      </header>
-
       <nav className="ranking-tab-bar simple-ranking-tabs" aria-label="랭킹 탭">
         {tabs.map((tab) => (
           <button
@@ -144,33 +162,21 @@ export default function RankingPage({ user, onBack }) {
       </nav>
 
       {effectiveTab !== 'country' && (
-        <section className={`ranking-spotlight-card ${isPersonal ? 'personal' : 'neighborhood'}`}>
-          <div className="ranking-spotlight-left">
-            <div className="ranking-location-title">
-              {isPersonal ? <UserRound size={42} /> : <MapPin size={46} />}
+        <section className="ranking-location-card">
+          <div className="ranking-location-icon">
+            {isPersonal ? <UserRound size={30} /> : <MapPin size={32} />}
+          </div>
+          <div className="ranking-location-copy">
+            <div>
               <strong>{scopeName}</strong>
               <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
             </div>
-            <small className="ranking-location-detail">{locationDetail}</small>
-            <p>{isPersonal ? '오늘 내 운동 기록이 개인 순위에 반영돼요.' : '오늘 우리 동네에 기여했어요!'}</p>
-            <b>+{ranking.contribution}점</b>
-            <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
-              <span style={{ width: `${progressPercent}%` }} />
-            </div>
-            <div className="ranking-progress-caption">
-              <span>오늘 목표 300점</span>
-              <span>{progressPercent}%</span>
-            </div>
-          </div>
-          <div className="ranking-spotlight-right">
-            <span>오늘 순위</span>
-            <strong>{mine?.rank ?? '-' }위</strong>
-            <b>{mine ? movementText(mine.movement) : '-'}</b>
-            <p>지난 순위 대비 상승</p>
+            <p>{locationDetail}</p>
+            <small>{isPersonal ? '오늘 내 운동 기록이 개인 순위에 반영돼요.' : '오늘 내 시/도에 기여했어요!'}</small>
           </div>
           {!profile && !isPersonal && (
             <button className="ranking-inline-verify" type="button" onClick={handleVerify}>
-              GPS로 인증하기
+              GPS로 시/도 인증하기
             </button>
           )}
         </section>
@@ -186,6 +192,37 @@ export default function RankingPage({ user, onBack }) {
         ))}
       </div>
 
+      {effectiveTab !== 'country' && (
+        <>
+          <section className="ranking-score-card">
+            <strong>+{displayedContribution.toLocaleString()}점</strong>
+            <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div className="ranking-progress-caption">
+              <span>오늘 목표 300점</span>
+              <span>{progressPercent}%</span>
+            </div>
+          </section>
+
+          <section className="ranking-rank-status-card">
+            {mine ? (
+              <div className="ranking-rank-content">
+                <span>오늘 순위</span>
+                <strong>{formatRankingHeroRank(mine.rank)}</strong>
+                <p>지난 순위 대비</p>
+                <b>{movementText(mine.movement)}</b>
+              </div>
+            ) : (
+              <div className="ranking-rank-empty">
+                <strong>아직 순위가 없습니다.</strong>
+                <p>오늘 첫 운동을 하면<br />개인 랭킹에 등록됩니다.</p>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
       <section className="ranking-search-card">
         <Search size={18} />
         <input
@@ -195,24 +232,10 @@ export default function RankingPage({ user, onBack }) {
         />
       </section>
 
-      {effectiveTab !== 'country' && (
-        <div className="ranking-helper-row">
-          <section className="ranking-rival-card">
-            <span>{rival.title}</span>
-            <strong>{rival.name}</strong>
-            <p>{rival.gapText}</p>
-            <b>{rival.actionText}</b>
-          </section>
-          <section className="ranking-prediction-card">
-            {prediction}
-          </section>
-        </div>
-      )}
-
       <section className="ranking-table-card simple-ranking-table">
         <div className="simple-ranking-table-heading">
           <strong>{effectiveTab === 'country' ? '국가별 순위' : `TOP 20 ${rankTitle}`}</strong>
-          <span>{currentTab.searchLabel}</span>
+          <span>{rankingStatus === 'loading' ? '불러오는 중' : currentTab.searchLabel}</span>
         </div>
         {effectiveTab === 'country' ? (
           <div className="ranking-preparing-card">
@@ -223,25 +246,21 @@ export default function RankingPage({ user, onBack }) {
           <RankingRows rows={rows} isPersonal={isPersonal} />
         )}
       </section>
-
-      {effectiveTab !== 'country' && mine && (
-        <section className={`ranking-mine-card ${isPersonal ? 'personal' : 'neighborhood'}`}>
-          <div>
-            {isPersonal ? <UserRound size={34} /> : <MapPin size={38} />}
-            <strong>{scopeLabel}</strong>
-          </div>
-          <b>{mine.rank}위</b>
-          <span>{mine.name}</span>
-          <p>{movementText(mine.movement)} 지난 순위 대비 상승</p>
-          <ChevronRight size={28} />
-        </section>
-      )}
     </main>
   );
 }
 
 function RankingRows({ rows, isPersonal }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
+  if (rows.length === 0) {
+    return (
+      <div className="ranking-preparing-card">
+        <strong>아직 실제 랭킹 데이터가 없습니다</strong>
+        <span>운동을 완료하면 랭킹에 반영됩니다.</span>
+      </div>
+    );
+  }
+
   return (
     <ol className="simple-ranking-list">
       {rows.map((entry, index) => (
@@ -258,9 +277,182 @@ function RankingRows({ rows, isPersonal }) {
   );
 }
 
+async function loadRemoteRankingView({ userId, profile, period, localRanking }) {
+  const periodConfig = rankingPeriodConfig(period);
+  const [neighborhoodResult, personalResult] = await Promise.all([
+    fetchRankingRows({
+      table: periodConfig.neighborhoodView,
+      dateColumn: periodConfig.dateColumn,
+      dateValue: periodConfig.dateValue,
+      kind: 'neighborhood',
+      profile,
+      userId,
+    }),
+    fetchRankingRows({
+      table: periodConfig.personalView,
+      dateColumn: periodConfig.dateColumn,
+      dateValue: periodConfig.dateValue,
+      kind: 'personal',
+      profile,
+      userId,
+    }),
+  ]);
+
+  const neighborhoodEntries = neighborhoodResult.entries.length > 0
+    ? neighborhoodResult.entries
+    : localRanking.neighborhoodEntries;
+  const personalEntries = personalResult.entries.length > 0
+    ? personalResult.entries
+    : localRanking.personalEntries;
+
+  const myNeighborhood = neighborhoodEntries.find((entry) => entry.isMine);
+  const myPersonal = personalEntries.find((entry) => entry.isMine);
+  const contribution = Math.max(localRanking.contribution, myPersonal?.score ?? 0, myNeighborhood?.score ?? 0);
+
+  return {
+    ...localRanking,
+    contribution,
+    neighborhoodEntries,
+    personalEntries,
+    neighborhoodRival: buildRemoteRival('neighborhood', neighborhoodResult.allEntries, myNeighborhood),
+    personalRival: buildRemoteRival('personal', personalResult.allEntries, myPersonal),
+    neighborhoodPrediction: myNeighborhood
+      ? `${myNeighborhood.name} ${myNeighborhood.rank}위 · ${myNeighborhood.score.toLocaleString()}점`
+      : localRanking.neighborhoodPrediction,
+    personalPrediction: myPersonal
+      ? `내 순위 ${myPersonal.rank}위 · ${myPersonal.score.toLocaleString()}점`
+      : localRanking.personalPrediction,
+  };
+}
+
+async function fetchRankingRows({ table, dateColumn, dateValue, kind, profile, userId }) {
+  const columns = kind === 'personal'
+    ? `${dateColumn},user_id,masked_name,total_points,rank`
+    : `${dateColumn},neighborhood_code,neighborhood_name,total_points,rank`;
+  const { data, error } = await supabase
+    .from(table)
+    .select(columns)
+    .eq(dateColumn, dateValue)
+    .order('rank', { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+
+  const allEntries = (data ?? [])
+    .map((row) => remoteRowToEntry(row, kind, profile, userId))
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank);
+
+  return {
+    allEntries,
+    entries: topTwentyWithMine(allEntries),
+  };
+}
+
+function remoteRowToEntry(row, kind, profile, userId) {
+  const rank = Number(row.rank);
+  const score = Number(row.total_points);
+  if (!Number.isFinite(rank) || !Number.isFinite(score)) return null;
+
+  if (kind === 'personal') {
+    const id = String(row.user_id ?? '');
+    return {
+      id,
+      rank,
+      name: id === userId ? '나' : String(row.masked_name ?? '사용자'),
+      score,
+      movement: 0,
+      isMine: id === userId,
+    };
+  }
+
+  const code = String(row.neighborhood_code ?? '');
+  return {
+    id: code,
+    rank,
+    name: String(row.neighborhood_name ?? '동네'),
+    score,
+    movement: 0,
+    isMine: Boolean(profile?.regionCode && code.toLowerCase() === profile.regionCode.toLowerCase()),
+  };
+}
+
+function topTwentyWithMine(entries) {
+  const topTwenty = entries.filter((entry) => entry.rank <= 20);
+  const mine = entries.find((entry) => entry.isMine);
+  if (mine && !topTwenty.some((entry) => entry.id === mine.id)) return [...topTwenty, mine];
+  return topTwenty;
+}
+
+function buildRemoteRival(kind, entries, mine) {
+  const rival = mine
+    ? [...entries].reverse().find((entry) => !entry.isMine && entry.rank < mine.rank)
+    : null;
+  const gap = Math.max(0, (rival?.score ?? 0) - (mine?.score ?? 0));
+  const subject = kind === 'personal' ? '사용자' : '동네';
+  const action = kind === 'personal' ? '운동 점수' : '동네 점수';
+  return {
+    title: `바로 위 ${subject}`,
+    name: rival?.name ?? '아직 비교 대상 없음',
+    gapText: rival ? `차이 ${gap.toLocaleString()}점` : '실제 랭킹 데이터 대기 중',
+    actionText: rival ? `${action} ${gap.toLocaleString()}점이면 역전` : '운동 기록을 저장하면 반영됩니다',
+  };
+}
+
+function rankingPeriodConfig(period) {
+  if (period === 'week') {
+    return {
+      neighborhoodView: 'neighborhood_rankings_weekly',
+      personalView: 'personal_rankings_weekly',
+      dateColumn: 'period_start',
+      dateValue: periodStartKey('week'),
+    };
+  }
+  if (period === 'month') {
+    return {
+      neighborhoodView: 'neighborhood_rankings_monthly',
+      personalView: 'personal_rankings_monthly',
+      dateColumn: 'period_start',
+      dateValue: periodStartKey('month'),
+    };
+  }
+  return {
+    neighborhoodView: 'neighborhood_rankings_daily',
+    personalView: 'personal_rankings_daily',
+    dateColumn: 'contributed_on',
+    dateValue: localDateKey(new Date()),
+  };
+}
+
+function periodStartKey(period) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (period === 'week') {
+    const day = start.getDay() || 7;
+    start.setDate(start.getDate() - day + 1);
+  }
+  if (period === 'month') {
+    start.setDate(1);
+  }
+  return localDateKey(start);
+}
+
+function localDateKey(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
 function rankBadge(rank) {
   if (rank === 1) return '🥇';
   if (rank === 2) return '🥈';
   if (rank === 3) return '🥉';
   return `${rank}`;
+}
+
+function formatRankingHeroRank(rank) {
+  if (!rank) return '-';
+  return `#${rank}`;
 }

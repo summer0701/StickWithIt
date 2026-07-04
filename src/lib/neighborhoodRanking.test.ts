@@ -20,6 +20,8 @@ describe('neighborhoodRanking', () => {
 
     expect(saved.districtName).toBe('상남동');
     expect(saved.districtCode).toBe('KR-48123-SANGNAM');
+    expect(saved.regionName).toBe('경상남도 창원시');
+    expect(saved.regionCode).toBe('KR-48-CHANGWON');
     expect(JSON.stringify(saved)).not.toContain('35.223');
     expect(JSON.stringify(saved)).not.toContain('128.681');
   });
@@ -31,6 +33,8 @@ describe('neighborhoodRanking', () => {
     expect(row).toEqual({
       neighborhood_name: '상남동',
       neighborhood_code: 'KR-48123-SANGNAM',
+      region_name: '경상남도 창원시',
+      region_code: 'KR-48-CHANGWON',
       neighborhood_verified_at: profile.verifiedAt,
     });
     expect(JSON.stringify(row)).not.toContain('latitude');
@@ -42,6 +46,7 @@ describe('neighborhoodRanking', () => {
     const profile = resolveNeighborhoodFromGps(37.5665, 126.9780);
 
     expect(profile.districtCode).toBe('GPS-VERIFIED-DISTRICT');
+    expect(profile.regionCode).toBe('GPS-VERIFIED-REGION');
     expect(JSON.stringify(profile)).not.toContain('3757');
     expect(JSON.stringify(profile)).not.toContain('12698');
   });
@@ -53,26 +58,32 @@ describe('neighborhoodRanking', () => {
     expect(summary.neighborhood.rankText).toBe('인증 필요');
   });
 
-  it('shows my neighborhood outside top 20 after a separator candidate', () => {
+  it('does not create fake ranking rows without workout data', () => {
     const profile = resolveNeighborhoodFromGps(35.223, 128.681);
     const view = buildRankingView(profile, [], 'today');
 
-    expect(view.neighborhoodEntries).toHaveLength(21);
-    expect(view.neighborhoodEntries[19]?.rank).toBe(20);
-    expect(view.neighborhoodEntries.at(-1)?.isMine).toBe(true);
-    expect(view.neighborhoodEntries.at(-1)?.rank).toBeGreaterThan(20);
+    expect(view.neighborhoodEntries).toEqual([]);
+    expect(view.personalEntries).toEqual([]);
   });
 
-  it('shows personal ranking rows as a selectable ranking tab source', () => {
-    const view = buildRankingView(null, [], 'today');
+  it('shows only my real personal ranking row when local workout data exists', () => {
+    const view = buildRankingView(null, [{
+      id: 'record-1',
+      userId: 'user-1',
+      type: 'jumping-jack',
+      completed: true,
+      completedAt: new Date().toISOString(),
+      reps: 84,
+      durationSeconds: 0,
+    }], 'today');
 
-    expect(view.personalEntries).toHaveLength(21);
-    expect(view.personalEntries[0]?.rank).toBe(1);
-    expect(view.personalEntries[19]?.rank).toBe(20);
-    expect(view.personalEntries.at(-1)).toMatchObject({ isMine: true });
+    expect(view.neighborhoodEntries).toEqual([]);
+    expect(view.personalEntries).toEqual([
+      expect.objectContaining({ name: '나', rank: 1, score: 84, isMine: true }),
+    ]);
   });
 
-  it('uses today contribution to raise neighborhood and personal ranks', () => {
+  it('uses today contribution for real local neighborhood and personal rows', () => {
     const profile = resolveNeighborhoodFromGps(35.223, 128.681);
     const view = buildRankingView(profile, [
       {
@@ -87,13 +98,17 @@ describe('neighborhoodRanking', () => {
     ], 'today');
 
     expect(view.contribution).toBe(84);
-    expect(view.neighborhoodEntries.at(-1)).toMatchObject({ name: '상남동', rank: 149, movement: 8 });
-    expect(view.personalEntries.at(-1)).toMatchObject({ name: '나', rank: 837, movement: 5 });
-    expect(view.neighborhoodPrediction).toContain('상남동 149위 ▲8');
-    expect(view.personalPrediction).toContain('내 순위 837위 ▲5');
+    expect(view.neighborhoodEntries).toEqual([
+      expect.objectContaining({ name: '경상남도 창원시', rank: 1, score: 84, isMine: true }),
+    ]);
+    expect(view.personalEntries).toEqual([
+      expect.objectContaining({ name: '나', rank: 1, score: 84, isMine: true }),
+    ]);
+    expect(view.neighborhoodPrediction).toContain('경상남도 창원시 1위 · 오늘 +84점');
+    expect(view.personalPrediction).toContain('내 순위 1위 · 오늘 +84점');
     expect(view.neighborhoodRival).toMatchObject({
       title: '바로 위 동네',
-      gapText: '차이 1점',
+      gapText: '실제 랭킹 데이터 대기 중',
     });
   });
 
@@ -137,6 +152,8 @@ describe('neighborhoodRanking', () => {
       user_id: 'user-1',
       neighborhood_code: 'KR-48123-SANGNAM',
       neighborhood_name: '상남동',
+      region_code: 'KR-48-CHANGWON',
+      region_name: '경상남도 창원시',
       source_record_id: 'run-1',
       contributed_on: '2026-07-04',
     });

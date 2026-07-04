@@ -1,23 +1,35 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import {
-  Award,
+  ArrowDown,
+  ArrowLeft,
   BarChart3,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
+  Dumbbell,
   Flame,
-  MapPin,
+  Footprints,
+  ListFilter,
   Medal,
-  Search,
-  Target,
+  PersonStanding,
+  Play,
   Timer,
   Trophy,
+  Zap,
+  type LucideIcon,
 } from 'lucide-react';
+import historyNeonBg from '../assets/history-neon-bg.jpg';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import { readLocalRuns } from '../lib/localRuns';
 import {
   buildHistoryDashboard,
+  dateKey,
   filterHistoryWorkouts,
   formatHistoryDuration,
+  type ChartPoint,
+  type ExerciseHistoryStat,
+  type HistoryDashboard,
   type HistoryWorkout,
 } from '../lib/historyDashboard';
 
@@ -27,347 +39,528 @@ type HistoryPageProps = {
   onRanking: () => void;
 };
 
+type HistoryTab = 'summary' | 'detail';
+
+const historyUi = {
+  lime: '#9DFF3A',
+  cardRadius: 22,
+  cardPadding: 20,
+};
+
 const filterTabs = [
   { id: 'all', label: '전체' },
-  { id: 'running', label: 'Running' },
-  { id: 'push-up', label: 'Push-up' },
-  { id: 'squat', label: 'Squat' },
-  { id: 'lunge', label: 'Lunge' },
-  { id: 'jumping-jack', label: 'Jumping Jack' },
-];
-
-const sortOptions = [
-  { id: 'latest', label: '최신순' },
-  { id: 'oldest', label: '오래된순' },
-  { id: 'duration', label: '운동시간' },
-  { id: 'volume', label: '운동량' },
-  { id: 'calories', label: '칼로리' },
+  { id: 'running', label: '러닝' },
+  { id: 'squat', label: '스쿼트' },
+  { id: 'jumping-jack', label: '점핑잭' },
+  { id: 'push-up', label: '푸쉬업' },
+  { id: 'lunge', label: '런지' },
 ];
 
 export default function HistoryPage({ user, onStart, onRanking }: HistoryPageProps) {
+  const [activeTab, setActiveTab] = useState<HistoryTab>('summary');
   const [filter, setFilter] = useState('all');
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<'latest' | 'oldest' | 'duration' | 'volume' | 'calories'>('latest');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [selectedWorkout, setSelectedWorkout] = useState<HistoryWorkout | null>(null);
-  const [visibleCount, setVisibleCount] = useState(20);
 
   const dashboard = useMemo(() => buildHistoryDashboard({
     exerciseRecords: readExerciseRecords(user.id),
     runs: readLocalRuns(user.id),
   }), [user.id]);
 
-  const filteredWorkouts = useMemo(() => {
-    const byControls = filterHistoryWorkouts(dashboard.workouts, { type: filter, query, sort });
-    if (!selectedDate) return byControls;
-    return byControls.filter((workout) => workout.completedAt.slice(0, 10) === selectedDate);
-  }, [dashboard.workouts, filter, query, selectedDate, sort]);
+  const filteredWorkouts = useMemo(() => (
+    filterHistoryWorkouts(dashboard.workouts, { type: filter, sort: 'latest' })
+      .filter((workout) => workout.completedAt.slice(0, 10) === selectedDate)
+  ), [dashboard.workouts, filter, selectedDate]);
 
-  const timeline = useMemo(() => {
-    const limited = filteredWorkouts.slice(0, visibleCount);
-    const groups = new Map<string, HistoryWorkout[]>();
-    limited.forEach((workout) => {
-      const key = workout.completedAt.slice(0, 10);
-      groups.set(key, [...(groups.get(key) ?? []), workout]);
-    });
-    return [...groups.entries()].map(([dateKey, workouts]) => ({
-      dateKey,
-      label: dateKey === new Date().toISOString().slice(0, 10) ? '오늘' : dateKey,
-      workouts,
-    }));
-  }, [filteredWorkouts, visibleCount]);
+  const selectedDaySummary = useMemo(() => summarizeWorkouts(filteredWorkouts), [filteredWorkouts]);
+  const recentWorkouts = dashboard.workouts.slice(0, 5);
+  const maxWeek = Math.max(1, ...dashboard.weeklyBars.map((point) => point.value));
+  const maxTrend = Math.max(1, ...dashboard.monthlyTrend.map((point) => point.value));
 
-  if (dashboard.workouts.length === 0) {
-    return (
-      <main className="history-screen history-empty">
-        <section className="history-empty-card">
-          <Flame size={42} />
-          <h1>아직 운동 기록이 없습니다.</h1>
-          <p>오늘 첫 운동을 시작해보세요.</p>
-          <button type="button" onClick={onStart}>운동 시작</button>
-        </section>
-      </main>
-    );
+  function shiftDate(days: number) {
+    const nextDate = new Date(`${selectedDate}T00:00:00.000Z`);
+    nextDate.setUTCDate(nextDate.getUTCDate() + days);
+    setSelectedDate(dateKey(nextDate));
   }
 
-  const maxWeek = Math.max(1, ...dashboard.weeklyBars.map((point) => point.value));
-  const maxMonth = Math.max(1, ...dashboard.monthlyTrend.map((point) => point.value));
-
   return (
-    <main className="history-screen">
-      <header className="history-sticky-header">
-        <div>
-          <span>운동 기록</span>
-          <strong>나의 운동 일지</strong>
-        </div>
-        <button type="button" onClick={() => setSelectedDate('')}>전체 보기</button>
-      </header>
+    <main
+      className="history-screen history-records-screen"
+      style={{
+        '--history-bg-image': `url(${historyNeonBg})`,
+        '--history-lime': historyUi.lime,
+        '--history-card-radius': `${historyUi.cardRadius}px`,
+        '--history-card-padding': `${historyUi.cardPadding}px`,
+      } as CSSProperties}
+    >
+      <HistoryHeader
+        activeTab={activeTab}
+        onBack={() => setActiveTab('summary')}
+        onCalendar={() => setSelectedDate(dateKey(new Date()))}
+      />
 
-      <section className={`history-hero-card ${dashboard.today.completed ? 'done' : 'waiting'}`}>
-        <div>
-          <span>{dashboard.today.completed ? '오늘의 운동 완료!' : '오늘 아직 운동하지 않았습니다'}</span>
-          <h1>{dashboard.today.completed ? '오늘 운동' : '목표까지'}</h1>
-          <strong>{dashboard.today.completed ? `${dashboard.today.minutes}분` : `${dashboard.today.remainingGoal} 운동 남음`}</strong>
-        </div>
-        <div className="history-hero-metrics">
-          <MetricPill label="kcal" value={dashboard.today.calories.toLocaleString()} />
-          <MetricPill label="운동 완료" value={`${dashboard.today.count}`} />
-          <MetricPill label="연속" value={`${dashboard.totals.streakDays}일`} />
-        </div>
-      </section>
+      <HistoryTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      <section className="history-stat-grid">
-        <SummaryCard icon={Trophy} label="총 운동수" value={`${dashboard.totals.workoutCount}회`} />
-        <SummaryCard icon={Clock3} label="총 운동시간" value={formatHistoryDuration(dashboard.totals.durationSeconds)} />
-        <SummaryCard icon={Flame} label="연속 운동" value={`${dashboard.totals.streakDays}일`} />
-        <SummaryCard icon={Medal} label="최고 기록" value={dashboard.personalRecords[0]?.valueLabel ?? '기록 없음'} />
-      </section>
-
-      <section className="history-two-column">
-        <article className="history-card history-streak-card">
-          <span>현재</span>
-          <strong>{dashboard.totals.streakDays}일 연속 운동</strong>
-          <p>최고 기록 {dashboard.totals.bestStreakDays}일</p>
-        </article>
-        <article className="history-card history-goal-card">
-          <div>
-            <Target size={24} />
-            <span>이번주 목표</span>
-          </div>
-          <strong>{dashboard.weeklyGoal.completedDays} / {dashboard.weeklyGoal.targetDays} 운동</strong>
-          <ProgressBar value={dashboard.weeklyGoal.percent} />
-          <p>{dashboard.weeklyGoal.percent}%</p>
-        </article>
-      </section>
-
-      <section className="history-pr-card history-card">
-        <div className="history-section-title">
-          <Trophy size={22} />
-          <strong>Personal Records</strong>
-        </div>
-        <div className="history-pr-grid">
-          {dashboard.personalRecords.map((record) => (
-            <div key={record.type}>
-              <span>{record.label}</span>
-              <strong>{record.valueLabel}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="history-capsules">
-        {dashboard.capsules.map((workout) => (
-          <button key={workout.id} type="button" onClick={() => setSelectedWorkout(workout)}>
-            <span>{workout.completedAt.slice(0, 10) === new Date().toISOString().slice(0, 10) ? '오늘' : workout.completedAt.slice(5, 10)}</span>
-            <strong>{workout.label}</strong>
-            <b>{workoutMetric(workout)}</b>
-          </button>
-        ))}
-      </section>
-
-      <section className="history-card">
-        <div className="history-section-title">
-          <CalendarDays size={22} />
-          <strong>월별 활동</strong>
-        </div>
-        <div className="history-heatmap">
-          {dashboard.heatmap.map((day) => (
-            <button
-              aria-label={`${day.dateKey} 운동 ${day.count}개`}
-              className={`heat-${day.intensity} ${selectedDate === day.dateKey ? 'selected' : ''}`}
-              key={day.dateKey}
-              type="button"
-              onClick={() => setSelectedDate(selectedDate === day.dateKey ? '' : day.dateKey)}
-            >
-              {day.day}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="history-chart-grid">
-        <article className="history-card">
-          <div className="history-section-title">
-            <BarChart3 size={22} />
-            <strong>최근 7일</strong>
-          </div>
-          <div className="history-week-chart">
-            {dashboard.weeklyBars.map((point) => (
-              <div key={point.label}>
-                <span>{point.label}</span>
-                <i style={{ height: `${Math.max(6, (point.value / maxWeek) * 100)}%` }} />
-                <b>{point.value}</b>
-              </div>
-            ))}
-          </div>
-        </article>
-        <article className="history-card">
-          <div className="history-section-title">
-            <BarChart3 size={22} />
-            <strong>최근 12개월</strong>
-          </div>
-          <div className="history-month-chart">
-            {dashboard.monthlyTrend.map((point) => (
-              <div key={point.label}>
-                <i style={{ height: `${Math.max(6, (point.value / maxMonth) * 100)}%` }} />
-                <span>{point.label}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="history-comparison-grid">
-        <CompareCard label="운동시간" value={dashboard.comparison.durationPercent} suffix="%" />
-        <CompareCard label="칼로리" value={dashboard.comparison.caloriesPercent} suffix="%" />
-        <CompareCard label="운동횟수" value={dashboard.comparison.workoutDelta} suffix="회" />
-        <article className="history-card history-neighborhood-card" onClick={onRanking}>
-          <MapPin size={24} />
-          <span>우리 동네 기여</span>
-          <strong>+{dashboard.neighborhood.contribution.toLocaleString()}점</strong>
-          <p>전체 기여 순위 {dashboard.neighborhood.rank}위</p>
-        </article>
-      </section>
-
-      <section className="history-exercise-grid">
-        {dashboard.exerciseStats.map((stat) => (
-          <article className="history-card history-exercise-card" key={stat.type}>
-            <div>
-              <span>{stat.icon}</span>
-              <strong>{stat.label}</strong>
-            </div>
-            <dl>
-              <dt>총 운동</dt><dd>{stat.count}회</dd>
-              <dt>최고</dt><dd>{stat.bestLabel}</dd>
-              <dt>평균</dt><dd>{stat.averageLabel}</dd>
-              <dt>최근</dt><dd>{stat.recentLabel}</dd>
-            </dl>
-          </article>
-        ))}
-      </section>
-
-      <section className="history-card history-badge-card">
-        <div className="history-section-title">
-          <Award size={22} />
-          <strong>배지</strong>
-        </div>
-        <div className="history-badges">
-          {dashboard.badges.map((badge) => (
-            <span className={badge.achieved ? 'achieved' : ''} key={badge.label}>{badge.label}</span>
-          ))}
-        </div>
-      </section>
-
-      <section className="history-controls">
-        <div className="history-filter-chips">
-          {filterTabs.map((item) => (
-            <button className={filter === item.id ? 'active' : ''} key={item.id} type="button" onClick={() => setFilter(item.id)}>
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <label className="history-search-box">
-          <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="날짜, 운동명, 거리, 횟수 검색" />
-        </label>
-        <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
-          {sortOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-        </select>
-      </section>
-
-      <section className="history-timeline">
-        <div className="history-section-title">
-          <Timer size={22} />
-          <strong>운동 히스토리</strong>
-        </div>
-        {timeline.map((group) => (
-          <article className="history-timeline-day" key={group.dateKey}>
-            <time>{group.label}</time>
-            <div>
-              {group.workouts.map((workout) => (
-                <button key={workout.id} type="button" onClick={() => setSelectedWorkout(workout)}>
-                  <span>{workoutIcon(workout.type)}</span>
-                  <strong>{workout.label}</strong>
-                  <b>{workoutMetric(workout)}</b>
-                  <em>{formatHistoryDuration(workout.durationSeconds)}</em>
-                  <small>{workout.calories} kcal</small>
-                </button>
-              ))}
-            </div>
-          </article>
-        ))}
-        {visibleCount < filteredWorkouts.length && (
-          <button className="history-load-more" type="button" onClick={() => setVisibleCount((count) => count + 20)}>
-            더 보기
-          </button>
-        )}
-      </section>
+      {activeTab === 'summary' ? (
+        <SummaryTab
+          dashboard={dashboard}
+          maxWeek={maxWeek}
+          onRanking={onRanking}
+          onSelectWorkout={setSelectedWorkout}
+          onStart={onStart}
+          recentWorkouts={recentWorkouts}
+        />
+      ) : (
+        <DetailTab
+          dashboard={dashboard}
+          filter={filter}
+          filteredWorkouts={filteredWorkouts}
+          maxTrend={maxTrend}
+          onFilterChange={setFilter}
+          onSelectWorkout={setSelectedWorkout}
+          onShiftDate={shiftDate}
+          selectedDate={selectedDate}
+          summary={selectedDaySummary}
+        />
+      )}
 
       {selectedWorkout && (
-        <section className="history-detail-sheet" role="dialog" aria-label="운동 상세">
-          <div>
-            <button type="button" onClick={() => setSelectedWorkout(null)}>닫기</button>
-            <span>{workoutIcon(selectedWorkout.type)}</span>
-            <h2>{selectedWorkout.label}</h2>
-            <strong>{workoutMetric(selectedWorkout)}</strong>
-            <dl>
-              <dt>운동시간</dt><dd>{formatClock(selectedWorkout.durationSeconds)}</dd>
-              <dt>평균속도</dt><dd>{paceLabel(selectedWorkout)}</dd>
-              <dt>칼로리</dt><dd>{selectedWorkout.calories} kcal</dd>
-              <dt>체력 변화</dt><dd>+{Math.max(1, Math.round(selectedWorkout.contribution / 3))}</dd>
-              <dt>동네 기여</dt><dd>+{selectedWorkout.contribution}점</dd>
-            </dl>
-          </div>
-        </section>
+        <WorkoutDetailSheet workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
       )}
     </main>
   );
 }
 
-function MetricPill({ label, value }: { label: string; value: string }) {
+function HistoryHeader({
+  activeTab,
+  onBack,
+  onCalendar,
+}: {
+  activeTab: HistoryTab;
+  onBack: () => void;
+  onCalendar: () => void;
+}) {
   return (
-    <div>
-      <strong>{value}</strong>
-      <span>{label}</span>
+    <header className="history-app-header">
+      {activeTab === 'detail' ? (
+        <button type="button" onClick={onBack} aria-label="요약으로 돌아가기">
+          <ArrowLeft size={24} />
+        </button>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+      <h1>내 기록</h1>
+      <button type="button" onClick={onCalendar} aria-label="오늘 날짜로 이동">
+        <CalendarDays size={24} />
+      </button>
+    </header>
+  );
+}
+
+function HistoryTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: HistoryTab;
+  onChange: (tab: HistoryTab) => void;
+}) {
+  return (
+    <nav className="history-tab-switch" aria-label="내 기록 탭">
+      <button className={activeTab === 'summary' ? 'active' : ''} type="button" onClick={() => onChange('summary')}>
+        요약
+      </button>
+      <button className={activeTab === 'detail' ? 'active' : ''} type="button" onClick={() => onChange('detail')}>
+        상세
+      </button>
+    </nav>
+  );
+}
+
+function SummaryTab({
+  dashboard,
+  maxWeek,
+  onRanking,
+  onSelectWorkout,
+  onStart,
+  recentWorkouts,
+}: {
+  dashboard: HistoryDashboard;
+  maxWeek: number;
+  onRanking: () => void;
+  onSelectWorkout: (workout: HistoryWorkout) => void;
+  onStart: () => void;
+  recentWorkouts: HistoryWorkout[];
+}) {
+  const todaySeconds = dashboard.today.minutes * 60;
+  const progress = Math.min(100, Math.round((dashboard.today.minutes / 60) * 100));
+
+  return (
+    <div className="history-tab-panel">
+      <section className="history-card history-today-card">
+        <div className="history-card-heading">
+          <strong>오늘의 운동 요약</strong>
+          <span>{formatDateLabel(dateKey(new Date()))}</span>
+        </div>
+        <div className="history-today-layout">
+          <ProgressRing value={progress} label="총 운동시간" valueText={formatTimer(todaySeconds)} unit="분" />
+          <div className="history-today-stats">
+            <StatLine icon={Flame} label="칼로리" value={`${dashboard.today.calories.toLocaleString()} kcal`} />
+            <StatLine icon={Dumbbell} label="운동 완료" value={`${dashboard.today.count}회`} />
+            <StatLine icon={CalendarDays} label="연속 기록" value={`${dashboard.totals.streakDays}일`} />
+          </div>
+        </div>
+      </section>
+
+      <WeeklyChart bars={dashboard.weeklyBars} maxValue={maxWeek} totalLabel={formatHistoryDuration(sum(dashboard.weeklyBars.map((point) => point.value * 60)))} />
+
+      <section className="history-card history-exercise-summary">
+        <div className="history-card-heading">
+          <strong>운동 종류별 기록</strong>
+          <button type="button" onClick={onRanking}>
+            더보기
+            <ChevronRight size={18} />
+          </button>
+        </div>
+        <div className="history-exercise-summary-grid">
+          {dashboard.exerciseStats.slice(0, 5).map((stat) => (
+            <ExerciseTypeCard stat={stat} key={stat.type} />
+          ))}
+        </div>
+      </section>
+
+      <section className="history-card history-recent-card">
+        <div className="history-card-heading">
+          <strong>최근 기록</strong>
+          {dashboard.workouts.length > 0 && <span>{dashboard.workouts.length}개 기록</span>}
+        </div>
+        {recentWorkouts.length > 0 ? (
+          <div className="history-record-list compact">
+            {recentWorkouts.map((workout) => (
+              <ExerciseRecordRow key={workout.id} workout={workout} onSelect={onSelectWorkout} />
+            ))}
+          </div>
+        ) : (
+          <EmptyRecords onStart={onStart} />
+        )}
+      </section>
     </div>
   );
 }
 
-function SummaryCard({ icon: Icon, label, value }: { icon: typeof Trophy; label: string; value: string }) {
-  return (
-    <article className="history-card history-summary-card">
-      <Icon size={24} />
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </article>
-  );
-}
+function DetailTab({
+  dashboard,
+  filter,
+  filteredWorkouts,
+  maxTrend,
+  onFilterChange,
+  onSelectWorkout,
+  onShiftDate,
+  selectedDate,
+  summary,
+}: {
+  dashboard: HistoryDashboard;
+  filter: string;
+  filteredWorkouts: HistoryWorkout[];
+  maxTrend: number;
+  onFilterChange: (filter: string) => void;
+  onSelectWorkout: (workout: HistoryWorkout) => void;
+  onShiftDate: (days: number) => void;
+  selectedDate: string;
+  summary: DaySummary;
+}) {
+  const bestRecord = Math.max(0, ...filteredWorkouts.map((workout) => workoutVolume(workout)));
 
-function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="history-progress">
-      <span style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+    <div className="history-tab-panel">
+      <nav className="history-filter-tabs" aria-label="운동 필터">
+        {filterTabs.map((tab) => (
+          <button
+            className={filter === tab.id ? 'active' : ''}
+            key={tab.id}
+            type="button"
+            onClick={() => onFilterChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="history-date-picker">
+        <button type="button" onClick={() => onShiftDate(-1)} aria-label="이전 날짜">
+          <ChevronLeft size={22} />
+        </button>
+        <button className="history-date-value" type="button" aria-label="날짜 선택">
+          {formatDateLabel(selectedDate)}
+          <ArrowDown size={17} />
+        </button>
+        <button type="button" onClick={() => onShiftDate(1)} aria-label="다음 날짜">
+          <ChevronRight size={22} />
+        </button>
+      </div>
+
+      <section className="history-card history-detail-stats">
+        <StatCard label="총 운동시간" value={formatTimer(summary.durationSeconds)} unit="분" />
+        <StatCard label="총 운동수" value={`${summary.count}`} unit="회" />
+        <StatCard label="총 칼로리" value={`${summary.calories}`} unit="kcal" />
+        <StatCard label="최고 기록" value={`${Math.round(bestRecord)}`} unit={filter === 'running' ? 'km' : '회'} />
+      </section>
+
+      <section className="history-card history-workout-list-card">
+        <div className="history-card-heading">
+          <strong>운동 목록</strong>
+          <span>{filteredWorkouts.length}개</span>
+        </div>
+        {filteredWorkouts.length > 0 ? (
+          <div className="history-record-list">
+            {filteredWorkouts.map((workout) => (
+              <ExerciseRecordRow key={workout.id} workout={workout} onSelect={onSelectWorkout} />
+            ))}
+          </div>
+        ) : (
+          <div className="history-no-day-record">
+            <ListFilter size={28} />
+            <strong>선택한 날짜의 기록이 없습니다.</strong>
+            <span>필터나 날짜를 바꿔 확인해보세요.</span>
+          </div>
+        )}
+      </section>
+
+      <TrendChart points={dashboard.monthlyTrend} maxValue={maxTrend} />
     </div>
   );
 }
 
-function CompareCard({ label, value, suffix }: { label: string; value: number; suffix: string }) {
-  const positive = value >= 0;
+function ProgressRing({
+  value,
+  label,
+  valueText,
+  unit,
+}: {
+  value: number;
+  label: string;
+  valueText: string;
+  unit: string;
+}) {
+  const bounded = Math.min(100, Math.max(0, value));
   return (
-    <article className={`history-card history-compare-card ${positive ? 'up' : 'down'}`}>
-      <span>{positive ? '상승' : '하락'} {label}</span>
-      <strong>{positive ? '+' : ''}{value}{suffix}</strong>
+    <div className="history-progress-ring" style={{ '--ring-value': bounded } as CSSProperties}>
+      <svg viewBox="0 0 160 160" aria-hidden="true">
+        <circle className="track" cx="80" cy="80" r="68" />
+        <circle className="value" cx="80" cy="80" r="68" />
+      </svg>
+      <div>
+        <span>{label}</span>
+        <strong>{valueText}</strong>
+        <small>{unit}</small>
+      </div>
+    </div>
+  );
+}
+
+function StatLine({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="history-stat-line">
+      <span>
+        <Icon size={22} fill="currentColor" />
+      </span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, unit }: { label: string; value: string; unit: string }) {
+  return (
+    <article className="history-stat-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{unit}</small>
     </article>
   );
 }
 
-function workoutIcon(type: string) {
-  if (type === 'running') return '🏃';
-  if (type === 'push-up') return '💪';
-  if (type === 'squat') return '🏋️';
-  if (type === 'lunge') return '🦵';
-  if (type === 'jumping-jack') return '⚡';
-  return '🏁';
+function WeeklyChart({ bars, maxValue, totalLabel }: { bars: ChartPoint[]; maxValue: number; totalLabel: string }) {
+  return (
+    <section className="history-card history-weekly-card">
+      <div className="history-card-heading">
+        <strong>주간 활동</strong>
+      </div>
+      <div className="history-weekly-layout">
+        <div>
+          <span>이번 주 운동 시간</span>
+          <strong>{totalLabel}</strong>
+        </div>
+        <div className="history-week-bars">
+          {bars.map((point) => (
+            <div key={point.label}>
+              <span>{point.value > 0 ? `${point.value}분` : ''}</span>
+              <i style={{ height: `${Math.max(8, (point.value / maxValue) * 100)}%` }} />
+              <b>{point.label}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrendChart({ points, maxValue }: { points: ChartPoint[]; maxValue: number }) {
+  const chartPoints = buildPolyline(points, maxValue);
+  const areaPoints = chartPoints ? `0,140 ${chartPoints} 320,140` : '';
+
+  return (
+    <section className="history-card history-trend-card">
+      <div className="history-card-heading">
+        <strong>시간대별 운동 추이</strong>
+        <span>단위: 건</span>
+      </div>
+      <div className="history-line-chart">
+        <svg viewBox="0 0 320 150" role="img" aria-label="운동 추이 차트">
+          <defs>
+            <linearGradient id="historyTrendFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#9DFF3A" stopOpacity="0.44" />
+              <stop offset="100%" stopColor="#9DFF3A" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <polyline className="grid" points="0,140 320,140" />
+          {areaPoints && <polygon className="area" points={areaPoints} />}
+          {chartPoints && <polyline className="line" points={chartPoints} />}
+          {points.map((point, index) => {
+            const x = points.length <= 1 ? 160 : (index / (points.length - 1)) * 320;
+            return <text key={point.label} x={x} y="149">{index % 3 === 0 ? point.label : ''}</text>;
+          })}
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+function ExerciseTypeCard({ stat }: { stat: ExerciseHistoryStat }) {
+  const Icon = exerciseIcon(stat.type);
+  return (
+    <article className="history-exercise-type-card">
+      <span>
+        <Icon size={28} />
+      </span>
+      <strong>{koreanExerciseLabel(stat.type, stat.label)}</strong>
+      <b>{stat.bestLabel}</b>
+    </article>
+  );
+}
+
+function ExerciseRecordRow({
+  workout,
+  onSelect,
+}: {
+  workout: HistoryWorkout;
+  onSelect: (workout: HistoryWorkout) => void;
+}) {
+  const Icon = exerciseIcon(workout.type);
+  return (
+    <button className="history-record-row" type="button" onClick={() => onSelect(workout)}>
+      <span>
+        <Icon size={26} />
+      </span>
+      <div>
+        <strong>{koreanExerciseLabel(workout.type, workout.label)}</strong>
+        <small>{formatWorkoutTime(workout.completedAt)}</small>
+      </div>
+      <div>
+        <b>{workoutMetric(workout)}</b>
+        <small>
+          <Clock3 size={12} />
+          {formatClock(workout.durationSeconds)}
+        </small>
+      </div>
+      <ChevronRight size={20} />
+    </button>
+  );
+}
+
+function EmptyRecords({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="history-empty-inline">
+      <Trophy size={34} />
+      <strong>아직 운동 기록이 없습니다.</strong>
+      <span>오늘 첫 운동을 시작해보세요.</span>
+      <button type="button" onClick={onStart}>
+        <Play size={18} fill="currentColor" />
+        운동 시작
+      </button>
+    </div>
+  );
+}
+
+function WorkoutDetailSheet({ workout, onClose }: { workout: HistoryWorkout; onClose: () => void }) {
+  return (
+    <section className="history-detail-sheet" role="dialog" aria-label="운동 상세">
+      <div>
+        <button type="button" onClick={onClose}>닫기</button>
+        <span>{workoutIconText(workout.type)}</span>
+        <h2>{koreanExerciseLabel(workout.type, workout.label)}</h2>
+        <strong>{workoutMetric(workout)}</strong>
+        <dl>
+          <dt>운동시간</dt><dd>{formatClock(workout.durationSeconds)}</dd>
+          <dt>평균속도</dt><dd>{paceLabel(workout)}</dd>
+          <dt>칼로리</dt><dd>{workout.calories} kcal</dd>
+          <dt>체력 변화</dt><dd>+{Math.max(1, Math.round(workout.contribution / 3))}</dd>
+          <dt>동네 기여</dt><dd>+{workout.contribution}점</dd>
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+type DaySummary = {
+  count: number;
+  durationSeconds: number;
+  calories: number;
+};
+
+function summarizeWorkouts(workouts: HistoryWorkout[]): DaySummary {
+  return {
+    count: workouts.length,
+    durationSeconds: sum(workouts.map((workout) => workout.durationSeconds)),
+    calories: sum(workouts.map((workout) => workout.calories)),
+  };
+}
+
+function buildPolyline(points: ChartPoint[], maxValue: number) {
+  if (points.length === 0) return '';
+  return points.map((point, index) => {
+    const x = points.length <= 1 ? 160 : (index / (points.length - 1)) * 320;
+    const y = 130 - ((point.value / maxValue) * 108);
+    return `${x.toFixed(1)},${Math.max(16, y).toFixed(1)}`;
+  }).join(' ');
+}
+
+function exerciseIcon(type: string): LucideIcon {
+  if (type === 'running') return Footprints;
+  if (type === 'push-up') return Dumbbell;
+  if (type === 'squat') return PersonStanding;
+  if (type === 'lunge') return Medal;
+  if (type === 'jumping-jack') return Zap;
+  return Dumbbell;
+}
+
+function koreanExerciseLabel(type: string, fallback: string) {
+  if (type === 'running') return '런닝';
+  if (type === 'push-up') return '푸쉬업';
+  if (type === 'squat') return '스쿼트';
+  if (type === 'lunge') return '런지';
+  if (type === 'jumping-jack') return '점핑잭';
+  return fallback;
+}
+
+function workoutIconText(type: string) {
+  if (type === 'running') return 'RUN';
+  if (type === 'push-up') return 'PUSH';
+  if (type === 'squat') return 'SQ';
+  if (type === 'lunge') return 'LG';
+  if (type === 'jumping-jack') return 'JJ';
+  return 'FIT';
 }
 
 function workoutMetric(workout: HistoryWorkout) {
@@ -376,11 +569,34 @@ function workoutMetric(workout: HistoryWorkout) {
   return formatHistoryDuration(workout.durationSeconds);
 }
 
-function formatClock(seconds: number) {
+function workoutVolume(workout: HistoryWorkout) {
+  if (workout.distanceKm > 0) return workout.distanceKm;
+  if (workout.reps > 0) return workout.reps;
+  return Math.round(workout.durationSeconds / 60);
+}
+
+function formatTimer(seconds: number) {
   const rounded = Math.max(0, Math.round(seconds));
   const minutes = Math.floor(rounded / 60);
   const rest = rounded % 60;
   return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+}
+
+function formatClock(seconds: number) {
+  return formatTimer(seconds);
+}
+
+function formatWorkoutTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function formatDateLabel(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  const day = ['일', '월', '화', '수', '목', '금', '토'][date.getUTCDay()];
+  return `${date.getUTCFullYear()}.${String(date.getUTCMonth() + 1).padStart(2, '0')}.${String(date.getUTCDate()).padStart(2, '0')} (${day})`;
 }
 
 function paceLabel(workout: HistoryWorkout) {
@@ -388,4 +604,8 @@ function paceLabel(workout: HistoryWorkout) {
   if (workout.distanceKm > 0) return `${(minutes / workout.distanceKm).toFixed(1)}분/km`;
   if (workout.reps > 0) return `${Math.round(workout.reps / minutes)}회/분`;
   return '-';
+}
+
+function sum(values: number[]) {
+  return values.reduce((total, value) => total + value, 0);
 }

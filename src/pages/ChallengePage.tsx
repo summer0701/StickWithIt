@@ -8,10 +8,18 @@ import {
   buildChallengeAchievementDisplay,
   buildChallengeDashboard,
   buildChallengeDisplayModel,
+  type ChallengeNeighborhoodImpact,
   type DailyChallenge,
 } from '../lib/challengeDashboard';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import { readLocalRuns } from '../lib/localRuns';
+import {
+  neighborhoodProfileFromRow,
+  readNeighborhoodProfile,
+  type NeighborhoodProfile,
+} from '../lib/neighborhoodRanking';
+import { supabase } from '../lib/supabaseClient';
+import { isTestUserId } from '../lib/testAuth';
 
 type ChallengePageProps = {
   user: { id: string };
@@ -21,13 +29,19 @@ type ChallengePageProps = {
 
 export default function ChallengePage({ user, onStartExercise, onHistory }: ChallengePageProps) {
   const [notice, setNotice] = useState('');
+  const [challengeData, setChallengeData] = useState(() => ({
+    exerciseRecords: readExerciseRecords(user.id),
+    runs: readLocalRuns(user.id),
+    neighborhoodImpact: null as ChallengeNeighborhoodImpact | null,
+  }));
   const dashboard = useMemo(
     () => buildChallengeDashboard({
       userId: user.id,
-      exerciseRecords: readExerciseRecords(user.id),
-      runs: readLocalRuns(user.id),
+      exerciseRecords: challengeData.exerciseRecords,
+      runs: challengeData.runs,
+      neighborhoodImpact: challengeData.neighborhoodImpact,
     }),
-    [user.id],
+    [challengeData, user.id],
   );
   const display = useMemo(() => buildChallengeDisplayModel(dashboard), [dashboard]);
   const achievementDisplay = useMemo(() => buildChallengeAchievementDisplay(dashboard.achievements), [dashboard.achievements]);
@@ -37,6 +51,69 @@ export default function ChallengePage({ user, onStartExercise, onHistory }: Chal
     const timer = window.setTimeout(() => setNotice(''), 1800);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    const localExerciseRecords = readExerciseRecords(user.id);
+    const localRuns = readLocalRuns(user.id);
+    const localProfile = readNeighborhoodProfile(user.id);
+
+    let active = true;
+    setChallengeData({
+      exerciseRecords: localExerciseRecords,
+      runs: localRuns,
+      neighborhoodImpact: null,
+    });
+
+    if (isTestUserId(user.id)) {
+      return () => {
+        active = false;
+      };
+    }
+
+    async function loadRealChallengeData() {
+      try {
+        const [profileResult, runsResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('neighborhood_name,neighborhood_code,region_name,region_code,neighborhood_verified_at')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('runs')
+            .select('id,user_id,status,ended_at,started_at,created_at,actual_distance_km,total_distance_meters,total_elapsed_seconds,duration_seconds')
+            .eq('user_id', user.id)
+            .order('started_at', { ascending: false })
+            .limit(100),
+        ]);
+
+        if (!active) return;
+
+        const profile = neighborhoodProfileFromRow(profileResult.data) ?? localProfile;
+        const neighborhoodImpact = profile ? await loadNeighborhoodImpact(profile) : null;
+
+        if (!active) return;
+
+        setChallengeData({
+          exerciseRecords: localExerciseRecords,
+          runs: mergeRunsById([...(runsResult.data ?? []), ...localRuns]),
+          neighborhoodImpact,
+        });
+      } catch {
+        if (!active) return;
+        setChallengeData({
+          exerciseRecords: localExerciseRecords,
+          runs: localRuns,
+          neighborhoodImpact: null,
+        });
+      }
+    }
+
+    void loadRealChallengeData();
+
+    return () => {
+      active = false;
+    };
+  }, [user.id]);
 
   return (
     <main className="challenge-screen">
@@ -94,12 +171,12 @@ export default function ChallengePage({ user, onStartExercise, onHistory }: Chal
             <div className="rank-row">
               <div>
                 <span>현재 순위</span>
-                <strong>{dashboard.neighborhood.currentRank}위</strong>
+                <strong>{formatRank(dashboard.neighborhood.currentRank)}</strong>
               </div>
               <b>→</b>
               <div>
                 <span>목표 순위</span>
-                <strong>{dashboard.neighborhood.targetRank}위</strong>
+                <strong>{formatRank(dashboard.neighborhood.targetRank)}</strong>
               </div>
             </div>
           </div>
@@ -182,6 +259,49 @@ function achievementIcon(label: string, fallback: string) {
   if (label === '푸시업 100회') return <PersonStanding size={24} />;
   if (label === '러닝 10km') return <BicepsFlexed size={25} />;
   return fallback;
+}
+
+async function loadNeighborhoodImpact(profile: NeighborhoodProfile): Promise<ChallengeNeighborhoodImpact | null> {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('neighborhood_rankings_daily')
+    .select('neighborhood_code,total_points,rank')
+    .eq('contributed_on', todayKey)
+    .order('rank', { ascending: true })
+    .limit(200);
+
+  if (error || !data) return null;
+
+  const rows = data.map((row) => ({
+    neighborhoodCode: String(row.neighborhood_code ?? ''),
+    totalPoints: Number(row.total_points ?? 0),
+    rank: Number(row.rank ?? 0),
+  })).filter((row) => row.neighborhoodCode && Number.isFinite(row.totalPoints) && Number.isFinite(row.rank));
+  const mine = rows.find((row) => row.neighborhoodCode.toLowerCase() === profile.regionCode.toLowerCase());
+  if (!mine) return { currentRank: null, targetRank: null, pointsToTarget: 0 };
+
+  const previous = rows
+    .filter((row) => row.rank < mine.rank)
+    .sort((a, b) => b.rank - a.rank)[0];
+  if (!previous) return { currentRank: mine.rank, targetRank: mine.rank, pointsToTarget: 0 };
+
+  return {
+    currentRank: mine.rank,
+    targetRank: previous.rank,
+    pointsToTarget: Math.max(0, previous.totalPoints - mine.totalPoints + 1),
+  };
+}
+
+function mergeRunsById(runs: any[]) {
+  const unique = new Map<string, any>();
+  runs.forEach((run, index) => {
+    unique.set(String(run.id ?? `${run.started_at ?? run.created_at ?? 'run'}-${index}`), run);
+  });
+  return [...unique.values()];
+}
+
+function formatRank(rank: number | null) {
+  return rank ? `${rank}위` : '-';
 }
 
 function CardHeading({
