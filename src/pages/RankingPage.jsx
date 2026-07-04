@@ -1,5 +1,5 @@
 import { Geolocation } from '@capacitor/geolocation';
-import { MapPin, Search, Trophy } from 'lucide-react';
+import { ChevronRight, MapPin, Search, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import {
@@ -99,6 +99,14 @@ export default function RankingPage({ user, onBack }) {
 
   const rival = effectiveTab === 'personal' ? ranking.personalRival : ranking.neighborhoodRival;
   const prediction = effectiveTab === 'personal' ? ranking.personalPrediction : ranking.neighborhoodPrediction;
+  const mine = effectiveTab === 'personal'
+    ? ranking.personalEntries.find((entry) => entry.isMine)
+    : ranking.neighborhoodEntries.find((entry) => entry.isMine);
+  const isPersonal = effectiveTab === 'personal';
+  const scopeLabel = isPersonal ? '내 랭킹' : '내 동네';
+  const scopeName = isPersonal ? '나' : profile?.districtName ?? '동네 미인증';
+  const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
+  const progressPercent = Math.min(100, Math.round((ranking.contribution / 300) * 100));
 
   return (
     <main className="ranking-league-screen simple-ranking-screen">
@@ -112,28 +120,6 @@ export default function RankingPage({ user, onBack }) {
           닫기
         </button>
       </header>
-
-      <section className={`neighborhood-auth-card ${profile ? 'verified' : ''}`}>
-        <div>
-          <MapPin size={22} />
-          <strong>{profile ? `📍 ${profile.districtName} 인증됨` : '동네 인증하면 랭킹에 참여할 수 있어요'}</strong>
-          <span>{profile ? '오늘 내 기여가 우리 동네 순위에 반영됨' : 'GPS 권한이 필요합니다. 수동 입력은 사용할 수 없습니다.'}</span>
-        </div>
-        {!profile && (
-          <button type="button" onClick={handleVerify}>
-            GPS로 인증하기
-          </button>
-        )}
-        {authMessage && <p>{authMessage}</p>}
-      </section>
-
-      <section className="ranking-contribution-card">
-        <Trophy size={24} />
-        <div>
-          <strong>오늘 내 기여 +{ranking.contribution}점</strong>
-          <span>우리 동네 순위에 반영됨</span>
-        </div>
-      </section>
 
       <nav className="ranking-tab-bar simple-ranking-tabs" aria-label="랭킹 탭">
         {tabs.map((tab) => (
@@ -151,6 +137,40 @@ export default function RankingPage({ user, onBack }) {
           </button>
         ))}
       </nav>
+
+      {effectiveTab !== 'country' && (
+        <section className={`ranking-spotlight-card ${isPersonal ? 'personal' : 'neighborhood'}`}>
+          <div className="ranking-spotlight-left">
+            <div className="ranking-location-title">
+              {isPersonal ? <UserRound size={42} /> : <MapPin size={46} />}
+              <strong>{scopeName}</strong>
+              <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
+            </div>
+            <p>{isPersonal ? '오늘 내 운동 기록이 개인 순위에 반영돼요.' : '오늘 우리 동네에 기여했어요!'}</p>
+            <b>+{ranking.contribution}점</b>
+            <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div className="ranking-progress-caption">
+              <span>오늘 목표 300점</span>
+              <span>{progressPercent}%</span>
+            </div>
+          </div>
+          <div className="ranking-spotlight-right">
+            <span>오늘 순위</span>
+            <strong>{mine?.rank ?? '-' }위</strong>
+            <b>{mine ? movementText(mine.movement) : '-'}</b>
+            <p>지난 순위 대비 상승</p>
+          </div>
+          {!profile && !isPersonal && (
+            <button className="ranking-inline-verify" type="button" onClick={handleVerify}>
+              GPS로 인증하기
+            </button>
+          )}
+        </section>
+      )}
+
+      {!isPersonal && authMessage && <p className="ranking-auth-status">{authMessage}</p>}
 
       <div className="ranking-period-filter" aria-label="기간 필터">
         {periods.map((item) => (
@@ -170,22 +190,23 @@ export default function RankingPage({ user, onBack }) {
       </section>
 
       {effectiveTab !== 'country' && (
-        <section className="ranking-rival-card">
-          <span>{rival.title}</span>
-          <strong>{rival.name}</strong>
-          <p>{rival.gapText}</p>
-          <b>{rival.actionText}</b>
-        </section>
+        <div className="ranking-helper-row">
+          <section className="ranking-rival-card">
+            <span>{rival.title}</span>
+            <strong>{rival.name}</strong>
+            <p>{rival.gapText}</p>
+            <b>{rival.actionText}</b>
+          </section>
+          <section className="ranking-prediction-card">
+            {prediction}
+          </section>
+        </div>
       )}
-
-      <section className="ranking-prediction-card">
-        {effectiveTab === 'country' ? '국가 순위는 준비중입니다.' : prediction}
-      </section>
 
       <section className="ranking-table-card simple-ranking-table">
         <div className="simple-ranking-table-heading">
-          <strong>{effectiveTab === 'country' ? '국가별 순위' : `${currentTab.label} 순위`}</strong>
-          <span>{effectiveTab === 'personal' ? '개인 순위를 선택해서 볼 수 있어요' : currentTab.searchLabel}</span>
+          <strong>{effectiveTab === 'country' ? '국가별 순위' : `TOP 20 ${rankTitle}`}</strong>
+          <span>{currentTab.searchLabel}</span>
         </div>
         {effectiveTab === 'country' ? (
           <div className="ranking-preparing-card">
@@ -193,14 +214,27 @@ export default function RankingPage({ user, onBack }) {
             <span>준비중</span>
           </div>
         ) : (
-          <RankingRows rows={rows} />
+          <RankingRows rows={rows} isPersonal={isPersonal} />
         )}
       </section>
+
+      {effectiveTab !== 'country' && mine && (
+        <section className={`ranking-mine-card ${isPersonal ? 'personal' : 'neighborhood'}`}>
+          <div>
+            {isPersonal ? <UserRound size={34} /> : <MapPin size={38} />}
+            <strong>{scopeLabel}</strong>
+          </div>
+          <b>{mine.rank}위</b>
+          <span>{mine.name}</span>
+          <p>{movementText(mine.movement)} 지난 순위 대비 상승</p>
+          <ChevronRight size={28} />
+        </section>
+      )}
     </main>
   );
 }
 
-function RankingRows({ rows }) {
+function RankingRows({ rows, isPersonal }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
   return (
     <ol className="simple-ranking-list">
@@ -208,7 +242,7 @@ function RankingRows({ rows }) {
         <li key={entry.id} className={entry.isMine ? 'current-user' : ''}>
           {firstMineIndex === index && <div className="ranking-separator" aria-hidden="true" />}
           <div className="simple-ranking-row-content">
-            <strong>{entry.rank}위</strong>
+            <strong>{rankBadge(entry.rank)}</strong>
             <span>{entry.isMine ? `내 ${entry.name}` : entry.name}</span>
             <b>{movementText(entry.movement)}</b>
           </div>
@@ -216,4 +250,11 @@ function RankingRows({ rows }) {
       ))}
     </ol>
   );
+}
+
+function rankBadge(rank) {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return `${rank}`;
 }
