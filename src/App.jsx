@@ -19,7 +19,7 @@ const bottomRoutes = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'challenge', label: 'Challenge', icon: Dumbbell },
   { id: 'history', label: 'History', icon: History },
-  { id: 'ranking', label: 'Ranking', icon: Trophy },
+  { id: 'ranking', label: '랭킹', icon: Trophy },
   { id: 'my', label: 'My', icon: User },
 ];
 

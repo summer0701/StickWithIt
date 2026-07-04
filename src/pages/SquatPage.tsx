@@ -5,6 +5,8 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readSquatBaseAverageReps, updateSquatGhostBaseline } from '../lib/squatGhosts';
 import { saveExerciseRecord } from '../lib/exerciseRecords';
+import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
+import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
 
 type SquatPageProps = {
   onBack: () => void;
@@ -37,7 +39,9 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
     RunningPlugin.addListener('squatFinished', (payload) => {
       if (!active) return;
       if (payload.completed) {
-        saveExerciseRecord({ userId, type: 'squat', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        const record = saveExerciseRecord({ userId, type: 'squat', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        saveLastNeighborhoodContribution(userId, record);
+        void syncNeighborhoodContribution({ userId, record });
         updateSquatGhostBaseline(userId, payload);
       }
       setPhase('ready');

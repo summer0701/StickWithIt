@@ -6855,3 +6855,385 @@ button:disabled {
   font-size: clamp(0.72rem, 2.9vw, 0.86rem);
   line-height: 1.2;
 }
+.neighborhood-ranking-card {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.neighborhood-core-message {
+  display: block;
+  font-size: clamp(28px, 5vw, 46px);
+  line-height: 1.08;
+  color: #f8fff4;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+  word-break: keep-all;
+}
+
+.neighborhood-auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.neighborhood-auth-row span,
+.neighborhood-auth-message,
+.neighborhood-contribution-message,
+.simple-rank-card span,
+.simple-rank-card p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neighborhood-auth-row span {
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.neighborhood-verify-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: linear-gradient(135deg, #8cff2f, #21ddd0);
+  color: #07130a;
+  font-weight: 900;
+}
+
+.neighborhood-auth-message {
+  margin: 0;
+  color: #8cff2f;
+  font-weight: 800;
+}
+
+.neighborhood-contribution-message {
+  margin: 0;
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(140, 255, 47, 0.24), rgba(33, 221, 208, 0.14));
+  color: #f8fff4;
+  font-size: 20px;
+  font-weight: 900;
+  box-sizing: border-box;
+}
+
+.neighborhood-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.simple-rank-card {
+  min-width: 0;
+  min-height: 138px;
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-sizing: border-box;
+}
+
+.simple-rank-card.highlight {
+  background: linear-gradient(135deg, rgba(140, 255, 47, 0.22), rgba(33, 221, 208, 0.16));
+  border-color: rgba(140, 255, 47, 0.45);
+}
+
+.simple-rank-card span {
+  display: block;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.simple-rank-card strong {
+  display: block;
+  margin-top: 10px;
+  color: #ffffff;
+  font-size: clamp(26px, 4.6vw, 38px);
+  line-height: 1.05;
+  font-weight: 950;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simple-rank-card p {
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.simple-ranking-screen {
+  padding-bottom: 120px;
+}
+
+.simple-ranking-header h1 {
+  max-width: 860px;
+  font-size: clamp(32px, 6vw, 58px);
+  line-height: 1.05;
+}
+
+.neighborhood-auth-card,
+.ranking-contribution-card,
+.ranking-search-card,
+.ranking-rival-card,
+.ranking-prediction-card,
+.ranking-preparing-card {
+  width: min(100%, 980px);
+  margin: 0 auto 14px;
+  border-radius: 24px;
+  box-sizing: border-box;
+  background: rgba(12, 14, 18, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+}
+
+.neighborhood-auth-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.neighborhood-auth-card.verified {
+  border-color: rgba(140, 255, 47, 0.38);
+}
+
+.neighborhood-auth-card div,
+.ranking-contribution-card div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.neighborhood-auth-card strong,
+.ranking-contribution-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 22px;
+}
+
+.neighborhood-auth-card span,
+.ranking-contribution-card span {
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 700;
+}
+
+.neighborhood-auth-card button {
+  flex-shrink: 0;
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: #8cff2f;
+  color: #06110a;
+  font-weight: 900;
+}
+
+.neighborhood-auth-card p {
+  margin: 0;
+  color: #8cff2f;
+  font-weight: 800;
+}
+
+.ranking-contribution-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.simple-ranking-tabs,
+.ranking-period-filter {
+  width: min(100%, 980px);
+  margin: 0 auto 14px;
+}
+
+.ranking-period-filter {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ranking-period-filter button {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.ranking-period-filter button.active {
+  background: linear-gradient(135deg, #8cff2f, #21ddd0);
+  color: #06110a;
+}
+
+.ranking-search-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+}
+
+.ranking-search-card input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.ranking-search-card input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.ranking-rival-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.ranking-rival-card span,
+.ranking-rival-card p,
+.ranking-rival-card b {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-rival-card strong {
+  font-size: 24px;
+}
+
+.ranking-prediction-card,
+.ranking-preparing-card {
+  padding: 20px;
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.simple-ranking-table {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.simple-ranking-list {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.simple-ranking-list li {
+  display: grid;
+  gap: 10px;
+}
+
+.simple-ranking-row-content {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) 64px;
+  align-items: center;
+  min-height: 58px;
+  border-radius: 18px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+.simple-ranking-list li.current-user .simple-ranking-row-content {
+  background: linear-gradient(135deg, #8cff2f, #21ddd0);
+  color: #06110a;
+}
+
+.simple-ranking-row-content strong,
+.simple-ranking-row-content span,
+.simple-ranking-row-content b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.simple-ranking-row-content b {
+  text-align: right;
+}
+
+.ranking-separator {
+  height: 1px;
+  margin: 6px 10px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.result-neighborhood-contribution {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 920px);
+  margin: 18px auto;
+  border-radius: 26px;
+  padding: 22px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(140, 255, 47, 0.24), rgba(33, 221, 208, 0.16));
+  border: 1px solid rgba(140, 255, 47, 0.42);
+  color: #ffffff;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.26);
+}
+
+.result-neighborhood-contribution strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(24px, 5vw, 40px);
+  line-height: 1.12;
+  font-weight: 950;
+  text-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.result-neighborhood-contribution span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .neighborhood-rank-grid,
+  .ranking-rival-card {
+    grid-template-columns: 1fr;
+  }
+
+  .neighborhood-auth-row,
+  .neighborhood-auth-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .simple-rank-card {
+    min-height: 116px;
+  }
+}

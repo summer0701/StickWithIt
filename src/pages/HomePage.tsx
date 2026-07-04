@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
   RiArrowRightSLine,
@@ -6,13 +7,10 @@ import {
   RiFireFill,
   RiHome5Fill,
   RiMapPin2Fill,
-  RiMedalFill,
   RiPulseLine,
   RiRunFill,
   RiStarFill,
   RiTimerFlashFill,
-  RiTrophyFill,
-  RiUserSmileFill,
 } from 'react-icons/ri';
 import { FaDumbbell } from 'react-icons/fa6';
 import { GiJumpAcross, GiLeg, GiMuscleUp, GiWeightLiftingUp } from 'react-icons/gi';
@@ -23,8 +21,18 @@ import { buildDailyExerciseProgress, formatExerciseValue, type ExerciseProgressV
 import { getHomeWorkoutSummary, type HomeWorkoutSummary } from '../lib/homeWorkoutSummary';
 import { isTestUserId } from '../lib/testAuth';
 import { achievementRate } from '../lib/runningProgress';
+import {
+  buildHomeRankingSummary,
+  neighborhoodProfileFromRow,
+  neighborhoodProfileToRow,
+  readLastNeighborhoodContribution,
+  readNeighborhoodProfile,
+  resolveNeighborhoodFromGps,
+  saveNeighborhoodProfile,
+  type NeighborhoodProfile,
+  type LastNeighborhoodContribution,
+} from '../lib/neighborhoodRanking';
 import dashboardBg from '../assets/home-dashboard-bg.webp';
-import podiumBg from '../assets/home-top3-podium.webp';
 import heroImage from '../assets/iron-five-hero.webp';
 
 type HomePageProps = {
@@ -125,12 +133,6 @@ const exercises: Exercise[] = [
   },
 ];
 
-const ranking = [
-  { rank: 2, name: '김철수', score: '11,234', medal: 'silver' },
-  { rank: 1, name: '홍길동', score: '12,345', medal: 'gold' },
-  { rank: 3, name: '이영희', score: '10,987', medal: 'bronze' },
-];
-
 const chartPoints = [34, 36, 52, 46, 28, 55, 72];
 
 export default function HomePage({
@@ -148,6 +150,9 @@ export default function HomePage({
   const [toast, setToast] = useState('');
   const [recentRunsCount, setRecentRunsCount] = useState(0);
   const [yesterdayBestRunningKm, setYesterdayBestRunningKm] = useState(0);
+  const [neighborhoodProfile, setNeighborhoodProfile] = useState<NeighborhoodProfile | null>(() => readNeighborhoodProfile(user.id));
+  const [neighborhoodMessage, setNeighborhoodMessage] = useState('');
+  const [lastContribution, setLastContribution] = useState<LastNeighborhoodContribution | null>(() => readLastNeighborhoodContribution(user.id));
   const [dailyProgress, setDailyProgress] = useState<ExerciseProgressValues>(() =>
     buildDailyExerciseProgress({ runs: [], exerciseRecords: readExerciseRecords(user.id) }),
   );
@@ -181,6 +186,10 @@ export default function HomePage({
   const totalProgress = Math.round(
     exerciseItems.reduce((sum, exercise) => sum + getProgress(exercise), 0) / exerciseItems.length,
   );
+  const rankingSummary = useMemo(
+    () => buildHomeRankingSummary(neighborhoodProfile, readExerciseRecords(user.id)),
+    [neighborhoodProfile, user.id],
+  );
 
   useEffect(() => {
     const localRuns = readLocalRuns(user.id);
@@ -190,7 +199,21 @@ export default function HomePage({
     setWorkoutSummary(getHomeWorkoutSummary({ userId: user.id, runs: localRuns, exerciseRecords: localExerciseRecords }));
     setRecentRunsCount(localRuns.length);
     setYesterdayBestRunningKm(bestRunningKmOnDate(localRuns, yesterdayDateKey()));
+    setNeighborhoodProfile(readNeighborhoodProfile(user.id));
+    setLastContribution(readLastNeighborhoodContribution(user.id));
     if (isTestUserId(user.id)) return;
+
+    async function loadNeighborhoodProfile() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('neighborhood_name,neighborhood_code,neighborhood_verified_at')
+        .eq('id', user.id)
+        .maybeSingle();
+      const remoteProfile = neighborhoodProfileFromRow(data);
+      if (!remoteProfile) return;
+      saveNeighborhoodProfile(user.id, remoteProfile);
+      setNeighborhoodProfile(remoteProfile);
+    }
 
     async function loadRunCount() {
       try {
@@ -231,6 +254,7 @@ export default function HomePage({
       }
     }
 
+    loadNeighborhoodProfile();
     loadRunCount();
   }, [user.id]);
 
@@ -271,6 +295,35 @@ export default function HomePage({
     setToast(`${exercise.name} 운동 화면은 다음 단계에서 연결됩니다.`);
   }
 
+  async function handleNeighborhoodCertification() {
+    setNeighborhoodMessage('GPS 확인 중');
+    try {
+      const permission = await Geolocation.requestPermissions();
+      if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
+        setNeighborhoodMessage('인증 필요');
+        return;
+      }
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+      const profile = resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
+      const saved = saveNeighborhoodProfile(user.id, profile);
+      if (!isTestUserId(user.id)) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          nickname: user.email?.split('@')[0] ?? '러너',
+          ...neighborhoodProfileToRow(saved),
+        });
+      }
+      setNeighborhoodProfile(saved);
+      setNeighborhoodMessage(`${saved.districtName} 인증 완료`);
+    } catch {
+      setNeighborhoodMessage('인증 필요');
+    }
+  }
+
   return (
     <motion.main
       className="home-premium home-dashboard"
@@ -299,7 +352,14 @@ export default function HomePage({
         </div>
       </motion.section>
 
-      <RankingPodium onRanking={onRanking} />
+      <HomeRankingCards
+        summary={rankingSummary}
+        profile={neighborhoodProfile}
+        message={neighborhoodMessage}
+        lastContribution={lastContribution}
+        onVerify={handleNeighborhoodCertification}
+        onRanking={onRanking}
+      />
 
       <SummaryCard summary={workoutSummary} recentRunsCount={recentRunsCount} />
 
@@ -536,32 +596,68 @@ function CircularProgress({ value }: { value: number }) {
   );
 }
 
-function RankingPodium({ onRanking }: { onRanking: () => void }) {
+function HomeRankingCards({
+  summary,
+  profile,
+  message,
+  lastContribution,
+  onVerify,
+  onRanking,
+}: {
+  summary: ReturnType<typeof buildHomeRankingSummary>;
+  profile: NeighborhoodProfile | null;
+  message: string;
+  lastContribution: LastNeighborhoodContribution | null;
+  onVerify: () => void;
+  onRanking: () => void;
+}) {
   return (
-    <section className="ranking-card glass-panel" style={{ '--home-podium-bg': `url(${podiumBg})` } as React.CSSProperties}>
-      <div className="ranking-title">
-        <div>
-          <span>오늘의 랭킹</span>
-          <strong>TOP 3 PODIUM</strong>
-        </div>
-        <RiTrophyFill />
+    <section className="ranking-card neighborhood-ranking-card glass-panel">
+      <strong className="neighborhood-core-message">{summary.coreMessage}</strong>
+      <div className="neighborhood-auth-row">
+        <span>{profile ? `📍 ${profile.districtName} 인증됨` : '동네 인증하면 랭킹에 참여할 수 있어요'}</span>
+        {!profile && (
+          <button className="neighborhood-verify-button" type="button" onClick={onVerify}>
+            GPS로 인증하기
+          </button>
+        )}
       </div>
-      <div className="podium">
-        {ranking.map((item, index) => (
-          <motion.div key={item.rank} className={`podium-item ${item.medal}`} initial={{ opacity: 0, y: 26 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.12 }}>
-            <div className="avatar"><RiUserSmileFill /></div>
-            <RiMedalFill className="medal" />
-            <strong>{item.name}</strong>
-            <span>{item.score}</span>
-            <b>{item.rank}</b>
-          </motion.div>
-        ))}
+      {message && <p className="neighborhood-auth-message">{message}</p>}
+      {lastContribution && (
+        <p className="neighborhood-contribution-message">
+          내 운동으로 우리 동네가 +{lastContribution.points}점 강해졌습니다.
+        </p>
+      )}
+      <div className="neighborhood-rank-grid">
+        <SimpleRankingCard title={summary.country.title} main={summary.country.status} detail="전국 랭킹은 준비중" />
+        <SimpleRankingCard title={summary.neighborhood.title} main={summary.neighborhood.rankText} detail={summary.neighborhood.detail} highlight={Boolean(profile)} />
+        <SimpleRankingCard title={summary.personal.title} main={summary.personal.rankText} detail={summary.personal.detail} highlight />
       </div>
       <button className="premium-button subtle" type="button" onClick={onRanking}>
-        전체 랭킹 보기
+        랭킹 보기
         <RiArrowRightSLine />
       </button>
     </section>
+  );
+}
+
+function SimpleRankingCard({
+  title,
+  main,
+  detail,
+  highlight = false,
+}: {
+  title: string;
+  main: string;
+  detail: string;
+  highlight?: boolean;
+}) {
+  return (
+    <article className={`simple-rank-card ${highlight ? 'highlight' : ''}`}>
+      <span>{title}</span>
+      <strong>{main}</strong>
+      <p>{detail}</p>
+    </article>
   );
 }
 

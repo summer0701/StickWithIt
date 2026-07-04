@@ -2,6 +2,8 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readLungeBaseReps, updateLungeGhostBaseline } from '../lib/lungeGhosts';
 import { saveExerciseRecord } from '../lib/exerciseRecords';
+import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
+import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
 import lungeNeon from '../assets/lunge-neon.webp';
 import NativeExercisePage from './NativeExercisePage';
 
@@ -28,13 +30,15 @@ export default function LungePage({ onBack, onComplete = onBack, userId = 'anony
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
         RunningPlugin.openLungePose({ durationSeconds, baseAverageReps: baseAverageValue })}
       onCompleted={(payload) => {
-        saveExerciseRecord({
+        const record = saveExerciseRecord({
           userId,
           type: 'lunge',
           completed: true,
           durationSeconds: payload.durationSeconds,
           reps: payload.reps,
         });
+        saveLastNeighborhoodContribution(userId, record);
+        void syncNeighborhoodContribution({ userId, record });
         updateLungeGhostBaseline(userId, payload);
       }}
       onBack={onBack}

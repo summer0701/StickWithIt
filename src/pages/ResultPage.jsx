@@ -14,6 +14,8 @@ import { supabase } from '../lib/supabaseClient';
 import { formatDuration, formatSignedSeconds } from '../lib/pace';
 import { readLocalRuns } from '../lib/localRuns';
 import { isTestUserId } from '../lib/testAuth';
+import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
+import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
 import personalBestMedal from '../assets/personal-best-medal.webp';
 
 export default function ResultPage({ user, result, onHome, onRanking }) {
@@ -49,6 +51,13 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
     checkBest();
   }, [result, user.id]);
 
+  useEffect(() => {
+    if (!result?.run) return;
+    const record = runToExerciseRecord(user.id, result.run);
+    saveLastNeighborhoodContribution(user.id, record);
+    void syncNeighborhoodContribution({ userId: user.id, record });
+  }, [result?.run?.id, user.id]);
+
   if (!result?.run) {
     return (
       <main className="screen center">
@@ -62,6 +71,7 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
 
   const run = result.run;
   const summary = buildResultSummary(run, result);
+  const contribution = resultContributionScore(run);
   const saveStatus = result.saveError ? '서버 저장 대기 중' : '서버 저장 완료';
   const achievementTitle = isPersonalBest ? '개인 최고 기록 갱신!' : '러닝 기록 저장!';
 
@@ -80,6 +90,11 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
           </p>
         </div>
         {result.saveError && <p className="message error">{result.saveError}</p>}
+      </section>
+
+      <section className="result-neighborhood-contribution">
+        <strong>내 운동으로 우리 동네가 +{contribution}점 강해졌습니다.</strong>
+        <span>오늘 운동하면 우리 동네가 올라갑니다.</span>
       </section>
 
       <section className="result-summary-panel">
@@ -132,6 +147,24 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
       </section>
     </main>
   );
+}
+
+function runToExerciseRecord(userId, run) {
+  return {
+    id: run.id,
+    userId,
+    type: 'running',
+    completed: true,
+    completedAt: run.ended_at ?? new Date().toISOString(),
+    durationSeconds: getRunDurationSeconds(run),
+    distanceKm: getRunDistanceKm(run),
+  };
+}
+
+function resultContributionScore(run) {
+  const distanceScore = Math.round(getRunDistanceKm(run) * 100);
+  const durationScore = Math.round(getRunDurationSeconds(run) / 60);
+  return Math.max(1, distanceScore + durationScore);
 }
 
 function ResultMetricCard({ accent, icon: Icon, label, value, unit, description, sparkline, progress }) {

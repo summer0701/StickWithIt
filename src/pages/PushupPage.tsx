@@ -2,6 +2,8 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readPushupBaseAverageReps, updatePushupGhostBaseline } from '../lib/pushupGhosts';
 import { saveExerciseRecord } from '../lib/exerciseRecords';
+import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
+import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
 import pushupNeon from '../assets/pushup-neon.webp';
 import NativeExercisePage from './NativeExercisePage';
 
@@ -29,7 +31,9 @@ export default function PushupPage({ onBack, onComplete = onBack, userId = 'anon
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
         RunningPlugin.openPushupPose({ durationSeconds, baseAverageReps: baseAverageValue })}
       onCompleted={(payload) => {
-        saveExerciseRecord({ userId, type: 'push-up', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        const record = saveExerciseRecord({ userId, type: 'push-up', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        saveLastNeighborhoodContribution(userId, record);
+        void syncNeighborhoodContribution({ userId, record });
         updatePushupGhostBaseline(userId, payload);
       }}
       onBack={onBack}

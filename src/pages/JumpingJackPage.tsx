@@ -2,6 +2,8 @@ import { RunningPlugin } from '../plugins/runningPlugin';
 import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readJumpingJackBaseAverageReps, updateJumpingJackGhostBaseline } from '../lib/jumpingJackGhosts';
 import { saveExerciseRecord } from '../lib/exerciseRecords';
+import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
+import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
 import jumpingJackNeon from '../assets/jumping-jack-neon.webp';
 import NativeExercisePage from './NativeExercisePage';
 
@@ -28,7 +30,9 @@ export default function JumpingJackPage({ onBack, onComplete = onBack, userId = 
       onOpenNative={({ durationSeconds, baseAverageValue }) =>
         RunningPlugin.openJumpingJackPose({ durationSeconds, baseAverageReps: baseAverageValue })}
       onCompleted={(payload) => {
-        saveExerciseRecord({ userId, type: 'jumping-jack', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        const record = saveExerciseRecord({ userId, type: 'jumping-jack', completed: true, durationSeconds: payload.durationSeconds, reps: payload.reps });
+        saveLastNeighborhoodContribution(userId, record);
+        void syncNeighborhoodContribution({ userId, record });
         updateJumpingJackGhostBaseline(userId, payload);
       }}
       onBack={onBack}
