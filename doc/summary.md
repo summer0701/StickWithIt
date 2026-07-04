@@ -1,7 +1,7 @@
 # db 올리는 법
 
 npx supabase db push
-
+npx supabase functions deploy
 supabase pw : cdtcyw15yCuZTzms
 project url : https://ihtmorgmsfptcmblvpnl.supabase.co
 publishable key: sb_publishable_19vXc-HFI1i-N0B9qUpOYw_Xpt2BNZk
