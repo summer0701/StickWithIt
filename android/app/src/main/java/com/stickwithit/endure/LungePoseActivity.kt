@@ -13,8 +13,9 @@ class LungePoseActivity : PoseExerciseActivity() {
     override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     override val useGameHud = true
     override val gameHudLabel = "LUNGES"
-    override val topInstructionText = "준비 · 다리 전체가 보이도록 카메라를 세워주세요."
-    override val readinessMissingDetail = "다리 전체가 보이도록 카메라를 세워주세요."
+    override val readinessLandmarks = listOf(0, 23, 24, 25, 26, 27, 28)
+    override val topInstructionText = "준비 · 머리와 하체 핵심 관절이 보이면 시작합니다."
+    override val readinessMissingDetail = "머리, 엉덩이, 무릎, 발목이 보이게 서 주세요."
     override val readinessAcceptedDetail = "좋습니다. 5초 뒤 런지를 시작합니다."
     override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
     override val goodFeedbackLines = listOf("✔ 오른쪽 런지", "✔ 왼쪽 런지", "✔ 상체 OK")

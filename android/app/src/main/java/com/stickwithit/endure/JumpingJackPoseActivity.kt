@@ -13,8 +13,9 @@ class JumpingJackPoseActivity : PoseExerciseActivity() {
     override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     override val useGameHud = true
     override val gameHudLabel = "JUMPING JACK"
-    override val topInstructionText = "준비 · 전신이 모두 보이도록 카메라를 멀리 두세요."
-    override val readinessMissingDetail = "전신이 모두 보이도록 카메라를 멀리 두세요."
+    override val readinessLandmarks = listOf(0, 15, 16, 27, 28)
+    override val topInstructionText = "준비 · 머리, 양손, 양발이 보이면 시작합니다."
+    override val readinessMissingDetail = "머리, 양손, 양발이 보이게 서 주세요."
     override val readinessAcceptedDetail = "좋습니다. 5초 뒤 점핑잭을 시작합니다."
     override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
     override val goodFeedbackLines = listOf("✔ 팔 높이 OK", "✔ 리듬 GOOD", "🔥 Excellent")

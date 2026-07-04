@@ -54,16 +54,20 @@ class SquatPoseEvaluator : PoseExerciseEvaluator {
         val rightKnee = landmarks[26] ?: return waitingFeedback()
         val leftAnkle = landmarks[27] ?: return waitingFeedback()
         val rightAnkle = landmarks[28] ?: return waitingFeedback()
-        val leftShoulder = landmarks[11] ?: return waitingFeedback()
-        val rightShoulder = landmarks[12] ?: return waitingFeedback()
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
 
         val kneeAngle = (angle(leftHip, leftKnee, leftAnkle) + angle(rightHip, rightKnee, rightAnkle)) / 2f
-        val shoulderMid = midpoint(leftShoulder, rightShoulder)
         val hipMid = midpoint(leftHip, rightHip)
+        val shoulderMid = if (leftShoulder != null && rightShoulder != null) midpoint(leftShoulder, rightShoulder) else hipMid
         val kneeMid = midpoint(leftKnee, rightKnee)
         val ankleMid = midpoint(leftAnkle, rightAnkle)
         val torsoLean = abs(shoulderMid.x - hipMid.x)
-        val waistTilt = abs(leftShoulder.y - rightShoulder.y) + abs(leftHip.y - rightHip.y)
+        val waistTilt = if (leftShoulder != null && rightShoulder != null) {
+            abs(leftShoulder.y - rightShoulder.y) + abs(leftHip.y - rightHip.y)
+        } else {
+            abs(leftHip.y - rightHip.y)
+        }
         val kneeWidth = distance(leftKnee, rightKnee)
         val ankleWidth = max(0.01f, distance(leftAnkle, rightAnkle))
         val depthGap = hipMid.y - kneeMid.y

@@ -7,6 +7,7 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
     private var phase = JumpingJackPhase.CLOSED
     private var opened = false
     private var lastRepAt = 0L
+    private var closedAnkleWidth: Float? = null
 
     override fun update(rawLandmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit): SquatPoseFrame {
         val landmarks = smooth(rawLandmarks)
@@ -16,21 +17,34 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun evaluate(landmarks: Map<Int, PosePoint>): SquatPoseFeedback {
-        if (!requiredVisible(landmarks, requiredLandmarks)) return waitingFeedback("머리부터 발끝까지 화면에 들어오게 서 주세요")
-        val leftShoulder = landmarks[11]!!
-        val rightShoulder = landmarks[12]!!
+        if (!requiredVisible(landmarks, requiredLandmarks)) return waitingFeedback("머리, 양손, 양발이 보이게 서 주세요")
+        val head = landmarks[0]!!
         val leftWrist = landmarks[15]!!
         val rightWrist = landmarks[16]!!
-        val leftHip = landmarks[23]!!
-        val rightHip = landmarks[24]!!
         val leftAnkle = landmarks[27]!!
         val rightAnkle = landmarks[28]!!
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
+        val leftHip = landmarks[23]
+        val rightHip = landmarks[24]
 
-        val shoulderWidth = poseDistance(leftShoulder, rightShoulder).coerceAtLeast(0.01f)
+        val shoulderWidth = if (leftShoulder != null && rightShoulder != null) {
+            poseDistance(leftShoulder, rightShoulder).coerceAtLeast(0.01f)
+        } else {
+            closedAnkleWidth?.times(1.4f) ?: 0.16f
+        }
         val ankleWidth = poseDistance(leftAnkle, rightAnkle)
-        val wristsAboveShoulders = leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y
+        val wristsAboveShoulders = if (leftShoulder != null && rightShoulder != null) {
+            leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y
+        } else {
+            leftWrist.y < head.y + 0.06f && rightWrist.y < head.y + 0.06f
+        }
         val legsOpen = ankleWidth > shoulderWidth * 1.35f
-        val bodyTilt = abs(leftShoulder.y - rightShoulder.y) + abs(leftHip.y - rightHip.y)
+        val bodyTilt = if (leftShoulder != null && rightShoulder != null && leftHip != null && rightHip != null) {
+            abs(leftShoulder.y - rightShoulder.y) + abs(leftHip.y - rightHip.y)
+        } else {
+            0f
+        }
         val fastUnstable = requiredLandmarks.any { (landmarks[it]?.visibility ?: 1f) < 0.62f }
 
         val segmentLevels = mutableMapOf<PoseSegment, PoseFeedbackLevel>()
@@ -56,18 +70,20 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     private fun updateRepCounter(landmarks: Map<Int, PosePoint>, nowMs: Long, onRep: () -> Unit) {
-        val leftShoulder = landmarks[11] ?: return
-        val rightShoulder = landmarks[12] ?: return
+        val head = landmarks[0] ?: return
         val leftWrist = landmarks[15] ?: return
         val rightWrist = landmarks[16] ?: return
         val leftAnkle = landmarks[27] ?: return
         val rightAnkle = landmarks[28] ?: return
-        val shoulderWidth = poseDistance(leftShoulder, rightShoulder).coerceAtLeast(0.01f)
         val ankleWidth = poseDistance(leftAnkle, rightAnkle)
-        val wristsUp = leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y
-        val wristsDown = leftWrist.y > leftShoulder.y - 0.04f && rightWrist.y > rightShoulder.y - 0.04f
-        val isOpen = ankleWidth > shoulderWidth * 1.35f && wristsUp
-        val isClosed = ankleWidth < shoulderWidth * 1.05f && wristsDown
+        if (phase == JumpingJackPhase.CLOSED || ankleWidth < (closedAnkleWidth ?: Float.MAX_VALUE)) {
+            closedAnkleWidth = closedAnkleWidth?.let { it * 0.9f + ankleWidth * 0.1f } ?: ankleWidth
+        }
+        val baseline = closedAnkleWidth?.coerceAtLeast(0.06f) ?: 0.10f
+        val wristsUp = leftWrist.y < head.y + 0.06f && rightWrist.y < head.y + 0.06f
+        val wristsDown = leftWrist.y > head.y + 0.16f && rightWrist.y > head.y + 0.16f
+        val isOpen = ankleWidth > baseline * 1.45f && wristsUp
+        val isClosed = ankleWidth < baseline * 1.18f && wristsDown
 
         if (phase == JumpingJackPhase.CLOSED && isOpen) {
             phase = JumpingJackPhase.OPEN
@@ -87,6 +103,6 @@ class JumpingJackPoseEvaluator : SmoothedPoseEvaluator() {
     }
 
     companion object {
-        private val requiredLandmarks = listOf(11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28)
+        private val requiredLandmarks = listOf(0, 15, 16, 27, 28)
     }
 }

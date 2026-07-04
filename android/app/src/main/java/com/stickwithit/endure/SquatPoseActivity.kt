@@ -13,8 +13,9 @@ class SquatPoseActivity : PoseExerciseActivity() {
     override val screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     override val useGameHud = true
     override val gameHudLabel = "SQUATS"
-    override val topInstructionText = "준비 · 전신이 화면 안에 보이도록 뒤로 이동해주세요."
-    override val readinessMissingDetail = "전신이 보이도록 카메라 앞에 서 주세요."
+    override val readinessLandmarks = listOf(0, 11, 12, 23, 24, 25, 26, 27, 28)
+    override val topInstructionText = "준비 · 머리와 하체 핵심 관절이 보이면 시작합니다."
+    override val readinessMissingDetail = "머리, 어깨, 엉덩이, 무릎, 발목이 보이게 서 주세요."
     override val readinessAcceptedDetail = "좋습니다. 5초 뒤 스쿼트를 시작합니다."
     override val readinessHoldingDetail = "좋습니다. 자세를 유지하세요."
     override val goodFeedbackLines = listOf("✔ 무릎 OK", "✔ 허리 OK", "✔ Good Squat")
