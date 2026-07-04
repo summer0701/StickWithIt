@@ -183,6 +183,10 @@ export default function RankingPage({ user, onBack }) {
       </section>
 
       <section className="ranking-table-card simple-ranking-table">
+        <div className="simple-ranking-table-heading">
+          <strong>{effectiveTab === 'country' ? '국가별 순위' : `${currentTab.label} 순위`}</strong>
+          <span>{effectiveTab === 'personal' ? '개인 순위를 선택해서 볼 수 있어요' : currentTab.searchLabel}</span>
+        </div>
         {effectiveTab === 'country' ? (
           <div className="ranking-preparing-card">
             <strong>🇰🇷 국가 순위</strong>

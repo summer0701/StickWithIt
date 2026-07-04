@@ -7061,6 +7061,15 @@ button:disabled {
   margin: 0 auto 14px;
 }
 
+.simple-ranking-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.simple-ranking-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .ranking-period-filter {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -7137,6 +7146,33 @@ button:disabled {
   width: min(100%, 980px);
   margin: 0 auto;
   padding: 14px;
+}
+
+.simple-ranking-table-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.simple-ranking-table-heading strong,
+.simple-ranking-table-heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simple-ranking-table-heading strong {
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.simple-ranking-table-heading span {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .simple-ranking-list {

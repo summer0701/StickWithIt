@@ -63,6 +63,15 @@ describe('neighborhoodRanking', () => {
     expect(view.neighborhoodEntries.at(-1)?.rank).toBeGreaterThan(20);
   });
 
+  it('shows personal ranking rows as a selectable ranking tab source', () => {
+    const view = buildRankingView(null, [], 'today');
+
+    expect(view.personalEntries).toHaveLength(21);
+    expect(view.personalEntries[0]?.rank).toBe(1);
+    expect(view.personalEntries[19]?.rank).toBe(20);
+    expect(view.personalEntries.at(-1)).toMatchObject({ isMine: true });
+  });
+
   it('uses today contribution to raise neighborhood and personal ranks', () => {
     const profile = resolveNeighborhoodFromGps(35.223, 128.681);
     const view = buildRankingView(profile, [
