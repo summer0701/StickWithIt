@@ -134,11 +134,12 @@ export default function RankingPage({ user, onBack }) {
   const isPersonal = effectiveTab === 'personal';
   const displayedContribution = mine?.score ?? ranking.contribution;
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '시/도 미인증';
+  const neighborhoodName = profile?.districtName ?? '동네 미인증';
   const locationDetail = isPersonal
     ? '개인 기록 기준'
     : profile
-      ? `현재 위치 시/도: ${profile.regionName}`
-      : 'GPS 인증 후 현재 시/도가 표시됩니다';
+      ? `현재 위치동네: ${profile.districtName}`
+      : 'GPS 인증 후 현재 시/도와 동네가 표시됩니다';
   const rankTitle = isPersonal ? '개인 순위' : '시/도 순위';
   const progressPercent = Math.min(100, Math.round((displayedContribution / 300) * 100));
 
@@ -172,6 +173,7 @@ export default function RankingPage({ user, onBack }) {
               <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
             </div>
             <p>{locationDetail}</p>
+            {!isPersonal && profile && <small>시/도: {scopeName} · 동네: {neighborhoodName}</small>}
             <small>{isPersonal ? '오늘 내 운동 기록이 개인 순위에 반영돼요.' : '오늘 내 시/도에 기여했어요!'}</small>
           </div>
           {!profile && !isPersonal && (
@@ -184,13 +186,15 @@ export default function RankingPage({ user, onBack }) {
 
       {!isPersonal && authMessage && <p className="ranking-auth-status">{authMessage}</p>}
 
-      <div className="ranking-period-filter" aria-label="기간 필터">
-        {periods.map((item) => (
-          <button className={period === item.id ? 'active' : ''} key={item.id} type="button" onClick={() => setPeriod(item.id)}>
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <section className="ranking-period-card">
+        <div className="ranking-period-filter" aria-label="기간 필터">
+          {periods.map((item) => (
+            <button className={period === item.id ? 'active' : ''} key={item.id} type="button" onClick={() => setPeriod(item.id)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {effectiveTab !== 'country' && (
         <>
