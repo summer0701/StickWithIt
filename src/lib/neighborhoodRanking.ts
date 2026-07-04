@@ -1,21 +1,30 @@
 import type { ExerciseRecord } from './exerciseRecords';
+import { supabase } from './supabaseClient';
 
 export type RankingPeriod = 'today' | 'week' | 'month';
 
 export type NeighborhoodProfile = {
   verified: boolean;
+  neighborhoodName: string;
+  neighborhoodCode: string;
   districtName: string;
   districtCode: string;
   regionName: string;
   regionCode: string;
+  latitude?: number;
+  longitude?: number;
   verifiedAt: string;
 };
 
 export type NeighborhoodProfileRow = {
   neighborhood_name?: string | null;
   neighborhood_code?: string | null;
+  district_name?: string | null;
+  district_code?: string | null;
   region_name?: string | null;
   region_code?: string | null;
+  neighborhood_lat?: number | null;
+  neighborhood_lng?: number | null;
   neighborhood_verified_at?: string | null;
 };
 
@@ -23,8 +32,11 @@ export type NeighborhoodContributionRow = {
   user_id: string;
   neighborhood_code: string;
   neighborhood_name: string;
+  district_name: string;
   region_code: string;
   region_name: string;
+  neighborhood_lat?: number;
+  neighborhood_lng?: number;
   points: number;
   source_type: string;
   source_record_id: string;
@@ -56,6 +68,7 @@ export type LastNeighborhoodContribution = {
 export const NEIGHBORHOOD_CORE_MESSAGE = '오늘 운동하면 우리 동네가 올라갑니다.';
 const PROFILE_KEY_PREFIX = 'stickWithIt:neighborhood-profile:';
 const LAST_CONTRIBUTION_KEY_PREFIX = 'stickWithIt:last-neighborhood-contribution:';
+const PLACEHOLDER_NEIGHBORHOODS = new Set(['현재 위치 동네', '내 동네', '인증된 동네', '동네 미인증']);
 
 export function readNeighborhoodProfile(userId: string): NeighborhoodProfile | null {
   if (!canUseLocalStorage()) return null;
@@ -63,8 +76,9 @@ export function readNeighborhoodProfile(userId: string): NeighborhoodProfile | n
     const raw = window.localStorage.getItem(PROFILE_KEY_PREFIX + userId);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as NeighborhoodProfile;
-    if (!parsed?.verified || !parsed.districtName || !parsed.districtCode) return null;
-    return normalizeNeighborhoodProfile(parsed);
+    const normalized = normalizeNeighborhoodProfile(parsed);
+    if (!isRealNeighborhoodProfile(normalized)) return null;
+    return normalized;
   } catch {
     window.localStorage.removeItem(PROFILE_KEY_PREFIX + userId);
     return null;
@@ -72,14 +86,22 @@ export function readNeighborhoodProfile(userId: string): NeighborhoodProfile | n
 }
 
 export function saveNeighborhoodProfile(userId: string, profile: NeighborhoodProfile) {
-  if (!canUseLocalStorage()) return profile;
+  const normalized = normalizeNeighborhoodProfile(profile);
+  if (!isRealNeighborhoodProfile(normalized)) {
+    throw new Error('동네를 확인하지 못했어요.');
+  }
+  if (!canUseLocalStorage()) return normalized;
   const safeProfile = {
     verified: true,
-    districtName: profile.districtName,
-    districtCode: profile.districtCode,
-    regionName: profile.regionName || profile.districtName,
-    regionCode: profile.regionCode || profile.districtCode,
-    verifiedAt: profile.verifiedAt,
+    neighborhoodName: normalized.neighborhoodName,
+    neighborhoodCode: normalized.neighborhoodCode,
+    districtName: normalized.districtName,
+    districtCode: normalized.districtCode,
+    regionName: normalized.regionName,
+    regionCode: normalized.regionCode,
+    latitude: normalized.latitude,
+    longitude: normalized.longitude,
+    verifiedAt: normalized.verifiedAt,
   };
   window.localStorage.setItem(PROFILE_KEY_PREFIX + userId, JSON.stringify(safeProfile));
   return safeProfile;
@@ -87,41 +109,67 @@ export function saveNeighborhoodProfile(userId: string, profile: NeighborhoodPro
 
 export function neighborhoodProfileToRow(profile: NeighborhoodProfile) {
   return {
-    neighborhood_name: profile.districtName,
-    neighborhood_code: profile.districtCode,
-    region_name: profile.regionName || profile.districtName,
-    region_code: profile.regionCode || profile.districtCode,
+    neighborhood_name: profile.neighborhoodName,
+    neighborhood_code: profile.neighborhoodCode,
+    district_name: profile.districtName,
+    district_code: profile.districtCode,
+    region_name: profile.regionName,
+    region_code: profile.regionCode,
+    neighborhood_lat: profile.latitude,
+    neighborhood_lng: profile.longitude,
     neighborhood_verified_at: profile.verifiedAt,
   };
 }
 
 export function neighborhoodProfileFromRow(row: NeighborhoodProfileRow | null | undefined): NeighborhoodProfile | null {
   if (!row?.neighborhood_name || !row.neighborhood_code || !row.neighborhood_verified_at) return null;
-  return normalizeNeighborhoodProfile({
+  const profile = normalizeNeighborhoodProfile({
     verified: true,
-    districtName: row.neighborhood_name,
-    districtCode: row.neighborhood_code,
-    regionName: row.region_name ?? row.neighborhood_name,
-    regionCode: row.region_code ?? row.neighborhood_code,
+    neighborhoodName: row.neighborhood_name,
+    neighborhoodCode: row.neighborhood_code,
+    districtName: row.district_name ?? row.neighborhood_name,
+    districtCode: row.district_code ?? row.neighborhood_code,
+    regionName: row.region_name ?? row.district_name ?? row.neighborhood_name,
+    regionCode: row.region_code ?? row.district_code ?? row.neighborhood_code,
+    latitude: row.neighborhood_lat ?? undefined,
+    longitude: row.neighborhood_lng ?? undefined,
     verifiedAt: row.neighborhood_verified_at,
   });
+  return isRealNeighborhoodProfile(profile) ? profile : null;
 }
 
-export function resolveNeighborhoodFromGps(latitude: number, longitude: number): NeighborhoodProfile {
-  const district = resolveKnownDistrict(latitude, longitude);
-  return {
+export async function resolveNeighborhoodFromGps(latitude: number, longitude: number): Promise<NeighborhoodProfile> {
+  const { data, error } = await supabase.functions.invoke('reverse-geocode', {
+    body: { latitude, longitude },
+  });
+
+  if (error || !data?.neighborhood_name || !data?.district_name || !data?.region_name) {
+    throw new Error('동네를 확인하지 못했어요.');
+  }
+
+  const profile = normalizeNeighborhoodProfile({
     verified: true,
-    districtName: district.name,
-    districtCode: district.code,
-    regionName: district.regionName,
-    regionCode: district.regionCode,
+    neighborhoodName: String(data.neighborhood_name),
+    neighborhoodCode: String(data.neighborhood_code ?? data.neighborhood_name),
+    districtName: String(data.district_name),
+    districtCode: String(data.district_code ?? data.district_name),
+    regionName: String(data.region_name),
+    regionCode: String(data.region_code ?? data.region_name),
+    latitude,
+    longitude,
     verifiedAt: new Date().toISOString(),
-  };
+  });
+
+  if (!isRealNeighborhoodProfile(profile)) {
+    throw new Error('동네를 확인하지 못했어요.');
+  }
+
+  return profile;
 }
 
 export function buildHomeRankingSummary(profile: NeighborhoodProfile | null, records: ExerciseRecord[]) {
   const contribution = calculateTodayContribution(records);
-  const districtName = profile?.districtName ?? '동네 미인증';
+  const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const rankingView = buildRankingView(profile, records, 'today');
   const myNeighborhood = rankingView.neighborhoodEntries.find((entry) => entry.isMine);
   const myPersonal = rankingView.personalEntries.find((entry) => entry.isMine);
@@ -133,7 +181,7 @@ export function buildHomeRankingSummary(profile: NeighborhoodProfile | null, rec
       status: '준비중',
     },
     neighborhood: {
-      title: profile ? `🏠 ${districtName}` : '🏠 우리 동네 순위',
+      title: profile ? `🏠 ${neighborhoodName}` : '🏠 우리 동네 순위',
       rankText: profile && myNeighborhood ? `전국 ${myNeighborhood.rank}위 ${movementText(myNeighborhood.movement)}` : '인증 필요',
       detail: profile ? '오늘 운동하면 올라갑니다' : '동네 인증하면 랭킹에 참여할 수 있어요',
     },
@@ -188,10 +236,13 @@ export function neighborhoodContributionToRow({
 }): NeighborhoodContributionRow {
   return {
     user_id: userId,
-    neighborhood_code: profile.districtCode,
-    neighborhood_name: profile.districtName,
-    region_code: profile.regionCode || profile.districtCode,
-    region_name: profile.regionName || profile.districtName,
+    neighborhood_code: profile.neighborhoodCode,
+    neighborhood_name: profile.neighborhoodName,
+    district_name: profile.districtName,
+    region_code: profile.regionCode,
+    region_name: profile.regionName,
+    neighborhood_lat: profile.latitude,
+    neighborhood_lng: profile.longitude,
     points: contributionScoreForRecord(record),
     source_type: sourceType,
     source_record_id: record.id ?? `${record.type}-${record.completedAt ?? new Date().toISOString()}`,
@@ -203,9 +254,9 @@ export function buildRankingView(profile: NeighborhoodProfile | null, records: E
   const contribution = calculateContribution(records, period);
   const neighborhoodEntries = profile && contribution > 0
     ? [{
-      id: profile.regionCode || profile.districtCode,
+      id: profile.neighborhoodCode,
       rank: 1,
-      name: profile.regionName || profile.districtName,
+      name: profile.neighborhoodName,
       score: contribution,
       movement: 0,
       isMine: true,
@@ -235,7 +286,7 @@ export function buildRankingView(profile: NeighborhoodProfile | null, records: E
     neighborhoodEntries,
     personalEntries,
     neighborhoodPrediction: profile && myNeighborhood
-      ? buildNeighborhoodPrediction(profile.regionName || profile.districtName, myNeighborhood, contribution)
+      ? buildNeighborhoodPrediction(profile.neighborhoodName, myNeighborhood, contribution)
       : NEIGHBORHOOD_CORE_MESSAGE,
     personalPrediction: myPersonal
       ? buildPersonalPrediction(myPersonal)
@@ -246,8 +297,8 @@ export function buildRankingView(profile: NeighborhoodProfile | null, records: E
 }
 
 export function movementText(movement: number) {
-  if (movement > 0) return `▲${movement}`;
-  if (movement < 0) return `▼${Math.abs(movement)}`;
+  if (movement > 0) return `▲ ${movement}`;
+  if (movement < 0) return `▼ ${Math.abs(movement)}`;
   return '-';
 }
 
@@ -332,33 +383,32 @@ function periodStart(period: RankingPeriod) {
   return start;
 }
 
-function resolveKnownDistrict(latitude: number, longitude: number) {
-  if (latitude >= 35.20 && latitude <= 35.24 && longitude >= 128.66 && longitude <= 128.70) {
-    return { name: '상남동', code: 'KR-48123-SANGNAM', regionName: '경상남도 창원시', regionCode: 'KR-48-CHANGWON' };
-  }
-  if (latitude >= 35.21 && latitude <= 35.25 && longitude >= 128.62 && longitude < 128.66) {
-    return { name: '중앙동', code: 'KR-48123-JOONGANG', regionName: '경상남도 창원시', regionCode: 'KR-48-CHANGWON' };
-  }
-  if (latitude >= 35.18 && latitude < 35.22 && longitude >= 128.68 && longitude <= 128.73) {
-    return { name: '사파동', code: 'KR-48123-SAPA', regionName: '경상남도 창원시', regionCode: 'KR-48-CHANGWON' };
-  }
+function normalizeNeighborhoodProfile(profile: NeighborhoodProfile): NeighborhoodProfile {
+  const neighborhoodName = String(profile.neighborhoodName ?? profile.districtName ?? '').trim();
+  const neighborhoodCode = String(profile.neighborhoodCode ?? profile.districtCode ?? '').trim();
+  const districtName = String(profile.districtName ?? '').trim();
+  const districtCode = String(profile.districtCode ?? '').trim();
+  const regionName = String(profile.regionName ?? districtName ?? neighborhoodName).trim();
+  const regionCode = String(profile.regionCode ?? districtCode ?? neighborhoodCode).trim();
+
   return {
-    name: '현재 위치 동네',
-    code: 'GPS-VERIFIED-DISTRICT',
-    regionName: '현재 위치 시/도',
-    regionCode: 'GPS-VERIFIED-REGION',
+    verified: true,
+    neighborhoodName,
+    neighborhoodCode,
+    districtName,
+    districtCode,
+    regionName,
+    regionCode,
+    latitude: profile.latitude,
+    longitude: profile.longitude,
+    verifiedAt: profile.verifiedAt,
   };
 }
 
-function normalizeNeighborhoodProfile(profile: NeighborhoodProfile): NeighborhoodProfile {
-  return {
-    verified: true,
-    districtName: profile.districtName,
-    districtCode: profile.districtCode,
-    regionName: profile.regionName || profile.districtName,
-    regionCode: profile.regionCode || profile.districtCode,
-    verifiedAt: profile.verifiedAt,
-  };
+function isRealNeighborhoodProfile(profile: NeighborhoodProfile | null | undefined) {
+  if (!profile?.verified) return false;
+  if (!profile.neighborhoodName || !profile.neighborhoodCode || !profile.verifiedAt) return false;
+  return !PLACEHOLDER_NEIGHBORHOODS.has(profile.neighborhoodName);
 }
 
 function canUseLocalStorage() {

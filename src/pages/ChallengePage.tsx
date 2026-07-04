@@ -75,7 +75,7 @@ export default function ChallengePage({ user, onStartExercise, onHistory }: Chal
         const [profileResult, runsResult] = await Promise.all([
           supabase
             .from('profiles')
-            .select('neighborhood_name,neighborhood_code,region_name,region_code,neighborhood_verified_at')
+            .select('neighborhood_name,neighborhood_code,district_name,district_code,region_name,region_code,neighborhood_lat,neighborhood_lng,neighborhood_verified_at')
             .eq('id', user.id)
             .maybeSingle(),
           supabase

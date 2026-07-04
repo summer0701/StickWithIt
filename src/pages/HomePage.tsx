@@ -206,7 +206,7 @@ export default function HomePage({
     async function loadNeighborhoodProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('neighborhood_name,neighborhood_code,region_name,region_code,neighborhood_verified_at')
+        .select('neighborhood_name,neighborhood_code,district_name,district_code,region_name,region_code,neighborhood_lat,neighborhood_lng,neighborhood_verified_at')
         .eq('id', user.id)
         .maybeSingle();
       const remoteProfile = neighborhoodProfileFromRow(data);
@@ -308,7 +308,7 @@ export default function HomePage({
         timeout: 10000,
         maximumAge: 60000,
       });
-      const profile = resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
+      const profile = await resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
       const saved = saveNeighborhoodProfile(user.id, profile);
       if (!isTestUserId(user.id)) {
         await supabase.from('profiles').upsert({
@@ -318,9 +318,9 @@ export default function HomePage({
         });
       }
       setNeighborhoodProfile(saved);
-      setNeighborhoodMessage(`${saved.districtName} 인증 완료`);
+      setNeighborhoodMessage(`${saved.neighborhoodName} 인증 완료`);
     } catch {
-      setNeighborhoodMessage('인증 필요');
+      setNeighborhoodMessage('동네를 확인하지 못했어요. GPS 권한을 확인하거나 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -615,7 +615,7 @@ function HomeRankingCards({
     <section className="ranking-card neighborhood-ranking-card glass-panel">
       <strong className="neighborhood-core-message">{summary.coreMessage}</strong>
       <div className="neighborhood-auth-row">
-        <span>{profile ? `📍 ${profile.districtName} 인증됨` : '동네 인증하면 랭킹에 참여할 수 있어요'}</span>
+        <span>{profile ? `📍 ${profile.neighborhoodName} 인증됨` : '동네 인증하면 랭킹에 참여할 수 있어요'}</span>
         {!profile && (
           <button className="neighborhood-verify-button" type="button" onClick={onVerify}>
             GPS로 인증하기

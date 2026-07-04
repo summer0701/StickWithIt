@@ -47,7 +47,7 @@ export default function RankingPage({ user, onBack }) {
     let active = true;
     supabase
       .from('profiles')
-        .select('neighborhood_name,neighborhood_code,region_name,region_code,neighborhood_verified_at')
+        .select('neighborhood_name,neighborhood_code,district_name,district_code,region_name,region_code,neighborhood_lat,neighborhood_lng,neighborhood_verified_at')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -104,7 +104,7 @@ export default function RankingPage({ user, onBack }) {
         timeout: 10000,
         maximumAge: 60000,
       });
-      const nextProfile = resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
+      const nextProfile = await resolveNeighborhoodFromGps(position.coords.latitude, position.coords.longitude);
       const saved = saveNeighborhoodProfile(user?.id ?? 'anonymous', nextProfile);
       if (user?.id && user?.app_metadata?.provider !== 'local-test') {
         await supabase.from('profiles').upsert({
@@ -114,9 +114,9 @@ export default function RankingPage({ user, onBack }) {
         });
       }
       setProfile(saved);
-      setAuthMessage(`${saved.districtName} 인증 완료`);
+      setAuthMessage(`${saved.neighborhoodName} 인증 완료`);
     } catch {
-      setAuthMessage('인증 필요');
+      setAuthMessage('동네를 확인하지 못했어요. GPS 권한을 확인하거나 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -134,7 +134,7 @@ export default function RankingPage({ user, onBack }) {
   const isPersonal = effectiveTab === 'personal';
   const displayedContribution = mine?.score ?? ranking.contribution;
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '시/도 미인증';
-  const neighborhoodName = profile?.districtName ?? '동네 미인증';
+  const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const locationTitle = isPersonal ? scopeName : neighborhoodName;
   const locationDetail = isPersonal
     ? '개인 기록 기준'
@@ -171,6 +171,7 @@ export default function RankingPage({ user, onBack }) {
               <strong>{locationTitle}</strong>
               <span>{isPersonal ? '개인 랭킹' : profile ? '인증 완료' : '인증 필요'}</span>
             </div>
+            {!isPersonal && profile && <p className="ranking-location-status">{profile.districtName}</p>}
             {(isPersonal || !profile) && <p className="ranking-location-status">{locationDetail}</p>}
             {isPersonal && <small className="ranking-location-note">오늘 내 운동 기록이 개인 순위에 반영돼요.</small>}
           </div>

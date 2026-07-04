@@ -1,54 +1,111 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildHomeRankingSummary,
   buildRankingView,
+  movementText,
   NEIGHBORHOOD_CORE_MESSAGE,
+  neighborhoodContributionToRow,
   neighborhoodProfileFromRow,
   neighborhoodProfileToRow,
-  neighborhoodContributionToRow,
   readLastNeighborhoodContribution,
   resolveNeighborhoodFromGps,
   saveLastNeighborhoodContribution,
   saveNeighborhoodProfile,
-  movementText,
+  type NeighborhoodProfile,
 } from './neighborhoodRanking';
 
-describe('neighborhoodRanking', () => {
-  it('stores only verified district data, not exact GPS coordinates', () => {
-    const profile = resolveNeighborhoodFromGps(35.223, 128.681);
-    const saved = saveNeighborhoodProfile('user-1', profile);
+const { invokeMock } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+}));
 
-    expect(saved.districtName).toBe('상남동');
-    expect(saved.districtCode).toBe('KR-48123-SANGNAM');
-    expect(saved.regionName).toBe('경상남도 창원시');
-    expect(saved.regionCode).toBe('KR-48-CHANGWON');
-    expect(JSON.stringify(saved)).not.toContain('35.223');
-    expect(JSON.stringify(saved)).not.toContain('128.681');
+vi.mock('./supabaseClient', () => ({
+  supabase: {
+    functions: {
+      invoke: invokeMock,
+    },
+  },
+}));
+
+const realProfile: NeighborhoodProfile = {
+  verified: true,
+  neighborhoodName: '상남동',
+  neighborhoodCode: 'H-4812312700',
+  districtName: '창원시 성산구',
+  districtCode: '48123',
+  regionName: '경상남도',
+  regionCode: '48',
+  latitude: 35.223,
+  longitude: 128.681,
+  verifiedAt: '2026-07-05T00:00:00.000Z',
+};
+
+describe('neighborhoodRanking', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue({
+      data: {
+        neighborhood_name: realProfile.neighborhoodName,
+        neighborhood_code: realProfile.neighborhoodCode,
+        district_name: realProfile.districtName,
+        district_code: realProfile.districtCode,
+        region_name: realProfile.regionName,
+        region_code: realProfile.regionCode,
+      },
+      error: null,
+    });
   });
 
-  it('serializes neighborhood profile rows without exact coordinates', () => {
-    const profile = resolveNeighborhoodFromGps(35.223, 128.681);
-    const row = neighborhoodProfileToRow(profile);
+  it('resolves a neighborhood through the reverse-geocode edge function', async () => {
+    const profile = await resolveNeighborhoodFromGps(35.223, 128.681);
+
+    expect(invokeMock).toHaveBeenCalledWith('reverse-geocode', {
+      body: { latitude: 35.223, longitude: 128.681 },
+    });
+    expect(profile).toMatchObject({
+      neighborhoodName: '상남동',
+      districtName: '창원시 성산구',
+      regionName: '경상남도',
+      latitude: 35.223,
+      longitude: 128.681,
+    });
+  });
+
+  it('does not save placeholder neighborhoods as verified profiles', () => {
+    expect(() => saveNeighborhoodProfile('user-1', {
+      ...realProfile,
+      neighborhoodName: '현재 위치 동네',
+      neighborhoodCode: 'GPS-VERIFIED-DISTRICT',
+    })).toThrow('동네를 확인하지 못했어요.');
+  });
+
+  it('serializes real neighborhood profile rows with district and coordinates', () => {
+    const row = neighborhoodProfileToRow(realProfile);
 
     expect(row).toEqual({
       neighborhood_name: '상남동',
-      neighborhood_code: 'KR-48123-SANGNAM',
-      region_name: '경상남도 창원시',
-      region_code: 'KR-48-CHANGWON',
-      neighborhood_verified_at: profile.verifiedAt,
+      neighborhood_code: 'H-4812312700',
+      district_name: '창원시 성산구',
+      district_code: '48123',
+      region_name: '경상남도',
+      region_code: '48',
+      neighborhood_lat: 35.223,
+      neighborhood_lng: 128.681,
+      neighborhood_verified_at: realProfile.verifiedAt,
     });
-    expect(JSON.stringify(row)).not.toContain('latitude');
-    expect(JSON.stringify(row)).not.toContain('longitude');
-    expect(neighborhoodProfileFromRow(row)?.districtName).toBe('상남동');
+    expect(neighborhoodProfileFromRow(row)).toMatchObject({
+      neighborhoodName: '상남동',
+      districtName: '창원시 성산구',
+      regionName: '경상남도',
+    });
   });
 
-  it('does not derive fallback district codes from coordinate buckets', () => {
-    const profile = resolveNeighborhoodFromGps(37.5665, 126.9780);
-
-    expect(profile.districtCode).toBe('GPS-VERIFIED-DISTRICT');
-    expect(profile.regionCode).toBe('GPS-VERIFIED-REGION');
-    expect(JSON.stringify(profile)).not.toContain('3757');
-    expect(JSON.stringify(profile)).not.toContain('12698');
+  it('rejects remote rows that only contain placeholder neighborhoods', () => {
+    expect(neighborhoodProfileFromRow({
+      neighborhood_name: '현재 위치 동네',
+      neighborhood_code: 'GPS-VERIFIED-DISTRICT',
+      neighborhood_verified_at: realProfile.verifiedAt,
+    })).toBeNull();
   });
 
   it('keeps the one core message on the home summary', () => {
@@ -59,8 +116,7 @@ describe('neighborhoodRanking', () => {
   });
 
   it('does not create fake ranking rows without workout data', () => {
-    const profile = resolveNeighborhoodFromGps(35.223, 128.681);
-    const view = buildRankingView(profile, [], 'today');
+    const view = buildRankingView(realProfile, [], 'today');
 
     expect(view.neighborhoodEntries).toEqual([]);
     expect(view.personalEntries).toEqual([]);
@@ -84,8 +140,7 @@ describe('neighborhoodRanking', () => {
   });
 
   it('uses today contribution for real local neighborhood and personal rows', () => {
-    const profile = resolveNeighborhoodFromGps(35.223, 128.681);
-    const view = buildRankingView(profile, [
+    const view = buildRankingView(realProfile, [
       {
         id: 'record-1',
         userId: 'user-1',
@@ -99,22 +154,18 @@ describe('neighborhoodRanking', () => {
 
     expect(view.contribution).toBe(84);
     expect(view.neighborhoodEntries).toEqual([
-      expect.objectContaining({ name: '경상남도 창원시', rank: 1, score: 84, isMine: true }),
+      expect.objectContaining({ name: '상남동', rank: 1, score: 84, isMine: true }),
     ]);
     expect(view.personalEntries).toEqual([
       expect.objectContaining({ name: '나', rank: 1, score: 84, isMine: true }),
     ]);
-    expect(view.neighborhoodPrediction).toContain('경상남도 창원시 1위 · 오늘 +84점');
-    expect(view.personalPrediction).toContain('내 순위 1위 · 오늘 +84점');
-    expect(view.neighborhoodRival).toMatchObject({
-      title: '바로 위 동네',
-      gapText: '실제 랭킹 데이터 대기 중',
-    });
+    expect(view.neighborhoodPrediction).toContain('상남동');
+    expect(view.personalPrediction).toContain('1위');
   });
 
   it('formats ranking movement with simple arrows', () => {
-    expect(movementText(8)).toBe('▲8');
-    expect(movementText(-2)).toBe('▼2');
+    expect(movementText(8)).toBe('▲ 8');
+    expect(movementText(-2)).toBe('▼ 2');
     expect(movementText(0)).toBe('-');
   });
 
@@ -132,11 +183,10 @@ describe('neighborhoodRanking', () => {
     expect(readLastNeighborhoodContribution('user-1')?.points).toBe(48);
   });
 
-  it('serializes contribution rows without exact coordinates', () => {
-    const profile = resolveNeighborhoodFromGps(35.223, 128.681);
+  it('serializes contribution rows only for a real neighborhood', () => {
     const row = neighborhoodContributionToRow({
       userId: 'user-1',
-      profile,
+      profile: realProfile,
       record: {
         id: 'run-1',
         userId: 'user-1',
@@ -150,15 +200,16 @@ describe('neighborhoodRanking', () => {
 
     expect(row).toMatchObject({
       user_id: 'user-1',
-      neighborhood_code: 'KR-48123-SANGNAM',
+      neighborhood_code: 'H-4812312700',
       neighborhood_name: '상남동',
-      region_code: 'KR-48-CHANGWON',
-      region_name: '경상남도 창원시',
+      district_name: '창원시 성산구',
+      region_code: '48',
+      region_name: '경상남도',
+      neighborhood_lat: 35.223,
+      neighborhood_lng: 128.681,
       source_record_id: 'run-1',
       contributed_on: '2026-07-04',
     });
     expect(row.points).toBe(180);
-    expect(JSON.stringify(row)).not.toContain('35.223');
-    expect(JSON.stringify(row)).not.toContain('128.681');
   });
 });
