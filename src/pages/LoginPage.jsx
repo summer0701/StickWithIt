@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Lock, Mail, MessageCircle, User } from 'lucide-react';
+import { Eye, Lock, Mail, MessageCircle, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
+import loginBg from '../assets/login-bg.webp';
+import runningManLogo from '../assets/running-man-logo.webp';
 
 const APP_AUTH_CALLBACK_URL = 'com.stickwithit.endure://auth/callback';
 const EMAIL_REDIRECT_TO = typeof window === 'undefined' ? APP_AUTH_CALLBACK_URL : window.location.origin;
@@ -16,6 +18,8 @@ export default function LoginPage({ onTestLogin }) {
   const [messageType, setMessageType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
   const [kakaoSubmitting, setKakaoSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberLogin, setRememberLogin] = useState(false);
 
   const isSignup = mode === 'signup';
 
@@ -89,36 +93,20 @@ export default function LoginPage({ onTestLogin }) {
   }
 
   return (
-    <main className="login-screen">
-      <section className="login-panel" aria-label="로그인">
-        <p className="eyebrow">Stick With It</p>
-        <h1>끝까지 버티는 사람들의 운동 기록</h1>
-        <p className="login-copy">카카오로 바로 시작하거나 이메일로 로그인하세요.</p>
-
-        <button className="kakao-login-button" disabled={kakaoSubmitting || submitting} onClick={handleKakaoLogin} type="button">
-          <MessageCircle size={20} aria-hidden="true" />
-          <span>{kakaoSubmitting ? '카카오 연결 중...' : '카카오로 계속하기'}</span>
-        </button>
-
-        <div className="auth-divider">
-          <span>또는</span>
+    <main className="login-screen stick-login-screen" style={{ '--login-bg': `url(${loginBg})` }}>
+      <section className="login-panel stick-login-panel" aria-label="로그인">
+        <div className="stick-login-brand">
+          <img className="stick-runner-logo" src={runningManLogo} alt="" aria-hidden="true" />
+          <h1>STICK WITH IT</h1>
+          <p>끝까지 버티는 당신을 위한 시작</p>
         </div>
 
-        <div className="mode-switch auth-mode-switch" role="tablist" aria-label="인증 방식">
-          <button className={!isSignup ? 'active' : ''} onClick={() => setMode('login')} type="button">
-            로그인
-          </button>
-          <button className={isSignup ? 'active' : ''} onClick={() => setMode('signup')} type="button">
-            회원가입
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form stick-auth-form">
           {isSignup && (
             <label>
-              닉네임
-              <span className="input-shell">
-                <User size={18} aria-hidden="true" />
+              <strong>닉네임</strong>
+              <span className="input-shell stick-input-shell">
+                <User size={28} aria-hidden="true" />
                 <input
                   value={nickname}
                   onChange={(event) => setNickname(event.target.value)}
@@ -130,38 +118,82 @@ export default function LoginPage({ onTestLogin }) {
             </label>
           )}
           <label>
-            이메일
-            <span className="input-shell">
-              <Mail size={18} aria-hidden="true" />
+            <strong>이메일</strong>
+            <span className="input-shell stick-input-shell">
+              <Mail size={30} aria-hidden="true" />
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder="이메일을 입력하세요"
                 required
               />
             </span>
           </label>
           <label>
-            비밀번호
-            <span className="input-shell">
-              <Lock size={18} aria-hidden="true" />
+            <strong>비밀번호</strong>
+            <span className="input-shell stick-input-shell">
+              <Lock size={30} aria-hidden="true" />
               <input
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete={isSignup ? 'new-password' : 'current-password'}
                 minLength={4}
-                placeholder="4자 이상"
+                placeholder="비밀번호를 입력하세요"
                 required
               />
+              <button
+                className="password-eye-button"
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+              >
+                <Eye size={31} aria-hidden="true" />
+              </button>
             </span>
           </label>
-          <button className="primary-button" disabled={submitting || kakaoSubmitting} type="submit">
+
+          {!isSignup && (
+            <div className="login-options-row">
+              <label className="remember-check">
+                <input
+                  checked={rememberLogin}
+                  onChange={(event) => setRememberLogin(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>로그인 상태 유지</span>
+              </label>
+              <button type="button" onClick={() => showMessage('비밀번호 재설정 기능은 준비 중입니다.', 'success')}>
+                비밀번호 찾기
+              </button>
+            </div>
+          )}
+
+          <button className="primary-button stick-login-submit" disabled={submitting || kakaoSubmitting} type="submit">
             {submitting ? '처리 중...' : isSignup ? '회원가입' : '로그인'}
           </button>
         </form>
+
+        <div className="auth-divider stick-auth-divider">
+          <span>또는</span>
+        </div>
+
+        {!isSignup && (
+          <button className="kakao-login-button stick-outline-login" disabled={kakaoSubmitting || submitting} onClick={handleKakaoLogin} type="button">
+            <span className="talk-badge">TALK</span>
+            <span>{kakaoSubmitting ? '카카오 연결 중...' : '카카오로 로그인'}</span>
+          </button>
+        )}
+
+        <p className="stick-signup-line">
+          {isSignup ? '계정이 있으신가요?' : '계정이 없으신가요?'}
+          <button type="button" onClick={() => setMode(isSignup ? 'login' : 'signup')}>
+            {isSignup ? '로그인' : '회원가입'}
+          </button>
+        </p>
+
         {message && <p className={`message ${messageType}`}>{message}</p>}
       </section>
     </main>

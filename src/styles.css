@@ -1235,6 +1235,339 @@ button {
   background: #e4e7ec;
 }
 
+.stick-login-screen {
+  --login-scale: 0.7;
+  place-items: start center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(22px, var(--app-safe-area-inset-top)) 20px max(28px, calc(20px + var(--app-safe-area-inset-bottom)));
+  background:
+    radial-gradient(circle at 92% 2%, rgba(139, 206, 32, 0.15), transparent 31%),
+    radial-gradient(circle at 10% 100%, rgba(120, 205, 30, 0.11), transparent 34%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.88)),
+    var(--login-bg) center/cover no-repeat,
+    #030403;
+  color: #fff;
+}
+
+.stick-login-screen::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(122deg, transparent 0 16%, rgba(255, 255, 255, 0.045) 16.2%, transparent 16.6% 73%, rgba(255, 255, 255, 0.05) 73.2%, transparent 73.6%),
+    repeating-linear-gradient(122deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 12px);
+  opacity: 0.38;
+}
+
+.stick-login-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 420px);
+  min-height: calc(100dvh - 50px);
+  margin: 0;
+  padding: 70px 16px 16px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: scale(var(--login-scale));
+  transform-origin: top center;
+}
+
+.stick-login-brand {
+  display: grid;
+  justify-items: center;
+  margin-bottom: clamp(44px, 8vh, 64px);
+  text-align: center;
+}
+
+.stick-login-brand h1 {
+  margin: 14px 0 13px;
+  color: #f4f4f4;
+  font-size: clamp(3.05rem, 13.1vw, 4.9rem);
+  font-style: italic;
+  font-weight: 1000;
+  line-height: 0.86;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.34), 0 10px 22px rgba(0, 0, 0, 0.54);
+  white-space: nowrap;
+}
+
+.stick-login-brand p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: clamp(1.05rem, 4.4vw, 1.55rem);
+  font-weight: 800;
+}
+
+.stick-runner-mark {
+  position: relative;
+  width: 95px;
+  height: 62px;
+}
+
+.stick-runner-logo {
+  display: block;
+  width: 95px;
+  height: 62px;
+  object-fit: contain;
+}
+
+.stick-runner-mark::before,
+.stick-runner-mark::after,
+.stick-runner-mark span::before,
+.stick-runner-mark span::after {
+  position: absolute;
+  left: 0;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, transparent, #9bea1c 68%, transparent);
+}
+
+.stick-runner-mark::before {
+  top: 18px;
+  width: 82px;
+}
+
+.stick-runner-mark::after {
+  top: 31px;
+  width: 70px;
+}
+
+.stick-runner-mark span::before {
+  top: 43px;
+  width: 56px;
+}
+
+.stick-runner-mark span::after {
+  right: 2px;
+  left: auto;
+  top: 2px;
+  width: 48px;
+  height: 56px;
+  background: #9bea1c;
+  clip-path: polygon(64% 0, 78% 8%, 75% 19%, 66% 24%, 58% 44%, 77% 63%, 67% 76%, 46% 55%, 30% 70%, 17% 95%, 3% 88%, 14% 61%, 34% 44%, 42% 24%, 22% 24%, 19% 39%, 7% 39%, 7% 14%, 49% 14%);
+}
+
+.stick-auth-form {
+  gap: 27px;
+}
+
+.stick-auth-form label {
+  display: grid;
+  gap: 12px;
+  color: #fff;
+  font-size: 1.13rem;
+}
+
+.stick-auth-form label > strong {
+  font-size: 1.18rem;
+  font-weight: 900;
+}
+
+.auth-form .stick-input-shell {
+  grid-template-columns: auto 1fr auto;
+  gap: 18px;
+  min-height: 70px;
+  margin: 0;
+  padding: 0 17px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(8, 9, 8, 0.52);
+  color: #a7f027;
+  box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.02);
+}
+
+.auth-form .stick-input-shell input {
+  min-height: 68px;
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: transparent;
+}
+
+.auth-form .stick-input-shell input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.auth-form .stick-input-shell:focus-within {
+  border-color: rgba(172, 243, 35, 0.82);
+  box-shadow: 0 0 0 3px rgba(172, 243, 35, 0.12), inset 0 0 24px rgba(172, 243, 35, 0.035);
+}
+
+.password-eye-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.login-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.login-options-row button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a7f027;
+  font: inherit;
+  font-weight: 900;
+}
+
+.remember-check {
+  display: inline-flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 13px !important;
+}
+
+.remember-check input {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  accent-color: #a7f027;
+}
+
+.remember-check input:checked {
+  border-color: #a7f027;
+  background: #a7f027;
+  box-shadow: inset 0 0 0 5px #050705;
+}
+
+.stick-login-submit {
+  min-height: 72px;
+  margin-top: 9px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #86d725, #b5ff1d);
+  color: #070907;
+  font-size: 1.55rem;
+  font-weight: 1000;
+  box-shadow: 0 18px 32px rgba(110, 211, 22, 0.18);
+}
+
+.stick-auth-divider {
+  margin: 44px 0 26px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.05rem;
+}
+
+.stick-auth-divider::before,
+.stick-auth-divider::after {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.stick-outline-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  width: 100%;
+  min-height: 70px;
+  margin-top: 24px;
+  border: 1px solid #9bea1c;
+  border-radius: 8px;
+  background: rgba(4, 5, 4, 0.42);
+  color: #9bea1c;
+  font-size: clamp(1.15rem, 5vw, 1.45rem);
+  font-weight: 1000;
+}
+
+.talk-badge,
+.stick-s-badge {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #a7f027;
+  color: #071007;
+  font-size: 0.66rem;
+  font-weight: 1000;
+}
+
+.stick-s-badge {
+  font-size: 1.35rem;
+  font-style: italic;
+}
+
+.stick-signup-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 34px 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.stick-signup-line button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a7f027;
+  font: inherit;
+  font-weight: 1000;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.stick-login-panel .message {
+  margin-top: 18px;
+  color: #fff;
+  text-align: center;
+}
+
+.stick-login-panel .primary-button.stick-login-submit {
+  min-height: 72px;
+  margin-top: 9px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #86d725, #b5ff1d);
+  color: #070907;
+  font-size: 1.55rem;
+  font-weight: 1000;
+  box-shadow: 0 18px 32px rgba(110, 211, 22, 0.18);
+}
+
+@media (max-width: 380px) {
+  .stick-login-panel {
+    padding-top: 50px;
+  }
+
+  .stick-login-brand {
+    margin-bottom: 34px;
+  }
+
+  .stick-auth-form {
+    gap: 20px;
+  }
+
+  .auth-form .stick-input-shell,
+  .stick-outline-login {
+    min-height: 62px;
+  }
+}
+
 .primary-button,
 .secondary-button,
 .danger-button,
