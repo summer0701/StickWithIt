@@ -145,7 +145,7 @@ export default function RankingPage({ user, onBack }) {
 
   const isPersonal = effectiveTab === 'personal';
   const visibleMine = rows.find((entry) => entry.isMine);
-  const displayedContribution = isPersonal ? abilityXp : (visibleMine?.score ?? 0);
+  const displayedContribution = isPersonal ? abilityXp : (visibleMine ? abilityXp : 0);
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '동네 미인증';
   const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const locationTitle = isPersonal ? scopeName : neighborhoodName;
@@ -295,7 +295,7 @@ function RankingRows({ rows, isPersonal, userNickname, abilityXp }) {
             {entry.isMine && isPersonal && <span className="personal-ranking-name">{`나 (${userNickname})`}</span>}
             <span>{entry.name}</span>
             <div className="simple-ranking-row-meta">
-              <b>{(entry.isMine && isPersonal ? abilityXp : entry.score).toLocaleString()} ER</b>
+              <b>{(entry.isMine ? abilityXp : entry.score).toLocaleString()} ER</b>
               <small>{entry.rank}위</small>
             </div>
           </div>
