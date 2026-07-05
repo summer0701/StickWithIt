@@ -2566,11 +2566,7 @@ button {
 }
 
 .exercise-ghost-tabs button.active::after {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  content: "";
-  background: linear-gradient(90deg, #76ff48, transparent);
+  content: none;
 }
 
 .exercise-ghost-tabs svg {
