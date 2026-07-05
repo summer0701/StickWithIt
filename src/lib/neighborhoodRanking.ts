@@ -182,7 +182,7 @@ export function buildHomeRankingSummary(profile: NeighborhoodProfile | null, rec
     },
     neighborhood: {
       title: profile ? `🏠 ${neighborhoodName}` : '🏠 우리 동네 순위',
-      rankText: profile && myNeighborhood ? `전국 ${myNeighborhood.rank}위 ${movementText(myNeighborhood.movement)}` : '인증 필요',
+      rankText: profile ? (myNeighborhood ? `전국 ${myNeighborhood.rank}위 ${movementText(myNeighborhood.movement)}` : '0 XP') : '인증 필요',
       detail: profile ? '오늘 운동하면 올라갑니다' : '동네 인증하면 랭킹에 참여할 수 있어요',
     },
     personal: {
