@@ -16,6 +16,7 @@ import { GiJumpAcross, GiLeg, GiMuscleUp, GiWeightLiftingUp } from 'react-icons/
 import { supabase } from '../lib/supabaseClient';
 import { readLocalRuns } from '../lib/localRuns';
 import { readExerciseRecords } from '../lib/exerciseRecords';
+import { completedRunsToExerciseRecords } from '../lib/runRecords';
 import { buildDailyExerciseProgress, formatExerciseValue, type ExerciseProgressValues } from '../lib/homeExerciseProgress';
 import { getHomeWorkoutSummary, type HomeWorkoutSummary } from '../lib/homeWorkoutSummary';
 import { isTestUserId } from '../lib/testAuth';
@@ -213,7 +214,13 @@ export default function HomePage({
     exerciseItems.reduce((sum, exercise) => sum + getProgress(exercise), 0) / exerciseItems.length,
   );
   const rankingSummary = useMemo(
-    () => buildHomeRankingSummary(neighborhoodProfile, readExerciseRecords(user.id)),
+    () => {
+      const localRuns = readLocalRuns(user.id);
+      return buildHomeRankingSummary(neighborhoodProfile, [
+        ...readExerciseRecords(user.id),
+        ...completedRunsToExerciseRecords(user.id, localRuns),
+      ]);
+    },
     [neighborhoodProfile, user.id],
   );
 

@@ -16,6 +16,7 @@ import { readLocalRuns } from '../lib/localRuns';
 import { isTestUserId } from '../lib/testAuth';
 import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
 import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
+import { completedRunToExerciseRecord, getRunDistanceKm, getRunDurationSeconds } from '../lib/runRecords';
 import personalBestMedal from '../assets/personal-best-medal.webp';
 
 export default function ResultPage({ user, result, onHome, onRanking }) {
@@ -53,7 +54,8 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
 
   useEffect(() => {
     if (!result?.run) return;
-    const record = runToExerciseRecord(user.id, result.run);
+    const record = completedRunToExerciseRecord(user.id, result.run);
+    if (!record) return;
     saveLastNeighborhoodContribution(user.id, record);
     void syncNeighborhoodContribution({ userId: user.id, record });
   }, [result?.run?.id, user.id]);
@@ -149,18 +151,6 @@ export default function ResultPage({ user, result, onHome, onRanking }) {
   );
 }
 
-function runToExerciseRecord(userId, run) {
-  return {
-    id: run.id,
-    userId,
-    type: 'running',
-    completed: true,
-    completedAt: run.ended_at ?? new Date().toISOString(),
-    durationSeconds: getRunDurationSeconds(run),
-    distanceKm: getRunDistanceKm(run),
-  };
-}
-
 function resultContributionScore(run) {
   const distanceScore = Math.round(getRunDistanceKm(run) * 100);
   const durationScore = Math.round(getRunDurationSeconds(run) / 60);
@@ -224,26 +214,6 @@ function buildResultSummary(run, result) {
     periodLabel: formatRunPeriodLabel(run.started_at),
     periodRange: formatRunPeriod(run.started_at, run.ended_at),
   };
-}
-
-function getRunDistanceKm(run) {
-  const actualDistanceKm = Number(run.actual_distance_km);
-  if (Number.isFinite(actualDistanceKm) && actualDistanceKm > 0) return actualDistanceKm;
-
-  const totalDistanceMeters = Number(run.total_distance_meters);
-  if (Number.isFinite(totalDistanceMeters) && totalDistanceMeters > 0) return totalDistanceMeters / 1000;
-
-  return 0;
-}
-
-function getRunDurationSeconds(run) {
-  const durationSeconds = Number(run.duration_seconds);
-  if (Number.isFinite(durationSeconds) && durationSeconds > 0) return durationSeconds;
-
-  const totalElapsedSeconds = Number(run.total_elapsed_seconds);
-  if (Number.isFinite(totalElapsedSeconds) && totalElapsedSeconds > 0) return totalElapsedSeconds;
-
-  return 0;
 }
 
 function getTargetDistanceKm(run, fallbackDistanceKm) {

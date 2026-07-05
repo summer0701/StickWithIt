@@ -18,7 +18,7 @@ import appIcon from './assets/icon_si.png';
 import { supabase } from './lib/supabaseClient';
 import { ghostDifficultyTargetKm, readGhostDifficulty } from './lib/ghostSettings';
 import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth';
-import { readLocalRuns } from './lib/localRuns';
+import { readLocalRuns, saveLocalRun } from './lib/localRuns';
 import { readExerciseRecords } from './lib/exerciseRecords';
 import { calculateEndureRating } from './lib/endureRanking';
 
@@ -212,7 +212,8 @@ export default function App() {
           onTargetChange={setTargetDistanceKm}
           onCancel={() => setPage('home')}
           onComplete={(result) => {
-            setLatestResult(result);
+            const savedRun = result?.run ? saveLocalRun(user.id, result.run) : null;
+            setLatestResult(savedRun ? { ...result, run: savedRun } : result);
             setPage('result');
           }}
         />

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppCard, EmptyState, GlassContainer, GradientButton, ProgressCard } from '../components/designSystem';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import { readLocalRuns } from '../lib/localRuns';
+import { completedRunsToExerciseRecords } from '../lib/runRecords';
 import { LOCATION_PERMISSION_MESSAGE, LocationPermissionError, requestCurrentPosition } from '../lib/locationPermission';
 import { calculateEndureRating } from '../lib/endureRanking';
 import {
@@ -36,13 +37,19 @@ export default function RankingPage({ user, onBack }) {
   const [errorDialog, setErrorDialog] = useState('');
   const [remoteRanking, setRemoteRanking] = useState(null);
   const [rankingStatus, setRankingStatus] = useState('local');
-  const records = useMemo(() => readExerciseRecords(user?.id ?? 'anonymous'), [user?.id]);
+  const localRuns = useMemo(() => readLocalRuns(user?.id ?? 'anonymous'), [user?.id]);
+  const records = useMemo(() => {
+    const userId = user?.id ?? 'anonymous';
+    return [
+      ...readExerciseRecords(userId),
+      ...completedRunsToExerciseRecords(userId, localRuns),
+    ];
+  }, [localRuns, user?.id]);
   const localRanking = useMemo(() => buildRankingView(profile, records, period), [period, profile, records]);
   const ranking = remoteRanking ?? localRanking;
   const effectiveTab = activeTab;
   const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
   const userNickname = displayNickname(user);
-  const localRuns = useMemo(() => readLocalRuns(user?.id ?? 'anonymous'), [user?.id]);
   const abilityXp = useMemo(() => calculateEndureRating({
     userId: user?.id ?? 'anonymous',
     displayName: userNickname,

@@ -21,11 +21,12 @@ vi.mock('../plugins/runningPlugin', () => ({
   },
 }));
 
-import { speakCoachMessage, speakWithWebSpeech } from './ttsAdapter';
+import { resetTtsCooldownForTests, speakCoachMessage, speakWithWebSpeech } from './ttsAdapter';
 
 describe('ttsAdapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetTtsCooldownForTests();
     ttsMocks.isNativePlatform.mockReturnValue(false);
     Object.defineProperty(window, 'speechSynthesis', {
       configurable: true,
@@ -53,6 +54,19 @@ describe('ttsAdapter', () => {
     expect(ttsMocks.runningPluginSpeak).toHaveBeenCalledWith({ text: '테스트 문구' });
     expect(ttsMocks.nativeTextToSpeechSpeak).toHaveBeenCalledWith({ text: '테스트 문구', language: 'ko-KR' });
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
+  });
+
+  it('blocks native coach messages inside ten seconds to avoid cutting previous speech', async () => {
+    ttsMocks.isNativePlatform.mockReturnValue(true);
+    ttsMocks.runningPluginSpeak.mockResolvedValue(undefined);
+
+    await expect(speakCoachMessage('?뚯뒪??臾멸뎄', { nowMs: 10_000 })).resolves.toBe(true);
+    await expect(speakCoachMessage('??踰덉㎏ 臾멸뎄', { nowMs: 19_999 })).resolves.toBe(false);
+    await expect(speakCoachMessage('??踰덉㎏ 臾멸뎄', { nowMs: 20_000 })).resolves.toBe(true);
+
+    expect(ttsMocks.runningPluginSpeak).toHaveBeenCalledTimes(2);
+    expect(ttsMocks.runningPluginSpeak).toHaveBeenNthCalledWith(1, { text: '?뚯뒪??臾멸뎄' });
+    expect(ttsMocks.runningPluginSpeak).toHaveBeenNthCalledWith(2, { text: '??踰덉㎏ 臾멸뎄' });
   });
 
   it('keeps the Web Speech helper disabled', () => {

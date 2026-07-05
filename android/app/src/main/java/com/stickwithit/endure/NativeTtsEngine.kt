@@ -3,6 +3,7 @@ package com.stickwithit.endure
 import android.content.Context
 import android.media.AudioAttributes
 import android.os.Bundle
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
@@ -19,6 +20,7 @@ class NativeTtsEngine(private val context: Context) {
     @Volatile private var enabled = true
     @Volatile private var speaking = false
     @Volatile private var activePriority = 0
+    @Volatile private var lastSpeechStartedAtMillis = 0L
 
     fun init() {
         if (textToSpeech != null) return
@@ -79,7 +81,9 @@ class NativeTtsEngine(private val context: Context) {
     fun speak(cue: NativeTtsCue) {
         if (!enabled) return
         if (cue.text.isBlank()) return
-        if (isSpeaking() && !cue.immediate && cue.priority <= activePriority) return
+        val nowMillis = SystemClock.elapsedRealtime()
+        if (isSpeaking()) return
+        if (lastSpeechStartedAtMillis > 0L && nowMillis - lastSpeechStartedAtMillis < MIN_TTS_INTERVAL_MS) return
         if (!ready) {
             offerPending(cue)
             init()
@@ -100,6 +104,7 @@ class NativeTtsEngine(private val context: Context) {
         finalUtteranceIds.add(finalUtteranceId)
         activePriority = cue.priority
         speaking = true
+        lastSpeechStartedAtMillis = nowMillis
         speechParts.forEachIndexed { index, speechPart ->
             val utteranceId = "$utteranceGroupId:$index"
             val queueMode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
@@ -116,6 +121,7 @@ class NativeTtsEngine(private val context: Context) {
         textToSpeech?.stop()
         speaking = false
         activePriority = 0
+        lastSpeechStartedAtMillis = 0L
         audioFocusManager.abandonFocus()
     }
 
@@ -199,5 +205,6 @@ class NativeTtsEngine(private val context: Context) {
 
     companion object {
         private const val SENTENCE_PAUSE_MS = 300L
+        private const val MIN_TTS_INTERVAL_MS = 10_000L
     }
 }
