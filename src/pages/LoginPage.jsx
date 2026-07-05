@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { Lock, Mail, MessageCircle, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
 
 const APP_AUTH_CALLBACK_URL = 'com.stickwithit.endure://auth/callback';
-const REDIRECT_TO =
-  typeof window === 'undefined' ? undefined : Capacitor.isNativePlatform() ? APP_AUTH_CALLBACK_URL : window.location.origin;
+const EMAIL_REDIRECT_TO = typeof window === 'undefined' ? APP_AUTH_CALLBACK_URL : window.location.origin;
 const KAKAO_PROFILE_SCOPES = 'profile_nickname profile_image';
 
 export default function LoginPage({ onTestLogin }) {
@@ -33,7 +31,7 @@ export default function LoginPage({ onTestLogin }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo: REDIRECT_TO,
+        redirectTo: APP_AUTH_CALLBACK_URL,
         scopes: KAKAO_PROFILE_SCOPES,
         queryParams: {
           scope: KAKAO_PROFILE_SCOPES,
@@ -76,7 +74,7 @@ export default function LoginPage({ onTestLogin }) {
             data: {
               nickname: nickname.trim() || login.split('@')[0],
             },
-            emailRedirectTo: REDIRECT_TO,
+            emailRedirectTo: EMAIL_REDIRECT_TO,
           },
         })
       : await supabase.auth.signInWithPassword({ email: login, password });

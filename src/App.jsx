@@ -18,6 +18,9 @@ import appIcon from './assets/icon_si.png';
 import { supabase } from './lib/supabaseClient';
 import { ghostDifficultyTargetKm, readGhostDifficulty } from './lib/ghostSettings';
 import { clearTestSession, readTestSession, TEST_ACCOUNT } from './lib/testAuth';
+import { readLocalRuns } from './lib/localRuns';
+import { readExerciseRecords } from './lib/exerciseRecords';
+import { calculateEndureRating } from './lib/endureRanking';
 
 const bottomRoutes = [
   { id: 'home', label: '홈', icon: Home },
@@ -108,6 +111,7 @@ export default function App() {
   const user = session?.user ?? null;
   const isTestUser = user?.app_metadata?.provider === 'local-test';
   const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'lunge'];
+  const userNavigator = useMemo(() => buildUserNavigator(user), [latestResult, page, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -161,6 +165,18 @@ export default function App() {
             로그아웃
           </button>
         </header>
+      )}
+
+      {!fullScreenExercisePages.includes(page) && userNavigator && (
+        <button className="app-user-navigator" type="button" onClick={() => setPage('my')} aria-label="내 정보">
+          <span className="app-user-xp">
+            <small>내 XP</small>
+            <strong>{userNavigator.xp.toLocaleString()}</strong>
+          </span>
+          <span className="app-user-avatar" aria-hidden="true">
+            {userNavigator.avatarUrl ? <img src={userNavigator.avatarUrl} alt="" /> : userNavigator.initial}
+          </span>
+        </button>
       )}
 
       {page === 'home' && (
@@ -262,4 +278,28 @@ function readAuthCallbackParams(url) {
   });
 
   return params;
+}
+
+function buildUserNavigator(user) {
+  if (!user?.id) return null;
+
+  const displayName = user.user_metadata?.nickname
+    ?? user.user_metadata?.name
+    ?? user.user_metadata?.full_name
+    ?? user.email?.split('@')[0]
+    ?? 'U';
+  const runs = readLocalRuns(user.id);
+  const exerciseRecords = readExerciseRecords(user.id);
+  const rating = calculateEndureRating({
+    userId: user.id,
+    displayName,
+    runs,
+    exerciseRecords,
+  });
+
+  return {
+    xp: rating.totalEr,
+    avatarUrl: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
+    initial: String(displayName).trim().slice(0, 1).toUpperCase() || 'U',
+  };
 }
