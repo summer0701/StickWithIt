@@ -1273,7 +1273,7 @@ button {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  transform: scale(var(--login-scale));
+  transform: translateX(-6px) scale(var(--login-scale));
   transform-origin: top center;
 }
 
@@ -1422,6 +1422,7 @@ button {
 
 .login-options-row button {
   padding: 0;
+  margin-right: 8px;
   border: 0;
   background: transparent;
   color: #a7f027;
@@ -1490,6 +1491,22 @@ button {
   color: #9bea1c;
   font-size: clamp(1.15rem, 5vw, 1.45rem);
   font-weight: 1000;
+}
+
+.kakao-login-button.stick-outline-login {
+  display: grid;
+  grid-template-columns: 36px auto 36px;
+  justify-items: center;
+  column-gap: 12px;
+}
+
+.kakao-login-button.stick-outline-login span:last-child {
+  grid-column: 2;
+}
+
+.kakao-login-button.stick-outline-login::after {
+  width: 36px;
+  content: "";
 }
 
 .talk-badge,
