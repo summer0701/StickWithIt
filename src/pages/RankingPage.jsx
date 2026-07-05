@@ -1,5 +1,6 @@
 import { MapPin, Search, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { AppCard, EmptyState, GlassContainer, GradientButton, ProgressCard } from '../components/designSystem';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import { LOCATION_PERMISSION_MESSAGE, LocationPermissionError, requestCurrentPosition } from '../lib/locationPermission';
 import {
@@ -148,7 +149,7 @@ export default function RankingPage({ user, onBack }) {
   const progressPercent = Math.min(100, Math.round((displayedContribution / 300) * 100));
 
   return (
-    <main className="ranking-league-screen simple-ranking-screen">
+    <GlassContainer as="main" className="ranking-league-screen simple-ranking-screen">
       <nav className="ranking-tab-bar simple-ranking-tabs" aria-label="랭킹 탭">
         {tabs.map((tab) => (
           <button
@@ -165,16 +166,16 @@ export default function RankingPage({ user, onBack }) {
         ))}
       </nav>
 
-      <section className="ranking-search-card">
+      <AppCard className="ranking-search-card">
         <Search size={18} />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={currentTab.searchLabel}
         />
-      </section>
+      </AppCard>
 
-      <section className="ranking-period-card">
+      <AppCard className="ranking-period-card">
         <div className="ranking-period-filter" aria-label="기간 필터">
           {periods.map((item) => (
             <button className={period === item.id ? 'active' : ''} key={item.id} type="button" onClick={() => setPeriod(item.id)}>
@@ -182,14 +183,14 @@ export default function RankingPage({ user, onBack }) {
             </button>
           ))}
         </div>
-      </section>
+      </AppCard>
 
       {effectiveTab !== 'country' && (
-        <section className={`ranking-location-card ${!profile && !isPersonal ? 'gps-verify-card' : ''}`}>
+        <AppCard className={`ranking-location-card ${!profile && !isPersonal ? 'gps-verify-card' : ''}`}>
           {!profile && !isPersonal ? (
-            <button className="ranking-inline-verify" type="button" onClick={handleVerify}>
+            <GradientButton className="ranking-inline-verify" onClick={handleVerify}>
               GPS로 동네 인증하기
-            </button>
+            </GradientButton>
           ) : (
             <>
               <div className="ranking-location-icon">
@@ -205,38 +206,41 @@ export default function RankingPage({ user, onBack }) {
               </div>
             </>
           )}
-        </section>
+        </AppCard>
       )}
 
       {!isPersonal && authMessage && <p className="ranking-auth-status">{authMessage}</p>}
 
       {effectiveTab !== 'country' && (
-        <section className="ranking-score-card">
-          <strong>+{displayedContribution.toLocaleString()}점</strong>
-          <div className="ranking-progress-track" aria-label={`오늘 목표 ${progressPercent}%`}>
-            <span style={{ width: `${progressPercent}%` }} />
-          </div>
-          <div className="ranking-progress-caption">
+        <ProgressCard
+          className="ranking-score-card"
+          value={`+${displayedContribution.toLocaleString()}점`}
+          percent={progressPercent}
+          caption={(
+            <div className="ranking-progress-caption">
             <span>오늘 목표 300점</span>
             <span>{progressPercent}%</span>
-          </div>
-        </section>
+            </div>
+          )}
+        />
       )}
 
-      <section className="ranking-table-card simple-ranking-table">
+      <AppCard className="ranking-table-card simple-ranking-table">
         <div className="simple-ranking-table-heading">
           <strong>{effectiveTab === 'country' ? '국가별 순위' : `TOP 20 ${rankTitle}`}</strong>
           <span>{rankingStatus === 'loading' ? '불러오는 중' : currentTab.searchLabel}</span>
         </div>
-        {effectiveTab === 'country' ? (
-          <div className="ranking-preparing-card">
-            <strong>🇰🇷 국가 순위</strong>
-            <span>준비중</span>
-          </div>
-        ) : (
-          <RankingRows rows={rows} isPersonal={isPersonal} />
-        )}
-      </section>
+        <div className="ranking-table-body">
+          {effectiveTab === 'country' ? (
+            <div className="ranking-preparing-card">
+              <strong>🇰🇷 국가 순위</strong>
+              <span>준비중</span>
+            </div>
+          ) : (
+            <RankingRows rows={rows} isPersonal={isPersonal} />
+          )}
+        </div>
+      </AppCard>
 
       {errorDialog && (
         <div className="ranking-error-dialog-backdrop" role="presentation">
@@ -249,7 +253,7 @@ export default function RankingPage({ user, onBack }) {
           </section>
         </div>
       )}
-    </main>
+    </GlassContainer>
   );
 }
 
@@ -257,10 +261,11 @@ function RankingRows({ rows, isPersonal }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
   if (rows.length === 0) {
     return (
-      <div className="ranking-empty-state">
-        <strong>아직 순위가 없습니다.</strong>
-        <span>운동을 완료하면 랭킹에 반영됩니다.</span>
-      </div>
+      <EmptyState
+        className="ranking-empty-state"
+        title="아직 순위가 없습니다."
+        body="운동을 완료하면 순위가 반영됩니다."
+      />
     );
   }
 

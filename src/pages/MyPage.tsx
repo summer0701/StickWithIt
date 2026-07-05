@@ -48,6 +48,7 @@ import { readLocalRuns } from '../lib/localRuns';
 import { loadRecentRunHistory } from '../services/runComparison';
 import { buildGhostRunners } from '../services/ruleBasedCoach';
 import ghostMascot from '../assets/ghost-settings-mascot.webp';
+import { AppCard, GlassContainer, ListTile, SecondaryButton, SectionHeader } from '../components/designSystem';
 
 type MyPageProps = {
   user: { id: string; email?: string };
@@ -258,35 +259,36 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
   }
 
   return (
-    <main className="my-page">
+    <GlassContainer as="main" className="my-page">
       <header className="my-page-header">
         <div>
           <span>SKT&nbsp;&nbsp;6:57</span>
           <h1>마이페이지</h1>
         </div>
-        <button className="my-logout-button" type="button" onClick={onSignOut}>
+        <SecondaryButton className="my-logout-button" onClick={onSignOut}>
           <LogOut size={19} />
           로그아웃
-        </button>
+        </SecondaryButton>
       </header>
 
-      <section className="my-hero-card">
+      <AppCard className="my-hero-card">
         <div className="my-hero-copy">
           <span><Ghost size={22} /> 마이페이지</span>
           <h2>고스트 런</h2>
           <p>내 운동 기록과 고스트 설정을 관리합니다.</p>
         </div>
         <img src={ghostMascot} alt="" className="my-ghost-mascot" />
-        <button className="my-hero-settings" type="button" aria-label="설정">
+        <SecondaryButton className="my-hero-settings" aria-label="설정">
           <Settings size={25} />
-        </button>
-      </section>
+        </SecondaryButton>
+      </AppCard>
 
-      <section className="my-exercise-selector" aria-label="운동 선택">
-        <div className="my-exercise-selector-title">
-          <strong>운동 선택</strong>
-          <span>{selectedExercise.heroLabel} 고스트 설정 중</span>
-        </div>
+      <AppCard className="my-exercise-selector" aria-label="운동 선택">
+        <SectionHeader
+          className="my-exercise-selector-title"
+          title="운동 선택"
+          action={<span>{selectedExercise.heroLabel} 고스트 설정 중</span>}
+        />
         <nav className="exercise-ghost-tabs" aria-label="운동별 고스트 설정">
           {exercises.map((exercise) => {
             const Icon = exercise.icon;
@@ -303,16 +305,16 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
             );
           })}
         </nav>
-      </section>
+      </AppCard>
 
       <section className="my-settings-grid">
-        <section className="ghost-settings-panel compact-panel" aria-label={`${selectedExercise.heroLabel} 난이도`}>
-          <div className="ghost-settings-heading">
-            <div>
-              <span><Ghost size={21} /> {selectedExercise.heroLabel} 운동 난이도</span>
-              <p>사용자의 기록에 맞는 난이도를 설정하세요.</p>
-            </div>
-          </div>
+        <AppCard className="ghost-settings-panel compact-panel" aria-label={`${selectedExercise.heroLabel} 난이도`}>
+          <SectionHeader
+            className="ghost-settings-heading"
+            icon={<Ghost size={21} />}
+            title={`${selectedExercise.heroLabel} 운동 난이도`}
+          />
+          <p className="ghost-settings-description">사용자의 기록에 맞는 난이도를 설정하세요.</p>
 
           <div className="ghost-difficulty-control" aria-label={`${selectedExercise.heroLabel} 난이도 선택`}>
             {difficultyOptions.map((option) => (
@@ -346,37 +348,36 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
               </div>
             </label>
           )}
-        </section>
+        </AppCard>
 
-        <section className="ghost-settings-summary current-summary" aria-label="현재 설정 요약">
-          <div className="summary-title">
-            <Target size={21} />
-            <strong>현재 설정 요약</strong>
-          </div>
+        <AppCard className="ghost-settings-summary current-summary" aria-label="현재 설정 요약">
+          <SectionHeader className="summary-title" icon={<Target size={21} />} title="현재 설정 요약" />
           <SummaryRow label="선택 운동" value={selectedExercise.heroLabel} />
           <SummaryRow label="운동 난이도" value={difficultyLabel} />
           <SummaryRow label="선택 고스트" value={displayNameForGhost(selectedGhost, settings, selectedExerciseId)} />
           <SummaryRow label={selectedExercise.summaryMetricLabel} value={formatMetric(selectedMetric, selectedExercise)} />
           <SummaryRow label="기록 기준" value={stats.recordBasis} />
-          <button className="ghost-data-reset-button" type="button" onClick={resetGhostData}>
+          <SecondaryButton className="ghost-data-reset-button" onClick={resetGhostData}>
             <RotateCcw size={17} />
             고스트 초기화
-          </button>
+          </SecondaryButton>
           {ghostResetAt && <small>초기화 이후 새 운동 기록부터 고스트가 다시 만들어집니다.</small>}
-        </section>
+        </AppCard>
       </section>
 
-      <section className="ghost-settings-panel ghost-management-panel" aria-label={`${selectedExercise.heroLabel} 고스트 관리`}>
-        <div className="ghost-settings-heading">
-          <div>
-            <span><Ghost size={21} /> 고스트 관리 ({selectedExercise.heroLabel})</span>
-            <p>5명의 고스트를 관리하고 기록 그래프를 확인하세요.</p>
-          </div>
-          <button type="button" onClick={resetSettings}>
-            <SlidersHorizontal size={18} />
-            초기화
-          </button>
-        </div>
+      <AppCard className="ghost-settings-panel ghost-management-panel" aria-label={`${selectedExercise.heroLabel} 고스트 관리`}>
+        <SectionHeader
+          className="ghost-settings-heading"
+          icon={<Ghost size={21} />}
+          title={`고스트 관리 (${selectedExercise.heroLabel})`}
+          action={(
+            <SecondaryButton onClick={resetSettings}>
+              <SlidersHorizontal size={18} />
+              초기화
+            </SecondaryButton>
+          )}
+        />
+        <p className="ghost-settings-description">5명의 고스트를 관리하고 기록 그래프를 확인하세요.</p>
 
         <div className="ghost-slot-tabs" aria-label="고스트 선택">
           {settings.map((ghost, index) => {
@@ -398,16 +399,16 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
         </div>
 
         {selectedGhost && (
-          <article className={`ghost-setting-card expanded ${ghostAccents[selectedIndex]}`} key={`${selectedExerciseId}-${selectedGhost.key}`}>
+          <AppCard as="article" className={`ghost-setting-card expanded ${ghostAccents[selectedIndex]}`} key={`${selectedExerciseId}-${selectedGhost.key}`}>
             <div className="ghost-setting-card-title">
               <div>
                 <b>{selectedGhost.defaultName}</b>
                 <strong>{displayNameForGhost(selectedGhost, settings, selectedExerciseId)}</strong>
                 <span>{selectedGhost.description}</span>
               </div>
-              <button type="button" aria-label={`${displayNameForGhost(selectedGhost, settings, selectedExerciseId)} 이름 수정`}>
+              <SecondaryButton className="ghost-card-edit-button" aria-label={`${displayNameForGhost(selectedGhost, settings, selectedExerciseId)} 이름 수정`}>
                 <Edit3 size={23} />
-              </button>
+              </SecondaryButton>
             </div>
 
             <div className="ghost-detail-grid">
@@ -447,15 +448,12 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
               points={graphPoints}
               seed={`${selectedExerciseId}-${selectedGhost.key}`}
             />
-          </article>
+          </AppCard>
         )}
 
         <div className="ghost-bottom-settings">
-          <section className="ghost-settings-summary">
-            <div className="summary-title">
-              <BarChart3 size={20} />
-              <strong>그래프 기준</strong>
-            </div>
+          <AppCard className="ghost-settings-summary">
+            <SectionHeader className="summary-title" icon={<BarChart3 size={20} />} title="그래프 기준" />
             <p>선택한 운동의 {selectedExercise.recordBasis} 기준으로 고스트와 경쟁합니다.</p>
             <div className="basis-toggle" aria-label="그래프 기준">
               <button className="active" type="button">내 기록 기준</button>
@@ -476,31 +474,28 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
                 title={`${selectedExercise.heroLabel} 목표 시간`}
               />
             )}
-          </section>
+          </AppCard>
 
-          <section className="ghost-settings-summary">
-            <div className="summary-title">
-              <Timer size={20} />
-              <strong>기록 통계 (최근 {recordPeriod}일)</strong>
-            </div>
+          <AppCard className="ghost-settings-summary">
+            <SectionHeader className="summary-title" icon={<Timer size={20} />} title={`기록 통계 (최근 ${recordPeriod}일)`} />
             <SummaryRow label={selectedExercise.summaryMetricLabel} value={formatMetric(stats.average, selectedExercise)} />
             <SummaryRow label="최고 기록" value={formatMetric(stats.best, selectedExercise)} />
             <SummaryRow label="최저 기록" value={formatMetric(stats.worst, selectedExercise)} />
             <SummaryRow label="운동 횟수" value={`${stats.count} 회`} />
             <SummaryRow label={selectedExercise.id === 'running' ? '총 거리' : '총 운동량'} value={stats.totalLabel} />
-          </section>
+          </AppCard>
         </div>
-      </section>
-    </main>
+      </AppCard>
+    </GlassContainer>
   );
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="summary-row">
+    <ListTile className="summary-row">
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
+    </ListTile>
   );
 }
 

@@ -20,6 +20,16 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import historyNeonBg from '../assets/history-neon-bg.jpg';
+import {
+  AppCard,
+  EmptyState,
+  GlassContainer,
+  GradientButton,
+  ListTile,
+  SecondaryButton,
+  SectionHeader,
+  StatCard as DSStatCard,
+} from '../components/designSystem';
 import { readExerciseRecords } from '../lib/exerciseRecords';
 import { readLocalRuns } from '../lib/localRuns';
 import {
@@ -40,12 +50,6 @@ type HistoryPageProps = {
 };
 
 type HistoryTab = 'summary' | 'detail';
-
-const historyUi = {
-  lime: '#9DFF3A',
-  cardRadius: 22,
-  cardPadding: 20,
-};
 
 const filterTabs = [
   { id: 'all', label: '전체' },
@@ -84,13 +88,11 @@ export default function HistoryPage({ user, onStart, onRanking }: HistoryPagePro
   }
 
   return (
-    <main
+    <GlassContainer
+      as="main"
       className="history-screen history-records-screen"
       style={{
         '--history-bg-image': `url(${historyNeonBg})`,
-        '--history-lime': historyUi.lime,
-        '--history-card-radius': `${historyUi.cardRadius}px`,
-        '--history-card-padding': `${historyUi.cardPadding}px`,
       } as CSSProperties}
     >
       <HistoryHeader
@@ -127,7 +129,7 @@ export default function HistoryPage({ user, onStart, onRanking }: HistoryPagePro
       {selectedWorkout && (
         <WorkoutDetailSheet workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
       )}
-    </main>
+    </GlassContainer>
   );
 }
 
@@ -143,16 +145,16 @@ function HistoryHeader({
   return (
     <header className="history-app-header">
       {activeTab === 'detail' ? (
-        <button type="button" onClick={onBack} aria-label="요약으로 돌아가기">
+        <SecondaryButton className="history-icon-button" onClick={onBack} aria-label="요약으로 돌아가기">
           <ArrowLeft size={24} />
-        </button>
+        </SecondaryButton>
       ) : (
         <span aria-hidden="true" />
       )}
       <h1>내 기록</h1>
-      <button type="button" onClick={onCalendar} aria-label="오늘 날짜로 이동">
+      <SecondaryButton className="history-icon-button" onClick={onCalendar} aria-label="오늘 날짜로 이동">
         <CalendarDays size={24} />
-      </button>
+      </SecondaryButton>
     </header>
   );
 }
@@ -196,11 +198,8 @@ function SummaryTab({
 
   return (
     <div className="history-tab-panel">
-      <section className="history-card history-today-card">
-        <div className="history-card-heading">
-          <strong>오늘의 운동 요약</strong>
-          <span>{formatDateLabel(dateKey(new Date()))}</span>
-        </div>
+      <AppCard className="history-card history-today-card">
+        <SectionHeader className="history-card-heading" title="오늘의 운동 요약" action={<span>{formatDateLabel(dateKey(new Date()))}</span>} />
         <div className="history-today-layout">
           <ProgressRing value={progress} label="총 운동시간" valueText={formatTimer(todaySeconds)} unit="분" />
           <div className="history-today-stats">
@@ -209,30 +208,30 @@ function SummaryTab({
             <StatLine icon={CalendarDays} label="연속 기록" value={`${dashboard.totals.streakDays}일`} />
           </div>
         </div>
-      </section>
+      </AppCard>
 
       <WeeklyChart bars={dashboard.weeklyBars} maxValue={maxWeek} totalLabel={formatHistoryDuration(sum(dashboard.weeklyBars.map((point) => point.value * 60)))} />
 
-      <section className="history-card history-exercise-summary">
-        <div className="history-card-heading">
-          <strong>운동 종류별 기록</strong>
-          <button type="button" onClick={onRanking}>
-            더보기
-            <ChevronRight size={18} />
-          </button>
-        </div>
+      <AppCard className="history-card history-exercise-summary">
+        <SectionHeader
+          className="history-card-heading"
+          title="운동 종류별 기록"
+          action={(
+            <SecondaryButton onClick={onRanking}>
+              더보기
+              <ChevronRight size={18} />
+            </SecondaryButton>
+          )}
+        />
         <div className="history-exercise-summary-grid">
           {dashboard.exerciseStats.slice(0, 5).map((stat) => (
             <ExerciseTypeCard stat={stat} key={stat.type} />
           ))}
         </div>
-      </section>
+      </AppCard>
 
-      <section className="history-card history-recent-card">
-        <div className="history-card-heading">
-          <strong>최근 기록</strong>
-          {dashboard.workouts.length > 0 && <span>{dashboard.workouts.length}개 기록</span>}
-        </div>
+      <AppCard className="history-card history-recent-card">
+        <SectionHeader className="history-card-heading" title="최근 기록" action={dashboard.workouts.length > 0 ? <span>{dashboard.workouts.length}개 기록</span> : null} />
         {recentWorkouts.length > 0 ? (
           <div className="history-record-list compact">
             {recentWorkouts.map((workout) => (
@@ -242,7 +241,7 @@ function SummaryTab({
         ) : (
           <EmptyRecords onStart={onStart} />
         )}
-      </section>
+      </AppCard>
     </div>
   );
 }
@@ -298,18 +297,15 @@ function DetailTab({
         </button>
       </div>
 
-      <section className="history-card history-detail-stats">
+      <AppCard className="history-card history-detail-stats">
         <StatCard label="총 운동시간" value={formatTimer(summary.durationSeconds)} unit="분" />
         <StatCard label="총 운동수" value={`${summary.count}`} unit="회" />
         <StatCard label="총 칼로리" value={`${summary.calories}`} unit="kcal" />
         <StatCard label="최고 기록" value={`${Math.round(bestRecord)}`} unit={filter === 'running' ? 'km' : '회'} />
-      </section>
+      </AppCard>
 
-      <section className="history-card history-workout-list-card">
-        <div className="history-card-heading">
-          <strong>운동 목록</strong>
-          <span>{filteredWorkouts.length}개</span>
-        </div>
+      <AppCard className="history-card history-workout-list-card">
+        <SectionHeader className="history-card-heading" title="운동 목록" action={<span>{filteredWorkouts.length}개</span>} />
         {filteredWorkouts.length > 0 ? (
           <div className="history-record-list">
             {filteredWorkouts.map((workout) => (
@@ -317,13 +313,14 @@ function DetailTab({
             ))}
           </div>
         ) : (
-          <div className="history-no-day-record">
-            <ListFilter size={28} />
-            <strong>선택한 날짜의 기록이 없습니다.</strong>
-            <span>필터나 날짜를 바꿔 확인해보세요.</span>
-          </div>
+          <EmptyState
+            className="history-no-day-record"
+            icon={<ListFilter size={28} />}
+            title="선택한 날짜의 기록이 없습니다."
+            body="필터나 날짜를 바꿔 확인해보세요."
+          />
         )}
-      </section>
+      </AppCard>
 
       <TrendChart points={dashboard.monthlyTrend} maxValue={maxTrend} />
     </div>
@@ -373,20 +370,14 @@ function StatLine({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 
 function StatCard({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
-    <article className="history-stat-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{unit}</small>
-    </article>
+    <DSStatCard className="history-stat-card" label={label} value={value} detail={unit} />
   );
 }
 
 function WeeklyChart({ bars, maxValue, totalLabel }: { bars: ChartPoint[]; maxValue: number; totalLabel: string }) {
   return (
-    <section className="history-card history-weekly-card">
-      <div className="history-card-heading">
-        <strong>주간 활동</strong>
-      </div>
+    <AppCard className="history-card history-weekly-card">
+      <SectionHeader className="history-card-heading" title="주간 활동" />
       <div className="history-weekly-layout">
         <div>
           <span>이번 주 운동 시간</span>
@@ -402,7 +393,7 @@ function WeeklyChart({ bars, maxValue, totalLabel }: { bars: ChartPoint[]; maxVa
           ))}
         </div>
       </div>
-    </section>
+    </AppCard>
   );
 }
 
@@ -411,17 +402,14 @@ function TrendChart({ points, maxValue }: { points: ChartPoint[]; maxValue: numb
   const areaPoints = chartPoints ? `0,140 ${chartPoints} 320,140` : '';
 
   return (
-    <section className="history-card history-trend-card">
-      <div className="history-card-heading">
-        <strong>시간대별 운동 추이</strong>
-        <span>단위: 건</span>
-      </div>
+    <AppCard className="history-card history-trend-card">
+      <SectionHeader className="history-card-heading" title="시간대별 운동 추이" action={<span>단위: 건</span>} />
       <div className="history-line-chart">
         <svg viewBox="0 0 320 150" role="img" aria-label="운동 추이 차트">
           <defs>
             <linearGradient id="historyTrendFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#9DFF3A" stopOpacity="0.44" />
-              <stop offset="100%" stopColor="#9DFF3A" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--ds-green)" stopOpacity="0.44" />
+              <stop offset="100%" stopColor="var(--ds-green)" stopOpacity="0" />
             </linearGradient>
           </defs>
           <polyline className="grid" points="0,140 320,140" />
@@ -433,20 +421,20 @@ function TrendChart({ points, maxValue }: { points: ChartPoint[]; maxValue: numb
           })}
         </svg>
       </div>
-    </section>
+    </AppCard>
   );
 }
 
 function ExerciseTypeCard({ stat }: { stat: ExerciseHistoryStat }) {
   const Icon = exerciseIcon(stat.type);
   return (
-    <article className="history-exercise-type-card">
+    <AppCard as="article" className="history-exercise-type-card">
       <span>
         <Icon size={28} />
       </span>
       <strong>{koreanExerciseLabel(stat.type, stat.label)}</strong>
       <b>{stat.bestLabel}</b>
-    </article>
+    </AppCard>
   );
 }
 
@@ -459,7 +447,7 @@ function ExerciseRecordRow({
 }) {
   const Icon = exerciseIcon(workout.type);
   return (
-    <button className="history-record-row" type="button" onClick={() => onSelect(workout)}>
+    <ListTile as="button" className="history-record-row" type="button" onClick={() => onSelect(workout)}>
       <span>
         <Icon size={26} />
       </span>
@@ -475,29 +463,32 @@ function ExerciseRecordRow({
         </small>
       </div>
       <ChevronRight size={20} />
-    </button>
+    </ListTile>
   );
 }
 
 function EmptyRecords({ onStart }: { onStart: () => void }) {
   return (
-    <div className="history-empty-inline">
-      <Trophy size={34} />
-      <strong>아직 운동 기록이 없습니다.</strong>
-      <span>오늘 첫 운동을 시작해보세요.</span>
-      <button type="button" onClick={onStart}>
-        <Play size={18} fill="currentColor" />
-        운동 시작
-      </button>
-    </div>
+    <EmptyState
+      className="history-empty-inline"
+      icon={<Trophy size={34} />}
+      title="아직 운동 기록이 없습니다."
+      body="오늘 첫 운동을 시작해보세요."
+      action={(
+        <GradientButton onClick={onStart}>
+          <Play size={18} fill="currentColor" />
+          운동 시작
+        </GradientButton>
+      )}
+    />
   );
 }
 
 function WorkoutDetailSheet({ workout, onClose }: { workout: HistoryWorkout; onClose: () => void }) {
   return (
     <section className="history-detail-sheet" role="dialog" aria-label="운동 상세">
-      <div>
-        <button type="button" onClick={onClose}>닫기</button>
+      <AppCard>
+        <SecondaryButton onClick={onClose}>닫기</SecondaryButton>
         <span>{workoutIconText(workout.type)}</span>
         <h2>{koreanExerciseLabel(workout.type, workout.label)}</h2>
         <strong>{workoutMetric(workout)}</strong>
@@ -508,7 +499,7 @@ function WorkoutDetailSheet({ workout, onClose }: { workout: HistoryWorkout; onC
           <dt>체력 변화</dt><dd>+{Math.max(1, Math.round(workout.contribution / 3))}</dd>
           <dt>동네 기여</dt><dd>+{workout.contribution}점</dd>
         </dl>
-      </div>
+      </AppCard>
     </section>
   );
 }
