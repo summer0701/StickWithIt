@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Headphones, Info, Play, Settings } from 'lucide-react';
 import { RunningPlugin } from '../plugins/runningPlugin';
+import { buildYouTubeMusicSearchUrl } from '../lib/runningMusic';
 
 type NativeExercisePageProps = {
   userId: string;
@@ -9,6 +10,7 @@ type NativeExercisePageProps = {
   targetLabel: string;
   guide: string;
   ghostCaption: string;
+  musicQuery?: string;
   screenClassName?: string;
   poseImageSrc?: string;
   durationSeconds: number;
@@ -36,6 +38,7 @@ export default function NativeExercisePage({
   targetLabel,
   guide,
   ghostCaption,
+  musicQuery,
   screenClassName = '',
   poseImageSrc,
   durationSeconds,
@@ -117,11 +120,14 @@ export default function NativeExercisePage({
   }
 
   function openMusic() {
+    const query = musicQuery ?? `${title} 운동할 때 듣기 좋은 음악`;
     if (Capacitor.isNativePlatform()) {
-      RunningPlugin.openRunningMusic().catch((error) => {
+      RunningPlugin.openRunningMusic({ query }).catch((error) => {
         console.debug(`[${title}] Failed to open music app.`, error);
       });
+      return;
     }
+    window.open(buildYouTubeMusicSearchUrl(query), '_blank', 'noopener,noreferrer');
   }
 
   if (phase === 'launching') {

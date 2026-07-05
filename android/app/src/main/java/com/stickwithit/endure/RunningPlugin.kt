@@ -158,7 +158,8 @@ class RunningPlugin : Plugin() {
 
     @PluginMethod
     fun openRunningMusic(call: PluginCall) {
-        val searchUri = Uri.parse("$YOUTUBE_MUSIC_SEARCH_URL_PREFIX${Uri.encode(RUNNING_MUSIC_SEARCH_QUERY)}")
+        val query = call.getString("query", RUNNING_MUSIC_SEARCH_QUERY)
+        val searchUri = Uri.parse("$YOUTUBE_MUSIC_SEARCH_URL_PREFIX${Uri.encode(query)}")
         val opened = listOf(
             Intent(Intent.ACTION_VIEW, searchUri).apply {
                 setPackage(YOUTUBE_MUSIC_PACKAGE)

@@ -47,7 +47,7 @@ export type RunningPluginApi = {
   pauseRun(): Promise<void>;
   resumeRun(): Promise<void>;
   speak(options: { text: string }): Promise<void>;
-  openRunningMusic(): Promise<void>;
+  openRunningMusic(options?: { query?: string }): Promise<void>;
   updateTargetDistance(options: { targetDistanceMeters: number }): Promise<void>;
   updateGhostRunners(options: { ghostRunnersJson: string }): Promise<void>;
   openSquatPose(options?: { durationSeconds?: number; baseAverageReps?: number }): Promise<void>;

@@ -20,6 +20,16 @@ import { buildDailyExerciseProgress, formatExerciseValue, type ExerciseProgressV
 import { getHomeWorkoutSummary, type HomeWorkoutSummary } from '../lib/homeWorkoutSummary';
 import { isTestUserId } from '../lib/testAuth';
 import { achievementRate } from '../lib/runningProgress';
+import {
+  buildAdaptiveGoalSet,
+  dateKeyForDaysAgo,
+  formatAdaptiveGoalValue,
+  readAdaptiveGoalSnapshot,
+  writeAdaptiveGoalSnapshot,
+  type AdaptiveGoalResult,
+  type AdaptiveGoalType,
+  type AdaptiveGoalTrend,
+} from '../lib/adaptiveGoals';
 import { LOCATION_PERMISSION_MESSAGE, requestCurrentPosition } from '../lib/locationPermission';
 import {
   buildHomeRankingSummary,
@@ -59,6 +69,7 @@ type Exercise = {
   targetValue: number;
   currentValue: number;
   achievementLabel?: string;
+  goalTrend?: AdaptiveGoalTrend;
   unit: string;
   buttonLabel: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -83,9 +94,9 @@ const exercises: Exercise[] = [
     name: '스쿼트',
     english: 'Squat',
     color: '#A855F7',
-    goalLabel: '200회',
+    goalLabel: '20회',
     recordLabel: '126회',
-    targetValue: 200,
+    targetValue: 20,
     currentValue: 126,
     unit: '회',
     buttonLabel: '스쿼트 시작',
@@ -159,29 +170,44 @@ export default function HomePage({
   const [workoutSummary, setWorkoutSummary] = useState<HomeWorkoutSummary>(() =>
     getHomeWorkoutSummary({ userId: user.id, runs: [], exerciseRecords: readExerciseRecords(user.id) }),
   );
+  const [adaptiveGoals, setAdaptiveGoals] = useState<Record<AdaptiveGoalType, AdaptiveGoalResult>>(() =>
+    buildAdaptiveGoalSet({
+      runs: [],
+      exerciseRecords: readExerciseRecords(user.id),
+      previousGoals: readAdaptiveGoalSnapshot(user.id, dateKeyForDaysAgo(1)),
+      debug: true,
+    }),
+  );
   const exerciseItems = useMemo(
     () => exercises.map((exercise) => {
+      const adaptiveGoal = adaptiveGoals[exercise.id as AdaptiveGoalType];
       if (exercise.id === 'running') {
         return {
           ...exercise,
-          goalTitle: '어제 최고 기록',
-          goalLabel: yesterdayBestRunningKm > 0 ? `${yesterdayBestRunningKm.toFixed(2)}km` : '기록 없음',
+          goalTitle: '오늘 목표',
+          goalLabel: formatAdaptiveGoalValue(adaptiveGoal),
           recordLabel: `${dailyProgress.runningKm.toFixed(2)}km`,
-          targetValue: yesterdayBestRunningKm,
+          targetValue: adaptiveGoal.value,
           currentValue: dailyProgress.runningKm,
-          achievementLabel: getRunningAchievementLabel(dailyProgress.runningKm, yesterdayBestRunningKm),
+          goalTrend: adaptiveGoal.trend,
+          achievementLabel: `${getProgress({ ...exercise, currentValue: dailyProgress.runningKm, targetValue: adaptiveGoal.value })}%`,
         };
       }
 
       const currentValue = currentExerciseValue(exercise.id, dailyProgress);
+      const targetValue = adaptiveGoal.value;
       return {
         ...exercise,
+        goalTitle: '오늘 목표',
+        goalLabel: formatAdaptiveGoalValue(adaptiveGoal),
         recordLabel: formatExerciseValue(currentValue, exercise.unit as 'km' | '회' | '초'),
+        targetValue,
         currentValue,
-        achievementLabel: `${getProgress({ ...exercise, currentValue })}%`,
+        goalTrend: adaptiveGoal.trend,
+        achievementLabel: `${getProgress({ ...exercise, currentValue, targetValue })}%`,
       };
     }),
-    [dailyProgress, yesterdayBestRunningKm],
+    [adaptiveGoals, dailyProgress],
   );
   const totalProgress = Math.round(
     exerciseItems.reduce((sum, exercise) => sum + getProgress(exercise), 0) / exerciseItems.length,
@@ -194,8 +220,16 @@ export default function HomePage({
   useEffect(() => {
     const localRuns = readLocalRuns(user.id);
     const localExerciseRecords = readExerciseRecords(user.id);
+    const previousGoals = readAdaptiveGoalSnapshot(user.id, dateKeyForDaysAgo(1));
     const localDailyProgress = buildDailyExerciseProgress({ runs: localRuns, exerciseRecords: localExerciseRecords });
+    const localAdaptiveGoals = buildAdaptiveGoalSet({
+      runs: localRuns,
+      exerciseRecords: localExerciseRecords,
+      previousGoals,
+      debug: true,
+    });
     setDailyProgress(localDailyProgress);
+    setAdaptiveGoals(localAdaptiveGoals);
     setWorkoutSummary(getHomeWorkoutSummary({ userId: user.id, runs: localRuns, exerciseRecords: localExerciseRecords }));
     setRecentRunsCount(localRuns.length);
     setYesterdayBestRunningKm(bestRunningKmOnDate(localRuns, yesterdayDateKey()));
@@ -238,11 +272,18 @@ export default function HomePage({
             .limit(100),
         ]);
         const recentRuns = [...(recentResult.data ?? []), ...localRuns];
+        const remoteAdaptiveGoals = buildAdaptiveGoalSet({
+          runs: recentRuns,
+          exerciseRecords: localExerciseRecords,
+          previousGoals,
+          debug: true,
+        });
         const runningDailyProgress = buildDailyExerciseProgress({
           runs: [...(todayResult.data ?? []), ...localRuns],
           exerciseRecords: localExerciseRecords,
         });
         setDailyProgress(runningDailyProgress);
+        setAdaptiveGoals(remoteAdaptiveGoals);
         setRecentRunsCount(Math.max(localRuns.length, recentResult.data?.length ?? 0));
         setWorkoutSummary(getHomeWorkoutSummary({ userId: user.id, runs: recentRuns, exerciseRecords: localExerciseRecords }));
         setYesterdayBestRunningKm(bestRunningKmOnDate([...(yesterdayResult.data ?? []), ...localRuns], yesterdayDateKey()));
@@ -263,6 +304,10 @@ export default function HomePage({
     const timer = window.setTimeout(() => setToast(''), 1800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    writeAdaptiveGoalSnapshot(user.id, dateKeyForDaysAgo(0), adaptiveGoals);
+  }, [adaptiveGoals, user.id]);
 
   const displayName = useMemo(() => {
     const metaName = user.user_metadata?.name;
@@ -495,6 +540,8 @@ const ExerciseCard = memo(function ExerciseCard({
       <div className="exercise-glow" />
       <Icon size={44} className="exercise-icon" />
       <h3>{exercise.name}</h3>
+      {exercise.goalTrend === 'up' && <span className="goal-trend-badge up">▲ 성장 중</span>}
+      {exercise.goalTrend === 'down' && <span className="goal-trend-badge down">회복 모드</span>}
       <div className="exercise-metrics">
         <span>{exercise.goalTitle ?? '목표'}</span>
         <strong>{exercise.goalLabel}</strong>

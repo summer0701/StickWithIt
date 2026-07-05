@@ -21,6 +21,7 @@ export default function LungePage({ onBack, onComplete = onBack, userId = 'anony
       targetLabel="횟수 목표"
       guide="한쪽 다리를 앞으로 내리고, 앞 무릎은 90도로 굽혀 주세요. 뒷 무릎은 바닥 가까이 내렸다가 다시 일어나 반대쪽 다리로 반복합니다."
       ghostCaption="2분 기준 런지 기록으로 고스트가 만들어집니다."
+      musicQuery="런지 운동할 때 듣기 좋은 음악"
       screenClassName="lunge-ready-screen"
       poseImageSrc={lungeNeon}
       durationSeconds={getExerciseDurationSeconds(userId, 'lunge')}

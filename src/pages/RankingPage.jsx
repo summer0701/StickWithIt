@@ -5,7 +5,6 @@ import { readExerciseRecords } from '../lib/exerciseRecords';
 import { LOCATION_PERMISSION_MESSAGE, LocationPermissionError, requestCurrentPosition } from '../lib/locationPermission';
 import {
   buildRankingView,
-  movementText,
   neighborhoodProfileFromRow,
   neighborhoodProfileToRow,
   readNeighborhoodProfile,
@@ -40,6 +39,7 @@ export default function RankingPage({ user, onBack }) {
   const ranking = remoteRanking ?? localRanking;
   const effectiveTab = activeTab;
   const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
+  const userNickname = displayNickname(user);
 
   useEffect(() => {
     const userId = user?.id ?? 'anonymous';
@@ -237,7 +237,7 @@ export default function RankingPage({ user, onBack }) {
               <span>준비중</span>
             </div>
           ) : (
-            <RankingRows rows={rows} isPersonal={isPersonal} />
+            <RankingRows rows={rows} isPersonal={isPersonal} userNickname={userNickname} />
           )}
         </div>
       </AppCard>
@@ -257,7 +257,16 @@ export default function RankingPage({ user, onBack }) {
   );
 }
 
-function RankingRows({ rows, isPersonal }) {
+function displayNickname(user) {
+  const metadata = user?.user_metadata ?? {};
+  const nickname = metadata.nickname ?? metadata.name ?? metadata.full_name;
+  if (typeof nickname === 'string' && nickname.trim()) return nickname.trim();
+  const emailName = user?.email?.split('@')?.[0];
+  if (emailName) return emailName;
+  return '러너';
+}
+
+function RankingRows({ rows, isPersonal, userNickname }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
   if (rows.length === 0) {
     return (
@@ -272,12 +281,16 @@ function RankingRows({ rows, isPersonal }) {
   return (
     <ol className="simple-ranking-list">
       {rows.map((entry, index) => (
-        <li key={entry.id} className={entry.isMine ? 'current-user' : ''}>
+        <li key={entry.id} className={`${entry.isMine ? 'current-user' : ''} ${entry.isMine && isPersonal ? 'personal-current-user' : ''}`}>
           {firstMineIndex === index && <div className="ranking-separator" aria-hidden="true" />}
           <div className="simple-ranking-row-content">
             <strong>{rankBadge(entry.rank)}</strong>
+            {entry.isMine && isPersonal && <span className="personal-ranking-name">{`나 (${userNickname})`}</span>}
             <span>{entry.isMine ? `내 ${entry.name}` : entry.name}</span>
-            <b>{movementText(entry.movement)}</b>
+            <div className="simple-ranking-row-meta">
+              <b>{entry.score.toLocaleString()} XP</b>
+              <small>{entry.rank}위</small>
+            </div>
           </div>
         </li>
       ))}

@@ -21,6 +21,7 @@ export default function PushupPage({ onBack, onComplete = onBack, userId = 'anon
       targetLabel="횟수 목표"
       guide="카메라는 옆모습 또는 약간 대각선 측면에 두고, 어깨부터 발목까지 한 줄로 유지해 주세요."
       ghostCaption="2분 기준 푸쉬업 기록으로 고스트가 만들어집니다."
+      musicQuery="푸쉬업 운동할 때 듣기 좋은 음악"
       screenClassName="pushup-ready-screen"
       poseImageSrc={pushupNeon}
       durationSeconds={getExerciseDurationSeconds(userId, 'pushup')}

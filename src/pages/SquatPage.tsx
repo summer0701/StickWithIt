@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Info, Play, Settings } from 'lucide-react';
+import { ArrowLeft, Headphones, Info, Play } from 'lucide-react';
 import { RunningPlugin } from '../plugins/runningPlugin';
+import { buildYouTubeMusicSearchUrl } from '../lib/runningMusic';
 import { getExerciseDurationSeconds } from '../lib/exerciseDurationSettings';
 import { readSquatBaseAverageReps, updateSquatGhostBaseline } from '../lib/squatGhosts';
 import { saveExerciseRecord } from '../lib/exerciseRecords';
@@ -16,6 +17,7 @@ type SquatPageProps = {
 
 const COUNTDOWN_START = 10;
 const TARGET_REPS = 50;
+const SQUAT_MUSIC_QUERY = '스쿼트 운동할 때 듣기 좋은 음악';
 
 const ghostDistance = [
   { id: '베스트', status: '빠름 ↑', tone: 'best' },
@@ -97,6 +99,16 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
     });
   }
 
+  function openMusic() {
+    if (Capacitor.isNativePlatform()) {
+      RunningPlugin.openRunningMusic({ query: SQUAT_MUSIC_QUERY }).catch((error) => {
+        console.debug('[SquatPage] Failed to open music app.', error);
+      });
+      return;
+    }
+    window.open(buildYouTubeMusicSearchUrl(SQUAT_MUSIC_QUERY), '_blank', 'noopener,noreferrer');
+  }
+
   if (phase === 'launching') {
     return <main className="squat-screen squat-ready-screen" aria-label="카메라 실행 중" />;
   }
@@ -108,8 +120,8 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
           <ArrowLeft size={30} />
         </button>
         <span aria-hidden="true" />
-        <button className="squat-icon-button" type="button" aria-label="설정">
-          <Settings size={28} />
+        <button className="squat-icon-button" type="button" onClick={openMusic} aria-label="YouTube Music에서 스쿼트 운동 음악 검색">
+          <Headphones size={28} />
         </button>
       </header>
 
