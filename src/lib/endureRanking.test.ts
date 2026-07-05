@@ -40,6 +40,27 @@ describe('endureRanking', () => {
     expect(getEndureLevel(4500)).toBe('Diamond');
   });
 
+  it('adds running distance and time volume to ER even when the best pace is unchanged', () => {
+    const first = calculateEndureRating({
+      userId: 'user-1',
+      displayName: 'Tester',
+      runs: [
+        { id: 'run-1', status: 'completed', actual_distance_km: 1, duration_seconds: 600, ended_at: '2026-07-01T00:00:00.000Z' },
+      ],
+    });
+    const second = calculateEndureRating({
+      userId: 'user-1',
+      displayName: 'Tester',
+      runs: [
+        { id: 'run-1', status: 'completed', actual_distance_km: 1, duration_seconds: 600, ended_at: '2026-07-01T00:00:00.000Z' },
+        { id: 'run-2', status: 'completed', actual_distance_km: 1, duration_seconds: 600, ended_at: '2026-07-02T00:00:00.000Z' },
+      ],
+    });
+
+    expect(second.scores.running).toBeGreaterThan(first.scores.running);
+    expect(second.totalEr).toBeGreaterThan(first.totalEr);
+  });
+
   it('fills the current league to 50 with transparent level-bounded ghosts', () => {
     const league = buildLeagueRanking({
       currentUser: {

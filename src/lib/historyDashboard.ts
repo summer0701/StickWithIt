@@ -1,5 +1,6 @@
 import { normalizeExerciseRecordType, type ExerciseRecord } from './exerciseRecords';
 import { contributionScoreForRecord } from './neighborhoodRanking';
+import { getRunDistanceKm, getRunDurationSeconds } from './runRecords';
 
 export type HistoryRunLike = Record<string, any>;
 
@@ -248,8 +249,8 @@ function runToWorkout(run: HistoryRunLike): HistoryWorkout | null {
   const completedDate = new Date(completedAt);
   if (Number.isNaN(completedDate.getTime())) return null;
 
-  const durationSeconds = finite(run.total_elapsed_seconds ?? run.duration_seconds);
-  const distanceKm = runDistanceKm(run);
+  const durationSeconds = getRunDurationSeconds(run);
+  const distanceKm = getRunDistanceKm(run);
   const type = 'running';
   const calories = estimateCalories({ type, durationSeconds, reps: 0, distanceKm });
   const recordLike: ExerciseRecord = {
@@ -460,12 +461,6 @@ function exerciseLabel(type: string) {
 
 function workoutVolume(workout: HistoryWorkout) {
   return workout.distanceKm > 0 ? workout.distanceKm * 100 : workout.reps;
-}
-
-function runDistanceKm(run: HistoryRunLike) {
-  const meters = finite(run.total_distance_meters ?? run.totalDistanceMeters);
-  if (meters > 0) return meters / 1000;
-  return finite(run.actual_distance_km ?? run.distanceKm);
 }
 
 function estimateCalories({

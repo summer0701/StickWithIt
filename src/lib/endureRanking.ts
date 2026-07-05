@@ -23,6 +23,7 @@ export type RunRecordLike = {
   started_at?: string;
   ended_at?: string;
   created_at?: string;
+  status?: string;
 };
 
 export type RankingUserInput = {
@@ -129,6 +130,8 @@ const SCORE_MAX = 1000;
 const RUNNING_REFERENCE = {
   distanceKm: 5,
   paceSecondsPerKm: 360,
+  volumeDistanceKm: 20,
+  volumeDurationSeconds: 5 * 60 * 60,
 };
 const REP_REFERENCE = {
   squat: 80,
@@ -413,7 +416,7 @@ function ratingToEntry(rating: EndureRating, previousRank: number | null, isCurr
 
 function calculateRunningScore(runs: RunRecordLike[]) {
   const best = runs.reduce((bestScore, run) => Math.max(bestScore, runningScoreFromRun(run)), DEFAULT_SCORE);
-  return Math.round(best);
+  return Math.round(clampScore(best + runningVolumeBonus(runs)));
 }
 
 function runningScoreFromRun(run: RunRecordLike) {
@@ -422,9 +425,18 @@ function runningScoreFromRun(run: RunRecordLike) {
   if (distanceKm <= 0 || !Number.isFinite(elapsedSeconds) || elapsedSeconds <= 0) return DEFAULT_SCORE;
 
   const pace = elapsedSeconds / distanceKm;
-  const distanceScore = Math.min(1, distanceKm / RUNNING_REFERENCE.distanceKm) * 520;
-  const paceScore = Math.min(1, RUNNING_REFERENCE.paceSecondsPerKm / Math.max(180, pace)) * 480;
+  const distanceScore = Math.min(1, distanceKm / RUNNING_REFERENCE.distanceKm) * 390;
+  const paceScore = Math.min(1, RUNNING_REFERENCE.paceSecondsPerKm / Math.max(180, pace)) * 360;
   return clampScore(distanceScore + paceScore);
+}
+
+function runningVolumeBonus(runs: RunRecordLike[]) {
+  const completedRuns = dedupeRuns(runs).filter(isCompletedRun);
+  const totalDistanceKm = sumValues(completedRuns.map(runDistanceKm));
+  const totalDurationSeconds = sumValues(completedRuns.map(runDurationSeconds));
+  const distanceBonus = Math.min(1, totalDistanceKm / RUNNING_REFERENCE.volumeDistanceKm) * 160;
+  const durationBonus = Math.min(1, totalDurationSeconds / RUNNING_REFERENCE.volumeDurationSeconds) * 90;
+  return distanceBonus + durationBonus;
 }
 
 function calculateRepetitionScore(records: ExerciseRecord[], type: string, referenceRepsPerMinute: number) {
@@ -544,6 +556,25 @@ function runDistanceKm(run: RunRecordLike) {
 
   const km = Number(run.actual_distance_km ?? run.distanceKm);
   return Number.isFinite(km) && km > 0 ? km : 0;
+}
+
+function runDurationSeconds(run: RunRecordLike) {
+  const seconds = Number(run.total_elapsed_seconds ?? run.duration_seconds);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+}
+
+function isCompletedRun(run: RunRecordLike) {
+  if (run.status === 'completed') return true;
+  if (run.status != null) return false;
+  return Boolean(run.ended_at || run.created_at || run.started_at);
+}
+
+function dedupeRuns(runs: RunRecordLike[]) {
+  const uniqueRuns = new Map<string, RunRecordLike>();
+  runs.forEach((run, index) => {
+    uniqueRuns.set(String(run.id ?? `${run.started_at ?? run.created_at ?? 'run'}-${index}`), run);
+  });
+  return [...uniqueRuns.values()];
 }
 
 function seededRandom(seed: string) {

@@ -62,4 +62,24 @@ describe('homeWorkoutSummary', () => {
     expect(changed.refreshedAt).toBe('2026-07-02T00:00:00.000Z');
     expect(changed.recordCount).toBe(2);
   });
+
+  it('counts camel case local running duration in total workout time', () => {
+    const summary = getHomeWorkoutSummary({
+      userId: 'user-1',
+      now: new Date('2026-07-01T00:00:00Z'),
+      runs: [
+        {
+          id: 'run-1',
+          user_id: 'user-1',
+          status: 'completed',
+          ended_at: '2026-07-01T00:00:00Z',
+          totalDistanceMeters: 1200,
+          totalElapsedSeconds: 600,
+        },
+      ],
+    });
+
+    expect(summary.metrics[1].value).toBe('10:00');
+    expect(summary.recordCount).toBe(1);
+  });
 });

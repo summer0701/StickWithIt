@@ -1,4 +1,5 @@
 import type { ExerciseRecord } from './exerciseRecords';
+import { getRunDistanceKm, getRunDurationSeconds } from './runRecords';
 
 export type RunningSummaryRun = Record<string, any>;
 
@@ -82,24 +83,17 @@ function runToExerciseRecord(run: RunningSummaryRun): ExerciseRecord | null {
   const completedDate = new Date(completedAt);
   if (Number.isNaN(completedDate.getTime())) return null;
 
-  const durationSeconds = Number(run.total_elapsed_seconds ?? run.duration_seconds);
-  const distanceKm = runDistanceKm(run);
+  const durationSeconds = getRunDurationSeconds(run);
+  const distanceKm = getRunDistanceKm(run);
   return {
     id: String(run.id ?? `run-${completedAt}`),
     userId: String(run.user_id ?? 'unknown'),
     type: String(run.exercise_type ?? run.type ?? 'running'),
     completed: true,
     completedAt: completedDate.toISOString(),
-    durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined,
+    durationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
     distanceKm,
   };
-}
-
-function runDistanceKm(run: RunningSummaryRun) {
-  const meters = Number(run.total_distance_meters);
-  if (Number.isFinite(meters) && meters > 0) return meters / 1000;
-  const km = Number(run.actual_distance_km);
-  return Number.isFinite(km) && km > 0 ? km : 0;
 }
 
 function mostActiveExercise(records: ExerciseRecord[]) {

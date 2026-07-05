@@ -80,6 +80,25 @@ describe('historyDashboard', () => {
     expect(filterHistoryWorkouts(dashboard.workouts, { sort: 'volume' })[0]?.type).toBe('squat');
   });
 
+  it('counts camel case local run duration in history totals', () => {
+    const dashboard = buildHistoryDashboard({
+      now,
+      runs: [
+        {
+          id: 'run-1',
+          user_id: 'user-1',
+          status: 'completed',
+          ended_at: '2026-07-04T08:00:00.000Z',
+          totalDistanceMeters: 1200,
+          totalElapsedSeconds: 600,
+        },
+      ],
+    });
+
+    expect(dashboard.totals.durationSeconds).toBe(600);
+    expect(dashboard.today.minutes).toBe(10);
+  });
+
   it('formats total history duration', () => {
     expect(formatHistoryDuration(3660)).toBe('1시간 1분');
     expect(formatHistoryDuration(600)).toBe('10분');
