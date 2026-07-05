@@ -5,7 +5,7 @@ import {
   type GhostSlotKey,
 } from './ghostSettings';
 
-export type ExerciseGhostType = 'squat' | 'lunge' | 'pushup' | 'lunge';
+export type ExerciseGhostType = 'squat' | 'jumpingJack' | 'pushup' | 'lunge';
 
 export type ExerciseGhostSetting = {
   key: GhostSlotKey;

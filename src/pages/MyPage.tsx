@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Target,
   Timer,
+  Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -87,7 +88,7 @@ const difficultyOptions: Array<{ value: GhostDifficulty; label: string }> = [
 const exercises: ExerciseConfig[] = [
   {
     id: 'running',
-    label: '운동',
+    label: '러닝',
     heroLabel: '러닝',
     metricLabel: '평균 속도',
     summaryMetricLabel: '평균 속도',
@@ -114,6 +115,22 @@ const exercises: ExerciseConfig[] = [
     customUnit: 'reps',
     durationType: 'squat',
     icon: Dumbbell,
+  },
+  {
+    id: 'jumpingJack',
+    label: '점핑잭',
+    heroLabel: '점핑잭',
+    metricLabel: '평균 횟수',
+    summaryMetricLabel: '평균 횟수',
+    graphTitle: '분당 반복 횟수 그래프',
+    unit: 'reps/min',
+    recordBasis: '분당 반복 횟수',
+    recordType: 'jumping-jack',
+    metricKind: 'reps',
+    difficultyTargets: { beginner: 40, novice: 80, standard: 120 },
+    customUnit: 'reps',
+    durationType: 'jumpingJack',
+    icon: Zap,
   },
   {
     id: 'pushup',
@@ -262,7 +279,6 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
     <GlassContainer as="main" className="my-page">
       <header className="my-page-header">
         <div>
-          <span>SKT&nbsp;&nbsp;6:57</span>
           <h1>마이페이지</h1>
         </div>
         <SecondaryButton className="my-logout-button" onClick={onSignOut}>

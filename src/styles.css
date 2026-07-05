@@ -2527,6 +2527,7 @@ button {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   overflow: hidden;
+  padding-left: 1px;
   border: 1px solid rgba(111, 132, 183, 0.34);
   border-radius: 8px;
   background: rgba(4, 9, 24, 0.74);
@@ -2561,12 +2562,7 @@ button {
 }
 
 .exercise-ghost-tabs button.active::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  content: "";
-  background: #76ff48;
-  box-shadow: 0 0 18px rgba(118, 255, 72, 0.7);
+  content: none;
 }
 
 .exercise-ghost-tabs button.active::after {
@@ -3200,15 +3196,18 @@ button {
 }
 
 .fitness-shell:has(.my-page) {
+  height: 100dvh;
+  overflow-y: auto;
   padding-bottom: 0;
 }
 
 .my-page {
-  height: 100dvh;
-  max-height: 100dvh;
-  min-height: 0;
+  height: auto;
+  max-height: none;
+  min-height: 100dvh;
   gap: 11px;
-  padding: 12px 12px calc(var(--bottom-nav-height) + 18px);
+  padding: calc(28px + env(safe-area-inset-top)) 12px calc(var(--bottom-nav-height) + 18px);
+  overflow: visible;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -3223,12 +3222,8 @@ button {
   padding: 0 3px 6px;
 }
 
-.my-page-header span {
-  font-size: 0.68rem;
-}
-
 .my-page-header h1 {
-  margin-top: 14px;
+  margin-top: 0;
   font-size: clamp(1.2rem, 5.4vw, 1.9rem);
 }
 
@@ -9045,7 +9040,7 @@ button:disabled {
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: max(18px, env(safe-area-inset-top)) 24px calc(124px + var(--app-safe-area-inset-bottom));
+  padding: calc(30px + env(safe-area-inset-top)) 24px calc(124px + var(--app-safe-area-inset-bottom));
 }
 
 .simple-ranking-screen,
@@ -10226,7 +10221,7 @@ button:disabled {
 .challenge-screen {
   width: min(100%, 430px);
   height: 100dvh;
-  padding: 0 12px calc(96px + var(--app-safe-area-inset-bottom));
+  padding: calc(18px + env(safe-area-inset-top)) 12px calc(96px + var(--app-safe-area-inset-bottom));
   background: #030303;
 }
 
