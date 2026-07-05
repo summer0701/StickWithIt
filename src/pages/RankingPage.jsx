@@ -138,7 +138,8 @@ export default function RankingPage({ user, onBack }) {
     ? ranking.personalEntries.find((entry) => entry.isMine)
     : ranking.neighborhoodEntries.find((entry) => entry.isMine);
   const isPersonal = effectiveTab === 'personal';
-  const displayedContribution = mine?.score ?? 0;
+  const visibleMine = rows.find((entry) => entry.isMine);
+  const displayedContribution = visibleMine?.score ?? mine?.score ?? 0;
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '동네 미인증';
   const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const locationTitle = isPersonal ? scopeName : neighborhoodName;
