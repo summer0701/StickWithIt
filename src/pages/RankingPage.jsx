@@ -138,7 +138,7 @@ export default function RankingPage({ user, onBack }) {
     ? ranking.personalEntries.find((entry) => entry.isMine)
     : ranking.neighborhoodEntries.find((entry) => entry.isMine);
   const isPersonal = effectiveTab === 'personal';
-  const displayedContribution = mine?.score ?? ranking.contribution;
+  const displayedContribution = mine?.score ?? 0;
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '동네 미인증';
   const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const locationTitle = isPersonal ? scopeName : neighborhoodName;
@@ -214,11 +214,11 @@ export default function RankingPage({ user, onBack }) {
       {effectiveTab !== 'country' && (
         <ProgressCard
           className="ranking-score-card"
-          value={`+${displayedContribution.toLocaleString()}점`}
+          value={`${displayedContribution.toLocaleString()} XP`}
           percent={progressPercent}
           caption={(
             <div className="ranking-progress-caption">
-            <span>오늘 목표 300점</span>
+            <span>오늘 목표 300 XP</span>
             <span>{progressPercent}%</span>
             </div>
           )}
