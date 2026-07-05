@@ -36,6 +36,7 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [targetDistanceKm, setTargetDistanceKm] = useState(10);
   const [latestResult, setLatestResult] = useState(null);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -112,6 +113,12 @@ export default function App() {
   const isTestUser = user?.app_metadata?.provider === 'local-test';
   const fullScreenExercisePages = ['run', 'squat', 'jumping-jack', 'push-up', 'lunge'];
   const userNavigator = useMemo(() => buildUserNavigator(user), [latestResult, page, user]);
+  const avatarImageUrl =
+    userNavigator?.avatarUrl && failedAvatarUrl !== userNavigator.avatarUrl ? userNavigator.avatarUrl : null;
+
+  useEffect(() => {
+    setFailedAvatarUrl(null);
+  }, [userNavigator?.avatarUrl]);
 
   useEffect(() => {
     if (!user) return;
@@ -174,7 +181,8 @@ export default function App() {
             <strong>{userNavigator.xp.toLocaleString()}</strong>
           </span>
           <span className="app-user-avatar" aria-hidden="true">
-            {userNavigator.avatarUrl ? <img src={userNavigator.avatarUrl} alt="" /> : userNavigator.initial}
+            <span className="app-user-avatar-initial">{userNavigator.initial}</span>
+            {avatarImageUrl && <img src={avatarImageUrl} alt="" onError={() => setFailedAvatarUrl(avatarImageUrl)} />}
           </span>
         </button>
       )}

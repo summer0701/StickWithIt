@@ -10880,6 +10880,10 @@ button:disabled {
   box-shadow: inset 0 0 20px rgba(157, 255, 58, 0.08), 0 0 22px rgba(157, 255, 58, 0.14);
 }
 
+.fitness-shell:has(.app-user-navigator) {
+  --app-user-nav-offset: calc(74px + env(safe-area-inset-top));
+}
+
 .app-user-navigator {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
@@ -10897,6 +10901,19 @@ button:disabled {
   color: #ffffff;
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(18px);
+}
+
+.fitness-shell:has(.app-user-navigator) > .topbar {
+  padding-top: var(--app-user-nav-offset);
+}
+
+.fitness-shell:has(.app-user-navigator) .home-premium,
+.fitness-shell:has(.app-user-navigator) .challenge-screen,
+.fitness-shell:has(.app-user-navigator) .ranking-league-screen,
+.fitness-shell:has(.app-user-navigator) .history-records-screen,
+.fitness-shell:has(.app-user-navigator) .my-page {
+  padding-top: var(--app-user-nav-offset);
+  scroll-padding-top: var(--app-user-nav-offset);
 }
 
 .app-user-xp {
@@ -10920,6 +10937,7 @@ button:disabled {
 }
 
 .app-user-avatar {
+  position: relative;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -10937,7 +10955,15 @@ button:disabled {
   box-shadow: 0 0 18px rgba(157, 255, 58, 0.18);
 }
 
+.app-user-avatar-initial {
+  position: relative;
+  z-index: 1;
+}
+
 .app-user-avatar img {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: cover;
