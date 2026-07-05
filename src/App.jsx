@@ -177,7 +177,7 @@ export default function App() {
       {!fullScreenExercisePages.includes(page) && userNavigator && (
         <button className="app-user-navigator" type="button" onClick={() => setPage('my')} aria-label="내 정보">
           <span className="app-user-xp">
-            <small>내 XP</small>
+            <small>내 ER</small>
             <strong>{userNavigator.xp.toLocaleString()}</strong>
           </span>
           <span className="app-user-avatar" aria-hidden="true">

@@ -2,7 +2,9 @@ import { MapPin, Search, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AppCard, EmptyState, GlassContainer, GradientButton, ProgressCard } from '../components/designSystem';
 import { readExerciseRecords } from '../lib/exerciseRecords';
+import { readLocalRuns } from '../lib/localRuns';
 import { LOCATION_PERMISSION_MESSAGE, LocationPermissionError, requestCurrentPosition } from '../lib/locationPermission';
+import { calculateEndureRating } from '../lib/endureRanking';
 import {
   buildRankingView,
   neighborhoodProfileFromRow,
@@ -40,6 +42,13 @@ export default function RankingPage({ user, onBack }) {
   const effectiveTab = activeTab;
   const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
   const userNickname = displayNickname(user);
+  const localRuns = useMemo(() => readLocalRuns(user?.id ?? 'anonymous'), [user?.id]);
+  const abilityXp = useMemo(() => calculateEndureRating({
+    userId: user?.id ?? 'anonymous',
+    displayName: userNickname,
+    runs: localRuns,
+    exerciseRecords: records,
+  }).totalEr, [localRuns, records, user?.id, userNickname]);
 
   useEffect(() => {
     const userId = user?.id ?? 'anonymous';
@@ -134,12 +143,9 @@ export default function RankingPage({ user, onBack }) {
     return source.filter((entry) => entry.name.toLowerCase().includes(normalized));
   }, [effectiveTab, query, ranking.neighborhoodEntries, ranking.personalEntries]);
 
-  const mine = effectiveTab === 'personal'
-    ? ranking.personalEntries.find((entry) => entry.isMine)
-    : ranking.neighborhoodEntries.find((entry) => entry.isMine);
   const isPersonal = effectiveTab === 'personal';
   const visibleMine = rows.find((entry) => entry.isMine);
-  const displayedContribution = visibleMine?.score ?? mine?.score ?? 0;
+  const displayedContribution = isPersonal ? abilityXp : (visibleMine?.score ?? 0);
   const scopeName = isPersonal ? '나' : profile?.regionName ?? '동네 미인증';
   const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
   const locationTitle = isPersonal ? scopeName : neighborhoodName;
@@ -147,7 +153,7 @@ export default function RankingPage({ user, onBack }) {
     ? '개인 기록 기준'
     : 'GPS 인증 후 현재 동네가 표시됩니다';
   const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
-  const progressPercent = Math.min(100, Math.round((displayedContribution / 300) * 100));
+  const progressPercent = Math.min(100, Math.round((displayedContribution / 5000) * 100));
 
   return (
     <GlassContainer as="main" className="ranking-league-screen simple-ranking-screen">
@@ -215,11 +221,11 @@ export default function RankingPage({ user, onBack }) {
       {effectiveTab !== 'country' && (
         <ProgressCard
           className="ranking-score-card"
-          value={`${displayedContribution.toLocaleString()} XP`}
+          value={`${displayedContribution.toLocaleString()} ER`}
           percent={progressPercent}
           caption={(
             <div className="ranking-progress-caption">
-            <span>오늘 목표 300 XP</span>
+            <span>{isPersonal ? '능력치 환산 ER' : '동네 ER'}</span>
             <span>{progressPercent}%</span>
             </div>
           )}
@@ -238,7 +244,7 @@ export default function RankingPage({ user, onBack }) {
               <span>준비중</span>
             </div>
           ) : (
-            <RankingRows rows={rows} isPersonal={isPersonal} userNickname={userNickname} />
+            <RankingRows rows={rows} isPersonal={isPersonal} userNickname={userNickname} abilityXp={abilityXp} />
           )}
         </div>
       </AppCard>
@@ -267,7 +273,7 @@ function displayNickname(user) {
   return '러너';
 }
 
-function RankingRows({ rows, isPersonal, userNickname }) {
+function RankingRows({ rows, isPersonal, userNickname, abilityXp }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
   if (rows.length === 0) {
     return (
@@ -287,9 +293,9 @@ function RankingRows({ rows, isPersonal, userNickname }) {
           <div className="simple-ranking-row-content">
             <strong>{rankBadge(entry.rank)}</strong>
             {entry.isMine && isPersonal && <span className="personal-ranking-name">{`나 (${userNickname})`}</span>}
-            <span>{entry.isMine ? `내 ${entry.name}` : entry.name}</span>
+            <span>{entry.name}</span>
             <div className="simple-ranking-row-meta">
-              <b>{entry.score.toLocaleString()} XP</b>
+              <b>{(entry.isMine && isPersonal ? abilityXp : entry.score).toLocaleString()} ER</b>
               <small>{entry.rank}위</small>
             </div>
           </div>

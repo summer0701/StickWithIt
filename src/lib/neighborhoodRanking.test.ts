@@ -118,7 +118,7 @@ describe('neighborhoodRanking', () => {
   it('does not show auth required on the home summary after neighborhood verification', () => {
     const summary = buildHomeRankingSummary(realProfile, []);
 
-    expect(summary.neighborhood.rankText).toBe('0 XP');
+    expect(summary.neighborhood.rankText).toBe('0 ER');
   });
 
   it('does not create fake ranking rows without workout data', () => {
