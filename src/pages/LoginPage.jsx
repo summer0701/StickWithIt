@@ -1,21 +1,60 @@
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Lock, Mail, MessageCircle, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
+
+const APP_AUTH_CALLBACK_URL = 'com.stickwithit.endure://auth/callback';
+const REDIRECT_TO =
+  typeof window === 'undefined' ? undefined : Capacitor.isNativePlatform() ? APP_AUTH_CALLBACK_URL : window.location.origin;
+const KAKAO_PROFILE_SCOPES = 'profile_nickname profile_image';
 
 export default function LoginPage({ onTestLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState('password');
+  const [nickname, setNickname] = useState('');
+  const [mode, setMode] = useState('login');
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
+  const [kakaoSubmitting, setKakaoSubmitting] = useState(false);
+
+  const isSignup = mode === 'signup';
+
+  function showMessage(nextMessage, nextType = 'success') {
+    setMessage(nextMessage);
+    setMessageType(nextType);
+  }
+
+  async function handleKakaoLogin() {
+    setKakaoSubmitting(true);
+    showMessage('');
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: REDIRECT_TO,
+        scopes: KAKAO_PROFILE_SCOPES,
+        queryParams: {
+          scope: KAKAO_PROFILE_SCOPES,
+        },
+      },
+    });
+
+    if (error) {
+      showMessage(error.message, 'error');
+      setKakaoSubmitting(false);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitting(true);
-    setMessage('');
+    showMessage('');
+
     const login = email.trim();
 
-    if (mode === 'password' && isTestCredentials(login, password)) {
+    if (!isSignup && isTestCredentials(login, password)) {
       const response = await signInTestAccount();
       if (response.data?.session) {
         clearTestSession();
@@ -24,27 +63,28 @@ export default function LoginPage({ onTestLogin }) {
         saveTestSession(testSession);
         onTestLogin?.(testSession);
       }
-      setMessage('로그인되었습니다.');
+      showMessage('로그인되었습니다.');
       setSubmitting(false);
       return;
     }
 
-    const response =
-      mode === 'magic'
-        ? await supabase.auth.signInWithOtp({
-            email: login,
-            options: { emailRedirectTo: window.location.origin },
-          })
-        : await supabase.auth.signInWithPassword({ email: login, password });
+    const response = isSignup
+      ? await supabase.auth.signUp({
+          email: login,
+          password,
+          options: {
+            data: {
+              nickname: nickname.trim() || login.split('@')[0],
+            },
+            emailRedirectTo: REDIRECT_TO,
+          },
+        })
+      : await supabase.auth.signInWithPassword({ email: login, password });
 
-    if (response.error && mode === 'password') {
-      const signUp = await supabase.auth.signUp({ email: login, password });
-      if (signUp.error) setMessage(signUp.error.message);
-      else setMessage('가입 확인 메일을 확인해 주세요.');
-    } else if (response.error) {
-      setMessage(response.error.message);
+    if (response.error) {
+      showMessage(response.error.message, 'error');
     } else {
-      setMessage(mode === 'magic' ? '메일의 로그인 링크를 확인해 주세요.' : '로그인되었습니다.');
+      showMessage(isSignup ? '가입 확인 메일을 확인해 주세요.' : '로그인되었습니다.');
     }
 
     setSubmitting(false);
@@ -52,42 +92,79 @@ export default function LoginPage({ onTestLogin }) {
 
   return (
     <main className="login-screen">
-      <section className="login-panel">
-        <p className="eyebrow">Ghost Run MVP</p>
-        <h1>끝까지 버텨라</h1>
-        <p className="login-copy">오늘의 목표를 정하고 어제의 나를 이겨보세요.</p>
+      <section className="login-panel" aria-label="로그인">
+        <p className="eyebrow">Stick With It</p>
+        <h1>끝까지 버티는 사람들의 운동 기록</h1>
+        <p className="login-copy">카카오로 바로 시작하거나 이메일로 로그인하세요.</p>
 
-        <div className="mode-switch">
-          <button className={mode === 'password' ? 'active' : ''} onClick={() => setMode('password')} type="button">
-            비밀번호
+        <button className="kakao-login-button" disabled={kakaoSubmitting || submitting} onClick={handleKakaoLogin} type="button">
+          <MessageCircle size={20} aria-hidden="true" />
+          <span>{kakaoSubmitting ? '카카오 연결 중...' : '카카오로 계속하기'}</span>
+        </button>
+
+        <div className="auth-divider">
+          <span>또는</span>
+        </div>
+
+        <div className="mode-switch auth-mode-switch" role="tablist" aria-label="인증 방식">
+          <button className={!isSignup ? 'active' : ''} onClick={() => setMode('login')} type="button">
+            로그인
           </button>
-          <button className={mode === 'magic' ? 'active' : ''} onClick={() => setMode('magic')} type="button">
-            매직 링크
+          <button className={isSignup ? 'active' : ''} onClick={() => setMode('signup')} type="button">
+            회원가입
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          <label>
-            이메일 또는 ID
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="text" required />
-          </label>
-          {mode === 'password' && (
+          {isSignup && (
             <label>
-              비밀번호
+              닉네임
+              <span className="input-shell">
+                <User size={18} aria-hidden="true" />
+                <input
+                  value={nickname}
+                  onChange={(event) => setNickname(event.target.value)}
+                  type="text"
+                  autoComplete="nickname"
+                  placeholder="운동 이름"
+                />
+              </span>
+            </label>
+          )}
+          <label>
+            이메일
+            <span className="input-shell">
+              <Mail size={18} aria-hidden="true" />
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                required
+              />
+            </span>
+          </label>
+          <label>
+            비밀번호
+            <span className="input-shell">
+              <Lock size={18} aria-hidden="true" />
               <input
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 type="password"
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
                 minLength={4}
+                placeholder="4자 이상"
                 required
               />
-            </label>
-          )}
-          <button className="primary-button" disabled={submitting} type="submit">
-            {submitting ? '처리 중...' : '시작하기'}
+            </span>
+          </label>
+          <button className="primary-button" disabled={submitting || kakaoSubmitting} type="submit">
+            {submitting ? '처리 중...' : isSignup ? '회원가입' : '로그인'}
           </button>
         </form>
-        {message && <p className="message">{message}</p>}
+        {message && <p className={`message ${messageType}`}>{message}</p>}
       </section>
     </main>
   );

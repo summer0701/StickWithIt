@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { Flag, History, Home, Settings, Trophy } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage.tsx';
@@ -60,6 +62,47 @@ export default function App() {
     });
 
     return () => data.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+
+    let subscription;
+
+    CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+      if (!url?.startsWith('com.stickwithit.endure://auth/callback')) return;
+
+      const params = readAuthCallbackParams(url);
+      const code = params.get('code');
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (code) {
+        const { data } = await supabase.auth.exchangeCodeForSession(code);
+        if (data.session) {
+          clearTestSession();
+          setSession(data.session);
+        }
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        const { data } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (data.session) {
+          clearTestSession();
+          setSession(data.session);
+        }
+      }
+    }).then((listener) => {
+      subscription = listener;
+    });
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   const user = session?.user ?? null;
@@ -206,4 +249,17 @@ async function signInTestAccount() {
     password: TEST_ACCOUNT.password,
     options: { data: { nickname: TEST_ACCOUNT.login } },
   });
+}
+
+function readAuthCallbackParams(url) {
+  const parsedUrl = new URL(url);
+  const params = new URLSearchParams(parsedUrl.search);
+  const hash = parsedUrl.hash.startsWith('#') ? parsedUrl.hash.slice(1) : parsedUrl.hash;
+  const hashParams = new URLSearchParams(hash);
+
+  hashParams.forEach((value, key) => {
+    if (!params.has(key)) params.set(key, value);
+  });
+
+  return params;
 }
