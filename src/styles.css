@@ -3,8 +3,14 @@
 :root {
   color: #111;
   background: #050608;
+  --native-safe-area-inset-top: 0px;
+  --native-safe-area-inset-right: 0px;
   --native-safe-area-inset-bottom: 0px;
+  --native-safe-area-inset-left: 0px;
+  --app-safe-area-inset-top: var(--native-safe-area-inset-top);
+  --app-safe-area-inset-right: var(--native-safe-area-inset-right);
   --app-safe-area-inset-bottom: var(--native-safe-area-inset-bottom);
+  --app-safe-area-inset-left: var(--native-safe-area-inset-left);
   --bottom-nav-height: calc(72px + var(--app-safe-area-inset-bottom));
   --ds-bg: #030303;
   --ds-surface: rgba(21, 21, 21, 0.94);
@@ -967,9 +973,21 @@
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   :root {
+    --app-safe-area-inset-top: max(
+      env(safe-area-inset-top),
+      var(--native-safe-area-inset-top)
+    );
+    --app-safe-area-inset-right: max(
+      env(safe-area-inset-right),
+      var(--native-safe-area-inset-right)
+    );
     --app-safe-area-inset-bottom: max(
       env(safe-area-inset-bottom),
       var(--native-safe-area-inset-bottom)
+    );
+    --app-safe-area-inset-left: max(
+      env(safe-area-inset-left),
+      var(--native-safe-area-inset-left)
     );
   }
 }
@@ -1237,10 +1255,16 @@ button {
 
 .stick-login-screen {
   --login-scale: 0.7;
+  --login-visual-center-offset-x: 32px;
+  --login-screen-padding-x: max(
+    20px,
+    calc(20px + var(--app-safe-area-inset-left)),
+    calc(20px + var(--app-safe-area-inset-right))
+  );
   place-items: start center;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: max(22px, var(--app-safe-area-inset-top)) 20px max(28px, calc(20px + var(--app-safe-area-inset-bottom)));
+  padding: max(22px, var(--app-safe-area-inset-top)) var(--login-screen-padding-x) max(28px, calc(20px + var(--app-safe-area-inset-bottom)));
   background:
     radial-gradient(circle at 92% 2%, rgba(139, 206, 32, 0.15), transparent 31%),
     radial-gradient(circle at 10% 100%, rgba(120, 205, 30, 0.11), transparent 34%),
@@ -1263,6 +1287,7 @@ button {
 
 .stick-login-panel {
   position: relative;
+  right: var(--login-visual-center-offset-x);
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -1273,7 +1298,7 @@ button {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  transform: translateX(-6px) scale(var(--login-scale));
+  transform: scale(var(--login-scale));
   transform-origin: top center;
 }
 
@@ -1352,6 +1377,7 @@ button {
 }
 
 .stick-auth-form {
+  width: 100%;
   gap: 27px;
 }
 
@@ -1553,6 +1579,109 @@ button {
   margin-top: 18px;
   color: #fff;
   text-align: center;
+}
+
+.password-reset-panel {
+  justify-content: flex-start;
+}
+
+.password-reset-brand {
+  margin-bottom: 38px;
+}
+
+.password-reset-brand h1 {
+  font-size: clamp(2.45rem, 10vw, 3.8rem);
+}
+
+.password-reset-brand p {
+  max-width: 100%;
+  font-size: clamp(1rem, 4vw, 1.28rem);
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.verification-code-group {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 9px;
+  width: 100%;
+}
+
+.verification-code-group input {
+  width: 100%;
+  min-height: 64px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(8, 9, 8, 0.52);
+  color: #fff;
+  font-size: 1.55rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.verification-code-group input:focus {
+  border-color: rgba(172, 243, 35, 0.82);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(172, 243, 35, 0.12);
+}
+
+.password-reset-timer {
+  margin: -10px 0 0;
+  color: #a7f027;
+  font-size: 1.18rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.password-reset-resend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.password-reset-resend button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a7f027;
+  font: inherit;
+  font-weight: 1000;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.password-reset-resend button:disabled {
+  color: rgba(255, 255, 255, 0.45);
+  text-decoration: none;
+}
+
+.password-reset-success-icon {
+  margin-top: 18px;
+  color: #a7f027;
+  animation: password-reset-success-pop 520ms ease-out both;
+}
+
+@keyframes password-reset-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .stick-login-panel .primary-button.stick-login-submit {

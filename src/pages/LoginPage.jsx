@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, Lock, Mail, MessageCircle, User } from 'lucide-react';
+import { Eye, Lock, Mail, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
 import loginBg from '../assets/login-bg.webp';
@@ -9,12 +9,12 @@ const APP_AUTH_CALLBACK_URL = 'com.stickwithit.endure://auth/callback';
 const EMAIL_REDIRECT_TO = typeof window === 'undefined' ? APP_AUTH_CALLBACK_URL : window.location.origin;
 const KAKAO_PROFILE_SCOPES = 'profile_nickname profile_image';
 
-export default function LoginPage({ onTestLogin }) {
+export default function LoginPage({ onForgotPassword, onTestLogin, initialMessage = '' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [mode, setMode] = useState('login');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialMessage);
   const [messageType, setMessageType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
   const [kakaoSubmitting, setKakaoSubmitting] = useState(false);
@@ -112,7 +112,7 @@ export default function LoginPage({ onTestLogin }) {
                   onChange={(event) => setNickname(event.target.value)}
                   type="text"
                   autoComplete="nickname"
-                  placeholder="운동 이름"
+                  placeholder="닉네임을 입력하세요"
                 />
               </span>
             </label>
@@ -165,8 +165,8 @@ export default function LoginPage({ onTestLogin }) {
                 />
                 <span>로그인 상태 유지</span>
               </label>
-              <button type="button" onClick={() => showMessage('비밀번호 재설정 기능은 준비 중입니다.', 'success')}>
-                비밀번호 찾기
+              <button type="button" onClick={onForgotPassword}>
+                비밀번호를 잊으셨나요?
               </button>
             </div>
           )}

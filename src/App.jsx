@@ -3,6 +3,9 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Flag, History, Home, Settings, Trophy } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import VerificationCodePage from './pages/VerificationCodePage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import HomePage from './pages/HomePage.tsx';
 import RunPage from './pages/RunPage';
 import SquatPage from './pages/SquatPage';
@@ -37,6 +40,9 @@ export default function App() {
   const [targetDistanceKm, setTargetDistanceKm] = useState(10);
   const [latestResult, setLatestResult] = useState(null);
   const [failedAvatarUrl, setFailedAvatarUrl] = useState(null);
+  const [passwordResetEmail, setPasswordResetEmail] = useState('');
+  const [passwordResetCode, setPasswordResetCode] = useState('');
+  const [authNotice, setAuthNotice] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -158,7 +164,58 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onTestLogin={setSession} />;
+    if (page === 'forgot-password') {
+      return (
+        <ForgotPasswordPage
+          onBack={() => setPage('login')}
+          onCodeSent={(email) => {
+            setPasswordResetEmail(email);
+            setPasswordResetCode('');
+            setPage('verify-reset-code');
+          }}
+        />
+      );
+    }
+
+    if (page === 'verify-reset-code' && passwordResetEmail) {
+      return (
+        <VerificationCodePage
+          email={passwordResetEmail}
+          onBack={() => setPage('forgot-password')}
+          onVerified={(code) => {
+            setPasswordResetCode(code);
+            setPage('reset-password');
+          }}
+        />
+      );
+    }
+
+    if (page === 'reset-password' && passwordResetEmail && passwordResetCode) {
+      return (
+        <ResetPasswordPage
+          email={passwordResetEmail}
+          code={passwordResetCode}
+          onBack={() => setPage('verify-reset-code')}
+          onComplete={(message) => {
+            setPasswordResetEmail('');
+            setPasswordResetCode('');
+            setAuthNotice(message);
+            setPage('login');
+          }}
+        />
+      );
+    }
+
+    return (
+      <LoginPage
+        initialMessage={authNotice}
+        onForgotPassword={() => {
+          setAuthNotice('');
+          setPage('forgot-password');
+        }}
+        onTestLogin={setSession}
+      />
+    );
   }
 
   return (
