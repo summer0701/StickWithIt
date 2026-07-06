@@ -6,15 +6,18 @@ import {
   Edit3,
   Footprints,
   Ghost,
+  ImagePlus,
   LogOut,
   RotateCcw,
+  Upload,
+  X,
   Settings,
   SlidersHorizontal,
   Target,
   Timer,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, useEffect, useMemo, useState } from 'react';
 import {
   defaultGhostSettings,
   ghostDifficultyTargetKm,
@@ -46,6 +49,7 @@ import {
   type ExerciseDurationType,
 } from '../lib/exerciseDurationSettings';
 import { deleteCurrentAccount } from '../lib/accountDeletion';
+import { AVATAR_BUCKET, buildAvatarStoragePath, compressAvatarImage, type AvatarCrop, validateAvatarImageFile } from '../lib/avatarImages';
 import { readExerciseRecords, type ExerciseRecord } from '../lib/exerciseRecords';
 import { readLocalRuns } from '../lib/localRuns';
 import { loadRecentRunHistory } from '../services/runComparison';
@@ -55,9 +59,10 @@ import ghostMascot from '../assets/ghost-settings-mascot.webp';
 import { AppCard, GlassContainer, ListTile, SecondaryButton, SectionHeader } from '../components/designSystem';
 
 type MyPageProps = {
-  user: { id: string; email?: string; app_metadata?: { provider?: string } };
+  user: { id: string; email?: string; app_metadata?: { provider?: string }; user_metadata?: Record<string, any> };
   onSignOut?: () => void;
   onAccountDeleted?: (message?: string) => void;
+  onAvatarUpdated?: (user: unknown) => void;
   onDifficultyTargetChange?: (targetDistanceKm: number) => void;
 };
 
@@ -88,6 +93,7 @@ const difficultyOptions: Array<{ value: GhostDifficulty; label: string }> = [
   { value: 'standard', label: '표준' },
   { value: 'custom', label: '커스텀' },
 ];
+const DEFAULT_AVATAR_CROP: Required<AvatarCrop> = { xPercent: 50, yPercent: 50, zoom: 1 };
 
 const exercises: ExerciseConfig[] = [
   {
@@ -169,7 +175,7 @@ const exercises: ExerciseConfig[] = [
   },
 ];
 
-export default function MyPage({ user, onSignOut, onAccountDeleted, onDifficultyTargetChange }: MyPageProps) {
+export default function MyPage({ user, onSignOut, onAccountDeleted, onAvatarUpdated, onDifficultyTargetChange }: MyPageProps) {
   const [selectedExerciseId, setSelectedExerciseId] = useState<ExerciseId>('running');
   const selectedExercise = exercises.find((exercise) => exercise.id === selectedExerciseId) ?? exercises[0];
   const [settings, setSettings] = useState<PageGhostSetting[]>(() => readSettingsForExercise(user.id, selectedExerciseId));
@@ -181,6 +187,11 @@ export default function MyPage({ user, onSignOut, onAccountDeleted, onDifficulty
   const [recordPeriod, setRecordPeriod] = useState('30');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [accountDeletionMessage, setAccountDeletionMessage] = useState('');
+  const [avatarUploadStatus, setAvatarUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+  const [avatarUploadMessage, setAvatarUploadMessage] = useState('');
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
+  const [avatarCrop, setAvatarCrop] = useState<Required<AvatarCrop>>(DEFAULT_AVATAR_CROP);
   const selectedGhost = settings[selectedIndex] ?? settings[0];
   const selectedRunner = ghostRunners.find((runner) => runner.key === selectedGhost?.key);
   const records = useMemo(() => readExerciseRecords(user.id, selectedExercise.recordType ? [selectedExercise.recordType] : undefined), [selectedExercise.recordType, user.id]);
@@ -232,6 +243,12 @@ export default function MyPage({ user, onSignOut, onAccountDeleted, onDifficulty
       active = false;
     };
   }, [difficulty, records.length, selectedExerciseId, settings, user.id]);
+
+  useEffect(() => (
+    () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    }
+  ), [avatarPreviewUrl]);
 
   function updateSetting(index: number, nextValue: Partial<PageGhostSetting>) {
     setSettings((current) => {
@@ -300,6 +317,80 @@ export default function MyPage({ user, onSignOut, onAccountDeleted, onDifficulty
     }
   }
 
+  async function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    const validation = validateAvatarImageFile(file);
+    if (!validation.ok || !file) {
+      setAvatarUploadStatus('error');
+      setAvatarUploadMessage(validation.message ?? '업로드할 이미지를 선택해 주세요.');
+      return;
+    }
+
+    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    setSelectedAvatarFile(file);
+    setAvatarPreviewUrl(URL.createObjectURL(file));
+    setAvatarCrop(DEFAULT_AVATAR_CROP);
+    setAvatarUploadStatus('idle');
+    setAvatarUploadMessage('업로드할 영역을 선택해 주세요.');
+  }
+
+  function cancelAvatarCrop() {
+    clearSelectedAvatarFile();
+    setAvatarUploadStatus('idle');
+    setAvatarUploadMessage('');
+  }
+
+  function clearSelectedAvatarFile() {
+    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    setSelectedAvatarFile(null);
+    setAvatarPreviewUrl('');
+    setAvatarCrop(DEFAULT_AVATAR_CROP);
+  }
+
+  async function uploadSelectedAvatarCrop() {
+    if (!selectedAvatarFile) return;
+
+    setAvatarUploadStatus('uploading');
+    setAvatarUploadMessage('선택한 영역을 압축하고 업로드하는 중입니다.');
+
+    try {
+      const compressedAvatar = await compressAvatarImage(selectedAvatarFile, { crop: avatarCrop });
+      const avatarPath = buildAvatarStoragePath(user.id, new Date(), compressedAvatar.type);
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(avatarPath, compressedAvatar, {
+          contentType: compressedAvatar.type || 'image/webp',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(avatarPath);
+      const avatarUrl = publicUrlData.publicUrl;
+      const { data: authData, error: authError } = await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      });
+
+      if (authError) throw authError;
+
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        nickname: getUserProfileName(user),
+        avatar_url: avatarUrl,
+      });
+
+      if (authData.user) onAvatarUpdated?.(authData.user);
+      setAvatarUploadStatus('uploaded');
+      setAvatarUploadMessage(`선택 영역 업로드 완료 (${formatBytes(selectedAvatarFile.size)} -> ${formatBytes(compressedAvatar.size)})`);
+      clearSelectedAvatarFile();
+    } catch (error) {
+      setAvatarUploadStatus('error');
+      setAvatarUploadMessage(avatarUploadErrorMessage(error));
+    }
+  }
+
   return (
     <GlassContainer as="main" className="my-page">
       <header className="my-page-header">
@@ -322,6 +413,94 @@ export default function MyPage({ user, onSignOut, onAccountDeleted, onDifficulty
         <SecondaryButton className="my-hero-settings" aria-label="설정">
           <Settings size={25} />
         </SecondaryButton>
+      </AppCard>
+
+      <AppCard className="avatar-upload-panel" aria-label="아바타 이미지 업로드">
+        <SectionHeader
+          className="summary-title"
+          icon={<ImagePlus size={21} />}
+          title="아바타 이미지"
+          action={(
+            <label className={`avatar-upload-button ${avatarUploadStatus === 'uploading' ? 'disabled' : ''}`}>
+              <ImagePlus size={18} />
+              {avatarUploadStatus === 'uploading' ? '업로드 중...' : '이미지 선택'}
+              <input
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                disabled={avatarUploadStatus === 'uploading'}
+                onChange={handleAvatarFileChange}
+                type="file"
+              />
+            </label>
+          )}
+        />
+        <div className="avatar-upload-body">
+          <span className="avatar-upload-preview" aria-hidden="true">
+            <span>{getUserProfileName(user).slice(0, 1).toUpperCase() || 'U'}</span>
+            {user.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="" />}
+          </span>
+          <div>
+            <strong>{getUserProfileName(user)}</strong>
+            <p>잠시만요. 사진을 준비하고 있습니다.</p>
+            {avatarUploadMessage && <small className={`avatar-upload-message ${avatarUploadStatus}`}>{avatarUploadMessage}</small>}
+          </div>
+        </div>
+        {selectedAvatarFile && avatarPreviewUrl && (
+          <div className="avatar-crop-editor" aria-label="아바타 업로드 영역 선택">
+            <div
+              className="avatar-crop-frame"
+              style={{
+                '--avatar-crop-x': `${avatarCrop.xPercent}%`,
+                '--avatar-crop-y': `${avatarCrop.yPercent}%`,
+                '--avatar-crop-zoom': avatarCrop.zoom,
+              } as CSSProperties}
+            >
+              <img src={avatarPreviewUrl} alt="" />
+            </div>
+            <div className="avatar-crop-controls">
+              <label>
+                가로 위치
+                <input
+                  max="100"
+                  min="0"
+                  type="range"
+                  value={avatarCrop.xPercent}
+                  onChange={(event) => setAvatarCrop((current) => ({ ...current, xPercent: Number(event.target.value) }))}
+                />
+              </label>
+              <label>
+                세로 위치
+                <input
+                  max="100"
+                  min="0"
+                  type="range"
+                  value={avatarCrop.yPercent}
+                  onChange={(event) => setAvatarCrop((current) => ({ ...current, yPercent: Number(event.target.value) }))}
+                />
+              </label>
+              <label>
+                확대
+                <input
+                  max="3"
+                  min="1"
+                  step="0.05"
+                  type="range"
+                  value={avatarCrop.zoom}
+                  onChange={(event) => setAvatarCrop((current) => ({ ...current, zoom: Number(event.target.value) }))}
+                />
+              </label>
+            </div>
+            <div className="avatar-crop-actions">
+              <SecondaryButton onClick={cancelAvatarCrop}>
+                <X size={17} />
+                취소
+              </SecondaryButton>
+              <SecondaryButton disabled={avatarUploadStatus === 'uploading'} onClick={uploadSelectedAvatarCrop}>
+                <Upload size={17} />
+                {avatarUploadStatus === 'uploading' ? '업로드 중...' : '선택 영역 업로드'}
+              </SecondaryButton>
+            </div>
+          </div>
+        )}
       </AppCard>
 
       <AppCard className="my-exercise-selector" aria-label="운동 선택">
@@ -798,4 +977,26 @@ function buildMetricGraphPoints(metric: number, kind: ExerciseConfig['metricKind
 
 function sum(values: number[]) {
   return values.reduce((total, value) => total + value, 0);
+}
+
+function getUserProfileName(user: MyPageProps['user']) {
+  return user.user_metadata?.nickname
+    ?? user.user_metadata?.name
+    ?? user.user_metadata?.full_name
+    ?? user.email?.split('@')[0]
+    ?? '러너';
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function avatarUploadErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (/bucket not found/i.test(message)) {
+    return '아바타 저장소가 아직 생성되지 않았습니다. Supabase DB push 후 다시 시도해 주세요.';
+  }
+  return message || '아바타 업로드에 실패했습니다.';
 }

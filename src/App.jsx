@@ -154,6 +154,15 @@ export default function App() {
     setPage('login');
   }
 
+  function handleAvatarUpdated(nextUser) {
+    setFailedAvatarUrl(null);
+    setSession((currentSession) => (
+      currentSession && nextUser
+        ? { ...currentSession, user: { ...currentSession.user, ...nextUser } }
+        : currentSession
+    ));
+  }
+
   const pageTitle = useMemo(() => {
     if (page === 'ranking') return '오늘의 랭킹';
     if (page === 'challenge') return '철인 5종 챌린지';
@@ -303,6 +312,7 @@ export default function App() {
           user={user}
           onSignOut={handleSignOut}
           onAccountDeleted={handleAccountDeleted}
+          onAvatarUpdated={handleAvatarUpdated}
           onDifficultyTargetChange={setTargetDistanceKm}
         />
       )}
