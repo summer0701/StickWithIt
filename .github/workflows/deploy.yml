@@ -35,6 +35,8 @@ jobs:
         run: npm run build
         env:
           GITHUB_PAGES: 'true'
+          VITE_SUPABASE_URL: https://ihtmorgmsfptcmblvpnl.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_19vXc-HFI1i-N0B9qUpOYw_Xpt2BNZk
 
       - name: Add Pages fallback
         run: cp dist/index.html dist/404.html
