@@ -11842,12 +11842,17 @@ button:disabled {
 }
 
 .simple-ranking-tabs {
+  width: calc(100% - 8px);
+  margin-inline: 4px;
   gap: 8px;
+  padding-inline: 2px;
+  box-sizing: border-box;
   overflow: visible;
 }
 
 .simple-ranking-tabs button {
   box-sizing: border-box;
+  min-width: 0;
   padding-inline: 6px;
   overflow-wrap: normal;
   white-space: nowrap;

@@ -2,6 +2,53 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'kotlin-kapt'
 
+def readLocalEnv = { String fileName ->
+    def values = [:]
+    def envFile = rootProject.file("../${fileName}")
+
+    if (!envFile.exists()) {
+        return values
+    }
+
+    envFile.eachLine('UTF-8') { line ->
+        def trimmed = line.trim()
+        def separator = line.indexOf('=')
+
+        if (trimmed && !trimmed.startsWith('#') && separator > 0) {
+            def key = line.substring(0, separator).trim()
+            def value = line.substring(separator + 1).trim()
+            values[key] = value
+        }
+    }
+
+    return values
+}
+
+def resolveRepoFile = { String path ->
+    def file = new File(path)
+    return file.isAbsolute() ? file : rootProject.file("../${path}")
+}
+
+def androidReleaseEnv = readLocalEnv('.env.android.release.local')
+def envValue = { String key, Object fallback = null ->
+    return androidReleaseEnv.containsKey(key) ? androidReleaseEnv[key] : fallback
+}
+def envInt = { String key, int fallback ->
+    def value = envValue(key, null)
+    return value ? value.toInteger() : fallback
+}
+
+def releaseKeystorePath = envValue('STICKWITHIT_ANDROID_KEYSTORE_PATH', null)
+def releaseKeystoreFile = releaseKeystorePath ? resolveRepoFile(releaseKeystorePath) : null
+def hasReleaseSigning = releaseKeystoreFile &&
+        envValue('STICKWITHIT_ANDROID_KEYSTORE_PASSWORD') &&
+        envValue('STICKWITHIT_ANDROID_KEY_ALIAS') &&
+        envValue('STICKWITHIT_ANDROID_KEY_PASSWORD')
+
+if (releaseKeystorePath && !releaseKeystoreFile.exists()) {
+    throw new GradleException("Release keystore not found: ${releaseKeystoreFile}")
+}
+
 android {
     namespace = "com.stickwithit.endure"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -9,8 +56,8 @@ android {
         applicationId "com.stickwithit.endure"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode envInt('STICKWITHIT_ANDROID_VERSION_CODE', 1)
+        versionName envValue('STICKWITHIT_ANDROID_VERSION_NAME', '1.0')
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,8 +65,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile releaseKeystoreFile
+                storePassword envValue('STICKWITHIT_ANDROID_KEYSTORE_PASSWORD')
+                keyAlias envValue('STICKWITHIT_ANDROID_KEY_ALIAS')
+                keyPassword envValue('STICKWITHIT_ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

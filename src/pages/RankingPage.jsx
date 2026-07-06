@@ -193,7 +193,6 @@ export default function RankingPage({ user, onBack }) {
                   <strong>{locationTitle}</strong>
                   <span>인증 완료</span>
                 </div>
-                {!isPersonal && profile && <p className="ranking-location-status">{profile.districtName}</p>}
               </div>
             </>
           )}

@@ -3,6 +3,8 @@ dist/
 .env
 .env.local
 .env.*.local
+*.keystore
+*.jks
 .vercel/
 android/.gradle/
 android/app/build/

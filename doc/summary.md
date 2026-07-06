@@ -14,6 +14,7 @@ postgresql://postgres:cdtcyw15yCuZTzms@db.ihtmorgmsfptcmblvpnl.supabase.co:5432/
 # 앱실행
 
 npm run cap:sync;npm run cap:open:android
+npm run android:bundle:release
 
 # Edge TTS 캐시 생성
 
