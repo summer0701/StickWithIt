@@ -136,7 +136,7 @@ export default function App() {
 
     supabase.from('profiles').upsert({
       id: user.id,
-      nickname: user.email?.split('@')[0] ?? '러너',
+      nickname: getUserDisplayName(user),
     });
   }, [isTestUser, user]);
 
@@ -209,6 +209,11 @@ export default function App() {
     return (
       <LoginPage
         initialMessage={authNotice}
+        onAuthSuccess={(nextSession) => {
+          clearTestSession();
+          setSession(nextSession);
+          setPage('home');
+        }}
         onForgotPassword={() => {
           setAuthNotice('');
           setPage('forgot-password');
@@ -349,11 +354,7 @@ function readAuthCallbackParams(url) {
 function buildUserNavigator(user) {
   if (!user?.id) return null;
 
-  const displayName = user.user_metadata?.nickname
-    ?? user.user_metadata?.name
-    ?? user.user_metadata?.full_name
-    ?? user.email?.split('@')[0]
-    ?? 'U';
+  const displayName = getUserDisplayName(user);
   const runs = readLocalRuns(user.id);
   const exerciseRecords = readExerciseRecords(user.id);
   const rating = calculateEndureRating({
@@ -368,4 +369,12 @@ function buildUserNavigator(user) {
     avatarUrl: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
     initial: String(displayName).trim().slice(0, 1).toUpperCase() || 'U',
   };
+}
+
+function getUserDisplayName(user) {
+  return user.user_metadata?.nickname
+    ?? user.user_metadata?.name
+    ?? user.user_metadata?.full_name
+    ?? user.email?.split('@')[0]
+    ?? '러너';
 }

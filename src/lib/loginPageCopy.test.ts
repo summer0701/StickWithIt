@@ -14,4 +14,12 @@ describe('login page copy', () => {
     expect(loginPageSource).toContain('비밀번호를 잊으셨나요?');
     expect(loginPageSource).not.toContain('비밀번호 재설정 기능은 준비 중입니다.');
   });
+
+  it('does not tell new users to check a signup confirmation email', () => {
+    expect(loginPageSource).not.toContain('가입 확인 메일을 확인해 주세요.');
+  });
+
+  it('passes successful auth sessions to the parent app', () => {
+    expect(loginPageSource).toContain('onAuthSuccess?.(response.data.session)');
+  });
 });

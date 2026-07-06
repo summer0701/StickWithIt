@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, Lock, Mail, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { signUpWithImmediateSession } from '../lib/authSignup';
 import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
 import loginBg from '../assets/login-bg.webp';
 import runningManLogo from '../assets/running-man-logo.webp';
@@ -9,7 +10,7 @@ const APP_AUTH_CALLBACK_URL = 'com.stickwithit.endure://auth/callback';
 const EMAIL_REDIRECT_TO = typeof window === 'undefined' ? APP_AUTH_CALLBACK_URL : window.location.origin;
 const KAKAO_PROFILE_SCOPES = 'profile_nickname profile_image';
 
-export default function LoginPage({ onForgotPassword, onTestLogin, initialMessage = '' }) {
+export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin, initialMessage = '' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
@@ -70,23 +71,26 @@ export default function LoginPage({ onForgotPassword, onTestLogin, initialMessag
       return;
     }
 
-    const response = isSignup
-      ? await supabase.auth.signUp({
+    const result = isSignup
+      ? await signUpWithImmediateSession(supabase, {
           email: login,
           password,
-          options: {
-            data: {
-              nickname: nickname.trim() || login.split('@')[0],
-            },
-            emailRedirectTo: EMAIL_REDIRECT_TO,
-          },
+          nickname,
+          emailRedirectTo: EMAIL_REDIRECT_TO,
         })
-      : await supabase.auth.signInWithPassword({ email: login, password });
+      : { response: await supabase.auth.signInWithPassword({ email: login, password }) };
+    const { response } = result;
 
     if (response.error) {
       showMessage(response.error.message, 'error');
+    } else if (response.data?.session) {
+      clearTestSession();
+      onAuthSuccess?.(response.data.session);
+      showMessage('로그인되었습니다.');
+    } else if (result.requiresEmailConfirmation) {
+      showMessage('가입은 완료됐지만 이메일 확인 설정 때문에 바로 로그인할 수 없습니다.', 'error');
     } else {
-      showMessage(isSignup ? '가입 확인 메일을 확인해 주세요.' : '로그인되었습니다.');
+      showMessage('로그인 세션을 만들지 못했습니다. 다시 로그인해 주세요.', 'error');
     }
 
     setSubmitting(false);
