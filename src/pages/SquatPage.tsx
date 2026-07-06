@@ -8,6 +8,7 @@ import { readSquatBaseAverageReps, updateSquatGhostBaseline } from '../lib/squat
 import { saveExerciseRecord } from '../lib/exerciseRecords';
 import { saveLastNeighborhoodContribution } from '../lib/neighborhoodRanking';
 import { syncNeighborhoodContribution } from '../lib/neighborhoodContributionSync';
+import { useDisableNativeBackButton } from '../hooks/useDisableNativeBackButton';
 
 type SquatPageProps = {
   onBack: () => void;
@@ -32,6 +33,7 @@ export default function SquatPage({ onBack, onComplete = onBack, userId = 'anony
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const [reps, setReps] = useState(0);
   const durationSeconds = getExerciseDurationSeconds(userId, 'squat');
+  useDisableNativeBackButton();
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;

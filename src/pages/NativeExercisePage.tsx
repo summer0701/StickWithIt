@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Headphones, Info, Play, Settings } from 'lucide-react';
 import { RunningPlugin } from '../plugins/runningPlugin';
 import { buildYouTubeMusicSearchUrl } from '../lib/runningMusic';
+import { useDisableNativeBackButton } from '../hooks/useDisableNativeBackButton';
 
 type NativeExercisePageProps = {
   userId: string;
@@ -54,6 +55,7 @@ export default function NativeExercisePage({
   const [phase, setPhase] = useState<'ready' | 'countdown' | 'launching'>('ready');
   const [countdown, setCountdown] = useState(countdownStartSeconds);
   const [progressUnits, setProgressUnits] = useState(0);
+  useDisableNativeBackButton();
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;

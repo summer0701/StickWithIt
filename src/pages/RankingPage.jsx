@@ -1,4 +1,4 @@
-import { MapPin, Search, UserRound } from 'lucide-react';
+import { MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AppCard, EmptyState, GlassContainer, GradientButton, ProgressCard } from '../components/designSystem';
 import { readExerciseRecords } from '../lib/exerciseRecords';
@@ -50,6 +50,7 @@ export default function RankingPage({ user, onBack }) {
   const effectiveTab = activeTab;
   const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
   const userNickname = displayNickname(user);
+  const userAvatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null;
   const abilityXp = useMemo(() => calculateEndureRating({
     userId: user?.id ?? 'anonymous',
     displayName: userNickname,
@@ -153,12 +154,8 @@ export default function RankingPage({ user, onBack }) {
   const isPersonal = effectiveTab === 'personal';
   const visibleMine = rows.find((entry) => entry.isMine);
   const displayedContribution = isPersonal ? abilityXp : (visibleMine ? abilityXp : 0);
-  const scopeName = isPersonal ? '나' : profile?.regionName ?? '동네 미인증';
   const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
-  const locationTitle = isPersonal ? scopeName : neighborhoodName;
-  const locationDetail = isPersonal
-    ? '개인 기록 기준'
-    : 'GPS 인증 후 현재 동네가 표시됩니다';
+  const locationTitle = neighborhoodName;
   const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
   const progressPercent = Math.min(100, Math.round((displayedContribution / 5000) * 100));
 
@@ -180,14 +177,16 @@ export default function RankingPage({ user, onBack }) {
         ))}
       </nav>
 
-      <AppCard className="ranking-search-card">
-        <Search size={18} />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={currentTab.searchLabel}
-        />
-      </AppCard>
+      {!isPersonal && (
+        <AppCard className="ranking-search-card">
+          <Search size={18} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={currentTab.searchLabel}
+          />
+        </AppCard>
+      )}
 
       <AppCard className="ranking-period-card">
         <div className="ranking-period-filter" aria-label="기간 필터">
@@ -199,7 +198,7 @@ export default function RankingPage({ user, onBack }) {
         </div>
       </AppCard>
 
-      {effectiveTab !== 'country' && (
+      {effectiveTab !== 'country' && !isPersonal && (
         <AppCard className={`ranking-location-card ${!profile && !isPersonal ? 'gps-verify-card' : ''}`}>
           {!profile && !isPersonal ? (
             <GradientButton className="ranking-inline-verify" onClick={handleVerify}>
@@ -208,15 +207,14 @@ export default function RankingPage({ user, onBack }) {
           ) : (
             <>
               <div className="ranking-location-icon">
-                {isPersonal ? <UserRound size={30} /> : <MapPin size={32} />}
+                <MapPin size={32} />
               </div>
               <div className="ranking-location-copy">
                 <div>
                   <strong>{locationTitle}</strong>
-                  <span>{isPersonal ? '개인 랭킹' : '인증 완료'}</span>
+                  <span>인증 완료</span>
                 </div>
                 {!isPersonal && profile && <p className="ranking-location-status">{profile.districtName}</p>}
-                {isPersonal && <p className="ranking-location-status">{locationDetail}</p>}
               </div>
             </>
           )}
@@ -242,7 +240,7 @@ export default function RankingPage({ user, onBack }) {
       <AppCard className="ranking-table-card simple-ranking-table">
         <div className="simple-ranking-table-heading">
           <strong>{effectiveTab === 'country' ? '국가별 순위' : `TOP 20 ${rankTitle}`}</strong>
-          <span>{rankingStatus === 'loading' ? '불러오는 중' : currentTab.searchLabel}</span>
+          <span>{rankingStatus === 'loading' ? '불러오는 중' : (isPersonal ? '개인 순위' : currentTab.searchLabel)}</span>
         </div>
         <div className="ranking-table-body">
           {effectiveTab === 'country' ? (
@@ -251,7 +249,13 @@ export default function RankingPage({ user, onBack }) {
               <span>준비중</span>
             </div>
           ) : (
-            <RankingRows rows={rows} isPersonal={isPersonal} userNickname={userNickname} abilityXp={abilityXp} />
+            <RankingRows
+              rows={rows}
+              isPersonal={isPersonal}
+              userAvatarUrl={userAvatarUrl}
+              userNickname={userNickname}
+              abilityXp={abilityXp}
+            />
           )}
         </div>
       </AppCard>
@@ -280,7 +284,7 @@ function displayNickname(user) {
   return '러너';
 }
 
-function RankingRows({ rows, isPersonal, userNickname, abilityXp }) {
+function RankingRows({ rows, isPersonal, userAvatarUrl, userNickname, abilityXp }) {
   const firstMineIndex = rows.findIndex((entry) => entry.isMine && entry.rank > 20);
   if (rows.length === 0) {
     return (
@@ -297,8 +301,14 @@ function RankingRows({ rows, isPersonal, userNickname, abilityXp }) {
       {rows.map((entry, index) => (
         <li key={entry.id} className={`${entry.isMine ? 'current-user' : ''} ${entry.isMine && isPersonal ? 'personal-current-user' : ''}`}>
           {firstMineIndex === index && <div className="ranking-separator" aria-hidden="true" />}
-          <div className="simple-ranking-row-content">
+          <div className={`simple-ranking-row-content ${entry.isMine && isPersonal ? 'with-avatar' : ''}`}>
             <strong>{rankBadge(entry.rank)}</strong>
+            {entry.isMine && isPersonal && (
+              <span className="ranking-row-avatar" aria-hidden="true">
+                <span>{userNickname.slice(0, 1).toUpperCase() || 'U'}</span>
+                {userAvatarUrl && <img src={userAvatarUrl} alt="" />}
+              </span>
+            )}
             {entry.isMine && isPersonal && <span className="personal-ranking-name">{`나 (${userNickname})`}</span>}
             <span>{entry.name}</span>
             <div className="simple-ranking-row-meta">

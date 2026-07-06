@@ -32,6 +32,7 @@ import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -138,6 +139,9 @@ abstract class PoseExerciseActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = Unit
+        })
         requestedOrientation = screenOrientation
         targetDurationSeconds = intent.getIntExtra(EXTRA_DURATION_SECONDS, 60).coerceIn(30, 600)
         baseAverageValue = intent.getDoubleExtra(baseAverageExtraName, defaultBaseAverageValue)
@@ -449,7 +453,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             }
         }
 
-        finishButton.setTextPx(30f, scale)
+        finishButton.setTextPx(60f, scale)
         musicButton.setTextPx(34f, scale)
         feedbackView.setTextPx(24f, scale)
         countView.setTextPx(20f, scale)
@@ -465,7 +469,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         gameCountLabelView.visibility = View.VISIBLE
         gameTimeView.visibility = View.VISIBLE
 
-        finishButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(24f, scale).toFloat())
+        finishButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(48f, scale).toFloat())
         musicButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(26f, scale).toFloat())
         feedbackView.background = roundedHudBackground(Color.argb(156, 0, 0, 0), px(20f, scale).toFloat())
         countView.background = roundedHudBackground(Color.argb(176, 0, 0, 0), px(19f, scale).toFloat())
@@ -473,7 +477,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         metaView.background = roundedHudBackground(Color.argb(204, 0, 0, 0), px(24f, scale).toFloat())
         metaView.visibility = View.VISIBLE
 
-        percentPlace(finishButton, 0.052f, 0.112f, leftRatio = 0.025f, topRatio = 0.055f)
+        percentPlace(finishButton, 0.104f, 0.224f, leftRatio = 0.025f, topRatio = 0.055f)
         percentPlace(topGuideView, 0.34f, 0.07f, leftRatio = 0.12f, topRatio = 0.06f)
         percentPlace(feedbackView, 0.36f, 0.075f, leftRatio = 0.32f, topRatio = 0.055f)
         percentPlace(countView, 0.13f, 0.075f, rightRatio = 0.055f, topRatio = 0.055f)
@@ -556,7 +560,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         feedbackView.elevation = dp(12).toFloat()
         metaView.elevation = dp(16).toFloat()
 
-        finishButton.setTextPxClamped(28f, scale, minPx = 22, maxPx = 32)
+        finishButton.setTextPxClamped(56f, scale, minPx = 44, maxPx = 64)
         musicButton.setTextPxClamped(30f, scale, minPx = 24, maxPx = 34)
         topGuideView.setTextPxClamped(26f, scale, minPx = 24, maxPx = 28)
         feedbackView.setTextPxClamped(24f, scale, minPx = 22, maxPx = 26)
@@ -571,7 +575,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             it.setShadowLayer(gameShadow, 0f, gameShadow / 2f, Color.BLACK)
         }
 
-        finishButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(18f, scale).toFloat())
+        finishButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(36f, scale).toFloat())
         musicButton.background = roundedHudBackground(Color.argb(188, 0, 0, 0), px(18f, scale).toFloat())
         topGuideView.background = roundedHudBackground(Color.argb(168, 0, 0, 0), px(18f, scale).toFloat())
         feedbackView.background = roundedHudBackground(Color.argb(176, 0, 0, 0), px(18f, scale).toFloat())
@@ -587,6 +591,7 @@ abstract class PoseExerciseActivity : ComponentActivity() {
         feedbackView.visibility = View.GONE
 
         val controlSize = (safeWidth * 0.115f).roundToInt().coerceIn(px(44f, sx), px(56f, sx))
+        val finishButtonSize = (controlSize * 2).coerceAtMost((safeWidth * 0.26f).roundToInt())
         val topBarHeight = (safeHeight * 0.054f).roundToInt().coerceIn(px(54f, sy), px(66f, sy))
         val topY = safeTop + gap
         val bottomCardWidth = (safeWidth * 0.90f).roundToInt()
@@ -617,12 +622,12 @@ abstract class PoseExerciseActivity : ComponentActivity() {
             .coerceAtMost(bottomCardTop - gap - rankingHeight)
             .coerceAtLeast(statusTop + statusHeight + gap)
 
-        placeSafe(finishButton, controlSize, topBarHeight, leftPx = safeLeft + gap, topPx = topY)
+        placeSafe(finishButton, finishButtonSize, topBarHeight * 2, leftPx = safeLeft + gap, topPx = topY)
         placeSafe(
             topGuideView,
-            (safeWidth - controlSize - (gap * 3)).coerceAtLeast(px(180f, sx)),
+            (safeWidth - finishButtonSize - (gap * 3)).coerceAtLeast(px(180f, sx)),
             topBarHeight,
-            leftPx = safeLeft + controlSize + (gap * 2),
+            leftPx = safeLeft + finishButtonSize + (gap * 2),
             topPx = topY
         )
         placeSafe(countView, statusWidth, statusHeight, rightPx = safeRight + gap, topPx = statusTop)
@@ -1445,4 +1450,3 @@ private fun rotateExerciseBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
     val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees.toFloat()) }
     return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
 }
-
