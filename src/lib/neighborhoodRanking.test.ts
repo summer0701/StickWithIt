@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildHomeRankingSummary,
   buildRankingView,
+  formatNeighborhoodDisplayName,
   movementText,
   NEIGHBORHOOD_CORE_MESSAGE,
   neighborhoodContributionToRow,
@@ -118,7 +119,26 @@ describe('neighborhoodRanking', () => {
   it('does not show auth required on the home summary after neighborhood verification', () => {
     const summary = buildHomeRankingSummary(realProfile, []);
 
+    expect(summary.neighborhood.title).toContain('창원시 성산구 상남동');
     expect(summary.neighborhood.rankText).toBe('0 ER');
+  });
+
+  it('formats neighborhood names with district context for duplicate dong names', () => {
+    expect(formatNeighborhoodDisplayName({
+      neighborhoodName: '가호동',
+      districtName: '진주시',
+      regionName: '경상남도',
+    })).toBe('진주시 가호동');
+    expect(formatNeighborhoodDisplayName({
+      neighborhoodName: '진주시 가호동',
+      districtName: '진주시',
+      regionName: '경상남도',
+    })).toBe('진주시 가호동');
+    expect(formatNeighborhoodDisplayName({
+      neighborhoodName: '가호동',
+      districtName: '',
+      regionName: '경상남도',
+    })).toBe('경상남도 가호동');
   });
 
   it('does not create fake ranking rows without workout data', () => {
@@ -160,12 +180,12 @@ describe('neighborhoodRanking', () => {
 
     expect(view.contribution).toBe(84);
     expect(view.neighborhoodEntries).toEqual([
-      expect.objectContaining({ name: '상남동', rank: 1, score: 84, isMine: true }),
+      expect.objectContaining({ name: '창원시 성산구 상남동', rank: 1, score: 84, isMine: true }),
     ]);
     expect(view.personalEntries).toEqual([
       expect.objectContaining({ name: '나', rank: 1, score: 84, isMine: true }),
     ]);
-    expect(view.neighborhoodPrediction).toContain('상남동');
+    expect(view.neighborhoodPrediction).toContain('창원시 성산구 상남동');
     expect(view.personalPrediction).toContain('1위');
   });
 

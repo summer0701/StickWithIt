@@ -70,6 +70,23 @@ const PROFILE_KEY_PREFIX = 'stickWithIt:neighborhood-profile:';
 const LAST_CONTRIBUTION_KEY_PREFIX = 'stickWithIt:last-neighborhood-contribution:';
 const PLACEHOLDER_NEIGHBORHOODS = new Set(['현재 위치 동네', '내 동네', '인증된 동네', '동네 미인증']);
 
+export function formatNeighborhoodDisplayName(
+  profile: Pick<NeighborhoodProfile, 'neighborhoodName' | 'districtName' | 'regionName'> | null | undefined,
+) {
+  const neighborhoodName = cleanDisplayNamePart(profile?.neighborhoodName);
+  const districtName = cleanDisplayNamePart(profile?.districtName);
+  const regionName = cleanDisplayNamePart(profile?.regionName);
+
+  if (!neighborhoodName) return districtName || regionName || '동네';
+  if (districtName && districtName !== neighborhoodName && !neighborhoodName.startsWith(`${districtName} `)) {
+    return `${districtName} ${neighborhoodName}`;
+  }
+  if (!districtName && regionName && regionName !== neighborhoodName && !neighborhoodName.startsWith(`${regionName} `)) {
+    return `${regionName} ${neighborhoodName}`;
+  }
+  return neighborhoodName;
+}
+
 export function readNeighborhoodProfile(userId: string): NeighborhoodProfile | null {
   if (!canUseLocalStorage()) return null;
   try {
@@ -169,7 +186,7 @@ export async function resolveNeighborhoodFromGps(latitude: number, longitude: nu
 
 export function buildHomeRankingSummary(profile: NeighborhoodProfile | null, records: ExerciseRecord[]) {
   const contribution = calculateTodayContribution(records);
-  const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
+  const neighborhoodName = profile ? formatNeighborhoodDisplayName(profile) : '동네 미인증';
   const rankingView = buildRankingView(profile, records, 'today');
   const myNeighborhood = rankingView.neighborhoodEntries.find((entry) => entry.isMine);
   const myPersonal = rankingView.personalEntries.find((entry) => entry.isMine);
@@ -252,11 +269,12 @@ export function neighborhoodContributionToRow({
 
 export function buildRankingView(profile: NeighborhoodProfile | null, records: ExerciseRecord[], period: RankingPeriod) {
   const contribution = calculateContribution(records, period);
+  const neighborhoodDisplayName = profile ? formatNeighborhoodDisplayName(profile) : '동네';
   const neighborhoodEntries = profile && contribution > 0
     ? [{
       id: profile.neighborhoodCode,
       rank: 1,
-      name: profile.neighborhoodName,
+      name: neighborhoodDisplayName,
       score: contribution,
       movement: 0,
       isMine: true,
@@ -286,7 +304,7 @@ export function buildRankingView(profile: NeighborhoodProfile | null, records: E
     neighborhoodEntries,
     personalEntries,
     neighborhoodPrediction: profile && myNeighborhood
-      ? buildNeighborhoodPrediction(profile.neighborhoodName, myNeighborhood, contribution)
+      ? buildNeighborhoodPrediction(neighborhoodDisplayName, myNeighborhood, contribution)
       : NEIGHBORHOOD_CORE_MESSAGE,
     personalPrediction: myPersonal
       ? buildPersonalPrediction(myPersonal)
@@ -403,6 +421,10 @@ function normalizeNeighborhoodProfile(profile: NeighborhoodProfile): Neighborhoo
     longitude: profile.longitude,
     verifiedAt: profile.verifiedAt,
   };
+}
+
+function cleanDisplayNamePart(value: unknown) {
+  return String(value ?? '').trim();
 }
 
 function isRealNeighborhoodProfile(profile: NeighborhoodProfile | null | undefined) {

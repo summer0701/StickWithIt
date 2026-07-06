@@ -8009,7 +8009,7 @@ button:disabled {
 }
 
 .simple-ranking-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
   overflow: visible;
   border: 0;
@@ -9854,7 +9854,7 @@ button:disabled {
 
 .simple-ranking-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-height: 56px;
   padding: 0;
@@ -11833,6 +11833,25 @@ button:disabled {
 .basis-toggle button:active,
 .squat-duration-presets button:active {
   transform: scale(0.98);
+}
+
+.simple-ranking-screen {
+  box-sizing: border-box;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.simple-ranking-tabs {
+  gap: 8px;
+  overflow: visible;
+}
+
+.simple-ranking-tabs button {
+  box-sizing: border-box;
+  padding-inline: 6px;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .ranking-search-card input,

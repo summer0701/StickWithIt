@@ -1,4 +1,4 @@
-import { MapPin, Search } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AppCard, EmptyState, GlassContainer, GradientButton, ProgressCard } from '../components/designSystem';
 import { readExerciseRecords } from '../lib/exerciseRecords';
@@ -8,6 +8,7 @@ import { LOCATION_PERMISSION_MESSAGE, LocationPermissionError, requestCurrentPos
 import { calculateEndureRating } from '../lib/endureRanking';
 import {
   buildRankingView,
+  formatNeighborhoodDisplayName,
   neighborhoodProfileFromRow,
   neighborhoodProfileToRow,
   readNeighborhoodProfile,
@@ -17,9 +18,8 @@ import {
 import { supabase } from '../lib/supabaseClient';
 
 const tabs = [
-  { id: 'country', label: '국가별', searchLabel: '국가명 검색' },
-  { id: 'neighborhood', label: '동네별', searchLabel: '동네명 검색' },
-  { id: 'personal', label: '개인별', searchLabel: '닉네임 검색' },
+  { id: 'neighborhood', label: '동네별' },
+  { id: 'personal', label: '개인별' },
 ];
 
 const periods = [
@@ -31,7 +31,6 @@ const periods = [
 export default function RankingPage({ user, onBack }) {
   const [activeTab, setActiveTab] = useState('neighborhood');
   const [period, setPeriod] = useState('today');
-  const [query, setQuery] = useState('');
   const [profile, setProfile] = useState(() => readNeighborhoodProfile(user?.id ?? 'anonymous'));
   const [authMessage, setAuthMessage] = useState('');
   const [errorDialog, setErrorDialog] = useState('');
@@ -48,7 +47,6 @@ export default function RankingPage({ user, onBack }) {
   const localRanking = useMemo(() => buildRankingView(profile, records, period), [period, profile, records]);
   const ranking = remoteRanking ?? localRanking;
   const effectiveTab = activeTab;
-  const currentTab = tabs.find((tab) => tab.id === effectiveTab) ?? tabs[1];
   const userNickname = displayNickname(user);
   const userAvatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null;
   const abilityXp = useMemo(() => calculateEndureRating({
@@ -144,18 +142,13 @@ export default function RankingPage({ user, onBack }) {
   }
 
   const rows = useMemo(() => {
-    if (effectiveTab === 'country') return [];
-    const source = effectiveTab === 'personal' ? ranking.personalEntries : ranking.neighborhoodEntries;
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return source;
-    return source.filter((entry) => entry.name.toLowerCase().includes(normalized));
-  }, [effectiveTab, query, ranking.neighborhoodEntries, ranking.personalEntries]);
+    return effectiveTab === 'personal' ? ranking.personalEntries : ranking.neighborhoodEntries;
+  }, [effectiveTab, ranking.neighborhoodEntries, ranking.personalEntries]);
 
   const isPersonal = effectiveTab === 'personal';
   const visibleMine = rows.find((entry) => entry.isMine);
   const displayedContribution = isPersonal ? abilityXp : (visibleMine ? abilityXp : 0);
-  const neighborhoodName = profile?.neighborhoodName ?? '동네 미인증';
-  const locationTitle = neighborhoodName;
+  const locationTitle = profile ? formatNeighborhoodDisplayName(profile) : '동네 미인증';
   const rankTitle = isPersonal ? '개인 순위' : '동네 순위';
   const progressPercent = Math.min(100, Math.round((displayedContribution / 5000) * 100));
 
@@ -167,26 +160,12 @@ export default function RankingPage({ user, onBack }) {
             className={effectiveTab === tab.id ? 'active' : ''}
             key={tab.id}
             type="button"
-            onClick={() => {
-              setActiveTab(tab.id);
-              setQuery('');
-            }}
+            onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
           </button>
         ))}
       </nav>
-
-      {!isPersonal && (
-        <AppCard className="ranking-search-card">
-          <Search size={18} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={currentTab.searchLabel}
-          />
-        </AppCard>
-      )}
 
       <AppCard className="ranking-period-card">
         <div className="ranking-period-filter" aria-label="기간 필터">
@@ -198,7 +177,7 @@ export default function RankingPage({ user, onBack }) {
         </div>
       </AppCard>
 
-      {effectiveTab !== 'country' && !isPersonal && (
+      {!isPersonal && (
         <AppCard className={`ranking-location-card ${!profile && !isPersonal ? 'gps-verify-card' : ''}`}>
           {!profile && !isPersonal ? (
             <GradientButton className="ranking-inline-verify" onClick={handleVerify}>
@@ -223,40 +202,31 @@ export default function RankingPage({ user, onBack }) {
 
       {!isPersonal && authMessage && <p className="ranking-auth-status">{authMessage}</p>}
 
-      {effectiveTab !== 'country' && (
-        <ProgressCard
-          className="ranking-score-card"
-          value={`${displayedContribution.toLocaleString()} ER`}
-          percent={progressPercent}
-          caption={(
-            <div className="ranking-progress-caption">
-            <span>{isPersonal ? '능력치 환산 ER' : '동네 ER'}</span>
-            <span>{progressPercent}%</span>
-            </div>
-          )}
-        />
-      )}
+      <ProgressCard
+        className="ranking-score-card"
+        value={`${displayedContribution.toLocaleString()} ER`}
+        percent={progressPercent}
+        caption={(
+          <div className="ranking-progress-caption">
+          <span>{isPersonal ? '능력치 환산 ER' : '동네 ER'}</span>
+          <span>{progressPercent}%</span>
+          </div>
+        )}
+      />
 
       <AppCard className="ranking-table-card simple-ranking-table">
         <div className="simple-ranking-table-heading">
-          <strong>{effectiveTab === 'country' ? '국가별 순위' : `TOP 20 ${rankTitle}`}</strong>
-          <span>{rankingStatus === 'loading' ? '불러오는 중' : (isPersonal ? '개인 순위' : currentTab.searchLabel)}</span>
+          <strong>{`TOP 20 ${rankTitle}`}</strong>
+          <span>{rankingStatus === 'loading' ? '불러오는 중' : rankTitle}</span>
         </div>
         <div className="ranking-table-body">
-          {effectiveTab === 'country' ? (
-            <div className="ranking-preparing-card">
-              <strong>🇰🇷 국가 순위</strong>
-              <span>준비중</span>
-            </div>
-          ) : (
-            <RankingRows
-              rows={rows}
-              isPersonal={isPersonal}
-              userAvatarUrl={userAvatarUrl}
-              userNickname={userNickname}
-              abilityXp={abilityXp}
-            />
-          )}
+          <RankingRows
+            rows={rows}
+            isPersonal={isPersonal}
+            userAvatarUrl={userAvatarUrl}
+            userNickname={userNickname}
+            abilityXp={abilityXp}
+          />
         </div>
       </AppCard>
 
@@ -394,7 +364,7 @@ async function loadRemoteRankingView({ userId, profile, period, localRanking }) 
 async function fetchRankingRows({ table, dateColumn, dateValue, kind, profile, userId }) {
   const columns = kind === 'personal'
     ? `${dateColumn},user_id,masked_name,total_points,rank`
-    : `${dateColumn},neighborhood_code,neighborhood_name,total_points,rank`;
+    : `${dateColumn},neighborhood_code,neighborhood_name,district_name,region_name,total_points,rank`;
   const { data, error } = await supabase
     .from(table)
     .select(columns)
@@ -436,7 +406,11 @@ function remoteRowToEntry(row, kind, profile, userId) {
   return {
     id: code,
     rank,
-    name: String(row.neighborhood_name ?? '동네'),
+    name: formatNeighborhoodDisplayName({
+      neighborhoodName: row.neighborhood_name,
+      districtName: row.district_name,
+      regionName: row.region_name,
+    }),
     score,
     movement: 0,
     isMine: Boolean(profile?.neighborhoodCode && code.toLowerCase() === profile.neighborhoodCode.toLowerCase()),

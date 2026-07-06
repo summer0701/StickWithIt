@@ -676,7 +676,6 @@ function HomeRankingCards({
         </p>
       )}
       <div className="neighborhood-rank-grid">
-        <SimpleRankingCard title={summary.country.title} main={summary.country.status} detail="전국 랭킹은 준비중" />
         <SimpleRankingCard title={summary.neighborhood.title} main={summary.neighborhood.rankText} detail={summary.neighborhood.detail} highlight={Boolean(profile)} />
         <SimpleRankingCard title={summary.personal.title} main={summary.personal.rankText} detail={summary.personal.detail} highlight />
       </div>
