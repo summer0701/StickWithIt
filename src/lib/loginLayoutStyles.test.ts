@@ -34,4 +34,13 @@ describe('login layout styles', () => {
     expect(cssRule('.stick-auth-form')).toContain('width: 100%');
     expect(cssRule('.stick-outline-login')).toContain('width: 100%');
   });
+
+  it('keeps login options on one row', () => {
+    const optionsRule = cssRule('.login-options-row');
+    const rememberRule = cssRule('.remember-check');
+
+    expect(optionsRule).toContain('flex-wrap: nowrap');
+    expect(optionsRule).toContain('white-space: nowrap');
+    expect(rememberRule).toContain('white-space: nowrap');
+  });
 });

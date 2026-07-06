@@ -1439,16 +1439,18 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  flex-wrap: nowrap;
+  gap: 10px;
   margin-top: 2px;
   color: rgba(255, 255, 255, 0.86);
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .login-options-row button {
+  flex: 0 0 auto;
   padding: 0;
-  margin-right: 8px;
   border: 0;
   background: transparent;
   color: #a7f027;
@@ -1458,15 +1460,18 @@ button {
 
 .remember-check {
   display: inline-flex !important;
+  flex: 0 0 auto;
   grid-template-columns: none;
   align-items: center;
-  gap: 13px !important;
+  gap: 8px !important;
+  white-space: nowrap;
 }
 
 .remember-check input {
   appearance: none;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
   min-height: 0;
   margin: 0;
   border: 2px solid rgba(255, 255, 255, 0.55);

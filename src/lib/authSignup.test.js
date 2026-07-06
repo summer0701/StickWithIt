@@ -152,6 +152,32 @@ describe('auth signup helpers', () => {
     });
   });
 
+  it('does not expose the immediate sign-in invalid-credentials error after signup succeeds', async () => {
+    const signUpResponse = { data: { user: { id: 'user-id' }, session: null }, error: null };
+    const supabaseClient = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
+      auth: {
+        signUp: vi.fn().mockResolvedValue(signUpResponse),
+        signInWithPassword: vi.fn().mockResolvedValue({
+          data: { session: null },
+          error: { message: 'Invalid login credentials' },
+        }),
+      },
+    };
+
+    const result = await signUpWithImmediateSession(supabaseClient, {
+      email: 'runner@example.com',
+      password: 'password',
+      nickname: 'runner',
+      emailRedirectTo: 'http://localhost',
+    });
+
+    expect(result).toEqual({
+      response: signUpResponse,
+      requiresEmailConfirmation: true,
+    });
+  });
+
   it('detects confirmation errors case-insensitively', () => {
     expect(isEmailConfirmationRequired({ message: 'EMAIL NOT CONFIRMED' })).toBe(true);
     expect(isEmailConfirmationRequired({ message: 'Invalid login credentials' })).toBe(false);

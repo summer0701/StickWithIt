@@ -22,4 +22,20 @@ describe('login page copy', () => {
   it('passes successful auth sessions to the parent app', () => {
     expect(loginPageSource).toContain('onAuthSuccess?.(response.data.session)');
   });
+
+  it('asks signup users to confirm their password', () => {
+    expect(loginPageSource).toContain('<strong>비밀번호 확인</strong>');
+    expect(loginPageSource).toContain('placeholder="비밀번호를 다시 입력하세요"');
+  });
+
+  it('validates matching signup passwords before calling Supabase', () => {
+    expect(loginPageSource).toContain('validateSignupPasswords(password, passwordConfirmation)');
+  });
+
+  it('requires a Resend email verification code before signup', () => {
+    expect(loginPageSource).toContain('이메일 인증코드');
+    expect(loginPageSource).toContain('이메일 인증코드 받기');
+    expect(loginPageSource).toContain('인증 후 회원가입');
+    expect(loginPageSource).toContain('consumeSignupCode(login, signupVerificationCode)');
+  });
 });

@@ -91,13 +91,6 @@ export async function signUpWithImmediateSession(supabaseClient, { email, passwo
     };
   }
 
-  if (!isEmailConfirmationRequired(signInResponse.error)) {
-    return {
-      response: signInResponse,
-      requiresEmailConfirmation: false,
-    };
-  }
-
   return {
     response: signUpResponse,
     requiresEmailConfirmation: true,
