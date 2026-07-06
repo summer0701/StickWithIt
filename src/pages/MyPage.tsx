@@ -11,7 +11,6 @@ import {
   RotateCcw,
   Upload,
   X,
-  Settings,
   SlidersHorizontal,
   Target,
   Timer,
@@ -55,7 +54,6 @@ import { readLocalRuns } from '../lib/localRuns';
 import { loadRecentRunHistory } from '../services/runComparison';
 import { buildGhostRunners } from '../services/ruleBasedCoach';
 import { supabase } from '../lib/supabaseClient';
-import ghostMascot from '../assets/ghost-settings-mascot.webp';
 import { AppCard, GlassContainer, ListTile, SecondaryButton, SectionHeader } from '../components/designSystem';
 
 type MyPageProps = {
@@ -403,18 +401,6 @@ export default function MyPage({ user, onSignOut, onAccountDeleted, onAvatarUpda
         </SecondaryButton>
       </header>
 
-      <AppCard className="my-hero-card">
-        <div className="my-hero-copy">
-          <span><Ghost size={22} /> 설정</span>
-          <h2>고스트 런</h2>
-          <p>내 운동 기록과 고스트 설정을 관리합니다.</p>
-        </div>
-        <img src={ghostMascot} alt="" className="my-ghost-mascot" />
-        <SecondaryButton className="my-hero-settings" aria-label="설정">
-          <Settings size={25} />
-        </SecondaryButton>
-      </AppCard>
-
       <AppCard className="avatar-upload-panel" aria-label="아바타 이미지 업로드">
         <SectionHeader
           className="summary-title"
@@ -440,7 +426,7 @@ export default function MyPage({ user, onSignOut, onAccountDeleted, onAvatarUpda
           </span>
           <div>
             <strong>{getUserProfileName(user)}</strong>
-            <p>잠시만요. 사진을 준비하고 있습니다.</p>
+            <p>프로필 사진을 설정해 보세요. ⭐</p>
             {avatarUploadMessage && <small className={`avatar-upload-message ${avatarUploadStatus}`}>{avatarUploadMessage}</small>}
           </div>
         </div>
