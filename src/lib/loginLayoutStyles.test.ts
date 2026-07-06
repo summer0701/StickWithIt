@@ -15,9 +15,10 @@ describe('login layout styles', () => {
     const screenRule = cssRule('.stick-login-screen');
 
     expect(screenRule).toContain('--login-screen-padding-x: max(');
+    expect(screenRule).toContain('--login-scroll-bottom-space: calc(');
     expect(screenRule).toContain('calc(20px + var(--app-safe-area-inset-left))');
     expect(screenRule).toContain('calc(20px + var(--app-safe-area-inset-right))');
-    expect(screenRule).toContain('padding: max(22px, var(--app-safe-area-inset-top)) var(--login-screen-padding-x)');
+    expect(screenRule).toContain('padding: max(22px, var(--app-safe-area-inset-top)) var(--login-screen-padding-x) var(--login-scroll-bottom-space)');
   });
 
   it('centers the login panel without horizontal transform offsets', () => {
@@ -42,5 +43,12 @@ describe('login layout styles', () => {
     expect(optionsRule).toContain('flex-wrap: nowrap');
     expect(optionsRule).toContain('white-space: nowrap');
     expect(rememberRule).toContain('white-space: nowrap');
+  });
+
+  it('allows tall signup content to scroll to the end', () => {
+    const panelRule = cssRule('.stick-login-panel');
+
+    expect(panelRule).toContain('min-height: auto');
+    expect(cssRule('.stick-login-screen')).toContain('--login-scroll-bottom-space');
   });
 });

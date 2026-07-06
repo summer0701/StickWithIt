@@ -1256,6 +1256,7 @@ button {
 .stick-login-screen {
   --login-scale: 0.7;
   --login-visual-center-offset-x: 32px;
+  --login-scroll-bottom-space: calc((100dvh * (1 - var(--login-scale))) + 28px + var(--app-safe-area-inset-bottom));
   --login-screen-padding-x: max(
     20px,
     calc(20px + var(--app-safe-area-inset-left)),
@@ -1264,7 +1265,7 @@ button {
   place-items: start center;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: max(22px, var(--app-safe-area-inset-top)) var(--login-screen-padding-x) max(28px, calc(20px + var(--app-safe-area-inset-bottom)));
+  padding: max(22px, var(--app-safe-area-inset-top)) var(--login-screen-padding-x) var(--login-scroll-bottom-space);
   background:
     radial-gradient(circle at 92% 2%, rgba(139, 206, 32, 0.15), transparent 31%),
     radial-gradient(circle at 10% 100%, rgba(120, 205, 30, 0.11), transparent 34%),
@@ -1292,7 +1293,7 @@ button {
   display: flex;
   flex-direction: column;
   width: min(100%, 420px);
-  min-height: calc(100dvh - 50px);
+  min-height: auto;
   margin: 0;
   padding: 70px 16px 16px;
   border-radius: 0;
@@ -3643,6 +3644,30 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
   gap: 12px;
+}
+
+.account-danger-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  border-color: rgba(255, 101, 101, 0.38);
+}
+
+.account-delete-button {
+  justify-self: start;
+  border-color: rgba(255, 101, 101, 0.5);
+  background: rgba(255, 101, 101, 0.12);
+  color: #ffd7d7;
+}
+
+.account-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.account-delete-error {
+  color: #ffb4b4;
+  font-weight: 900;
 }
 
 .ghost-settings-summary p {
@@ -11330,6 +11355,7 @@ button:disabled {
 .my-exercise-selector,
 .ghost-settings-panel,
 .ghost-settings-summary,
+.account-danger-panel,
 .ghost-setting-card {
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-card);

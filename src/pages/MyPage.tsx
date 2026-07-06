@@ -1,5 +1,6 @@
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Dumbbell,
   Edit3,
@@ -44,16 +45,19 @@ import {
   setExerciseDurationSeconds,
   type ExerciseDurationType,
 } from '../lib/exerciseDurationSettings';
+import { deleteCurrentAccount } from '../lib/accountDeletion';
 import { readExerciseRecords, type ExerciseRecord } from '../lib/exerciseRecords';
 import { readLocalRuns } from '../lib/localRuns';
 import { loadRecentRunHistory } from '../services/runComparison';
 import { buildGhostRunners } from '../services/ruleBasedCoach';
+import { supabase } from '../lib/supabaseClient';
 import ghostMascot from '../assets/ghost-settings-mascot.webp';
 import { AppCard, GlassContainer, ListTile, SecondaryButton, SectionHeader } from '../components/designSystem';
 
 type MyPageProps = {
-  user: { id: string; email?: string };
+  user: { id: string; email?: string; app_metadata?: { provider?: string } };
   onSignOut?: () => void;
+  onAccountDeleted?: (message?: string) => void;
   onDifficultyTargetChange?: (targetDistanceKm: number) => void;
 };
 
@@ -165,7 +169,7 @@ const exercises: ExerciseConfig[] = [
   },
 ];
 
-export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: MyPageProps) {
+export default function MyPage({ user, onSignOut, onAccountDeleted, onDifficultyTargetChange }: MyPageProps) {
   const [selectedExerciseId, setSelectedExerciseId] = useState<ExerciseId>('running');
   const selectedExercise = exercises.find((exercise) => exercise.id === selectedExerciseId) ?? exercises[0];
   const [settings, setSettings] = useState<PageGhostSetting[]>(() => readSettingsForExercise(user.id, selectedExerciseId));
@@ -175,6 +179,8 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
   const [ghostRunners, setGhostRunners] = useState<any[]>([]);
   const [ghostSyncStatus, setGhostSyncStatus] = useState<'loading' | 'synced' | 'empty'>('loading');
   const [recordPeriod, setRecordPeriod] = useState('30');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [accountDeletionMessage, setAccountDeletionMessage] = useState('');
   const selectedGhost = settings[selectedIndex] ?? settings[0];
   const selectedRunner = ghostRunners.find((runner) => runner.key === selectedGhost?.key);
   const records = useMemo(() => readExerciseRecords(user.id, selectedExercise.recordType ? [selectedExercise.recordType] : undefined), [selectedExercise.recordType, user.id]);
@@ -275,11 +281,30 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
     setGhostResetAt(resetGhostHistory(user.id));
   }
 
+  async function handleDeleteAccount() {
+    if (deletingAccount) return;
+
+    const confirmed = window.confirm('정말 회원탈퇴하시겠습니까? 계정과 운동 기록이 삭제되며 되돌릴 수 없습니다.');
+    if (!confirmed) return;
+
+    setDeletingAccount(true);
+    setAccountDeletionMessage('');
+
+    try {
+      const response = await deleteCurrentAccount(supabase);
+      onAccountDeleted?.(response.message ?? '회원탈퇴가 완료되었습니다.');
+    } catch (error) {
+      setAccountDeletionMessage(error instanceof Error ? error.message : '회원탈퇴 처리에 실패했습니다.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
   return (
     <GlassContainer as="main" className="my-page">
       <header className="my-page-header">
         <div>
-          <h1>마이페이지</h1>
+          <h1>설정</h1>
         </div>
         <SecondaryButton className="my-logout-button" onClick={onSignOut}>
           <LogOut size={19} />
@@ -289,7 +314,7 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
 
       <AppCard className="my-hero-card">
         <div className="my-hero-copy">
-          <span><Ghost size={22} /> 마이페이지</span>
+          <span><Ghost size={22} /> 설정</span>
           <h2>고스트 런</h2>
           <p>내 운동 기록과 고스트 설정을 관리합니다.</p>
         </div>
@@ -499,6 +524,20 @@ export default function MyPage({ user, onSignOut, onDifficultyTargetChange }: My
             <SummaryRow label="최저 기록" value={formatMetric(stats.worst, selectedExercise)} />
             <SummaryRow label="운동 횟수" value={`${stats.count} 회`} />
             <SummaryRow label={selectedExercise.id === 'running' ? '총 거리' : '총 운동량'} value={stats.totalLabel} />
+          </AppCard>
+
+          <AppCard className="account-danger-panel" aria-label="계정 관리">
+            <SectionHeader className="summary-title" icon={<AlertTriangle size={20} />} title="계정 관리" />
+            <p>회원탈퇴를 하면 계정과 서버에 저장된 운동 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.</p>
+            <SecondaryButton
+              className="account-delete-button"
+              disabled={deletingAccount || user.app_metadata?.provider === 'local-test'}
+              onClick={handleDeleteAccount}
+            >
+              {deletingAccount ? '탈퇴 처리 중...' : '회원탈퇴'}
+            </SecondaryButton>
+            {user.app_metadata?.provider === 'local-test' && <small>테스트 계정은 실제 Supabase 계정이 아니어서 탈퇴할 수 없습니다.</small>}
+            {accountDeletionMessage && <small className="account-delete-error">{accountDeletionMessage}</small>}
           </AppCard>
         </div>
       </AppCard>

@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Eye, KeyRound, Lock, Mail, User } from 'lucide-react';
-import { useSignupVerification } from '../hooks/useSignupVerification';
+import { Eye, Lock, Mail, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatAuthErrorMessage } from '../lib/authErrorMessages';
 import { signUpWithImmediateSession } from '../lib/authSignup';
-import { normalizeVerificationCode } from '../lib/passwordResetValidation';
 import { validateSignupPasswords } from '../lib/signupPasswordValidation';
 import { clearTestSession, createTestSession, isTestCredentials, saveTestSession, TEST_ACCOUNT } from '../lib/testAuth';
 import loginBg from '../assets/login-bg.webp';
@@ -18,8 +16,6 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [signupVerificationEmail, setSignupVerificationEmail] = useState('');
-  const [signupVerificationCode, setSignupVerificationCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [mode, setMode] = useState('login');
   const [message, setMessage] = useState(initialMessage);
@@ -28,10 +24,8 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
   const [kakaoSubmitting, setKakaoSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberLogin, setRememberLogin] = useState(false);
-  const { loading: signupVerificationLoading, requestCode: requestSignupCode, consumeCode: consumeSignupCode } = useSignupVerification();
 
   const isSignup = mode === 'signup';
-  const isSignupVerificationSent = isSignup && signupVerificationEmail === email.trim().toLowerCase();
 
   function showMessage(nextMessage, nextType = 'success') {
     setMessage(nextMessage);
@@ -70,34 +64,6 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
       const passwordError = validateSignupPasswords(password, passwordConfirmation);
       if (passwordError) {
         showMessage(passwordError, 'error');
-        setSubmitting(false);
-        return;
-      }
-
-      if (!isSignupVerificationSent) {
-        try {
-          const response = await requestSignupCode(login);
-          setSignupVerificationEmail(login.toLowerCase());
-          setSignupVerificationCode('');
-          showMessage(response.message ?? '회원가입 인증코드가 이메일로 발송되었습니다.', 'success');
-        } catch (error) {
-          showMessage(error instanceof Error ? error.message : '인증코드 발송에 실패했습니다.', 'error');
-        } finally {
-          setSubmitting(false);
-        }
-        return;
-      }
-
-      if (signupVerificationCode.length !== 6) {
-        showMessage('이메일로 받은 6자리 인증코드를 입력해 주세요.', 'error');
-        setSubmitting(false);
-        return;
-      }
-
-      try {
-        await consumeSignupCode(login, signupVerificationCode);
-      } catch (error) {
-        showMessage(error instanceof Error ? error.message : '이메일 인증에 실패했습니다.', 'error');
         setSubmitting(false);
         return;
       }
@@ -173,11 +139,7 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
               <Mail size={30} aria-hidden="true" />
               <input
                 value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  setSignupVerificationEmail('');
-                  setSignupVerificationCode('');
-                }}
+                onChange={(event) => setEmail(event.target.value)}
                 type="email"
                 autoComplete="email"
                 placeholder="이메일을 입력하세요"
@@ -227,25 +189,6 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
             </label>
           )}
 
-          {isSignupVerificationSent && (
-            <label>
-              <strong>이메일 인증코드</strong>
-              <span className="input-shell stick-input-shell">
-                <KeyRound size={30} aria-hidden="true" />
-                <input
-                  value={signupVerificationCode}
-                  onChange={(event) => setSignupVerificationCode(normalizeVerificationCode(event.target.value))}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  placeholder="6자리 인증코드"
-                  required
-                />
-              </span>
-            </label>
-          )}
-
           {!isSignup && (
             <div className="login-options-row">
               <label className="remember-check">
@@ -262,14 +205,8 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
             </div>
           )}
 
-          <button className="primary-button stick-login-submit" disabled={submitting || kakaoSubmitting || signupVerificationLoading} type="submit">
-            {submitting || signupVerificationLoading
-              ? '처리 중...'
-              : isSignup && !isSignupVerificationSent
-                ? '이메일 인증코드 받기'
-                : isSignup
-                  ? '인증 후 회원가입'
-                  : '로그인'}
+          <button className="primary-button stick-login-submit" disabled={submitting || kakaoSubmitting} type="submit">
+            {submitting ? '처리 중...' : isSignup ? '회원가입' : '로그인'}
           </button>
         </form>
 
@@ -286,11 +223,7 @@ export default function LoginPage({ onAuthSuccess, onForgotPassword, onTestLogin
 
         <p className="stick-signup-line">
           {isSignup ? '계정이 있으신가요?' : '계정이 없으신가요?'}
-          <button type="button" onClick={() => {
-            setMode(isSignup ? 'login' : 'signup');
-            setSignupVerificationEmail('');
-            setSignupVerificationCode('');
-          }}>
+          <button type="button" onClick={() => setMode(isSignup ? 'login' : 'signup')}>
             {isSignup ? '로그인' : '회원가입'}
           </button>
         </p>

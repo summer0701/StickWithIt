@@ -30,7 +30,7 @@ const bottomRoutes = [
   { id: 'challenge', label: '챌린지', icon: Flag },
   { id: 'ranking', label: '랭킹', icon: Trophy },
   { id: 'history', label: '내 기록', icon: History },
-  { id: 'my', label: '마이', icon: Settings },
+  { id: 'my', label: '설정', icon: Settings },
 ];
 
 export default function App() {
@@ -146,6 +146,14 @@ export default function App() {
     setSession(null);
   }
 
+  function handleAccountDeleted(message = '회원탈퇴가 완료되었습니다.') {
+    clearTestSession();
+    supabase.auth.signOut();
+    setAuthNotice(message);
+    setSession(null);
+    setPage('login');
+  }
+
   const pageTitle = useMemo(() => {
     if (page === 'ranking') return '오늘의 랭킹';
     if (page === 'challenge') return '철인 5종 챌린지';
@@ -237,7 +245,7 @@ export default function App() {
       )}
 
       {!fullScreenExercisePages.includes(page) && userNavigator && (
-        <button className="app-user-navigator" type="button" onClick={() => setPage('my')} aria-label="내 정보">
+        <button className="app-user-navigator" type="button" onClick={() => setPage('my')} aria-label="설정">
           <span className="app-user-xp">
             <small>내 ER</small>
             <strong>{userNavigator.xp.toLocaleString()}</strong>
@@ -290,7 +298,14 @@ export default function App() {
       )}
       {page === 'ranking' && <RankingPage user={user} onBack={() => setPage('home')} />}
       {page === 'history' && <HistoryPage user={user} onStart={() => setPage('challenge')} onRanking={() => setPage('ranking')} />}
-      {page === 'my' && <MyPage user={user} onSignOut={handleSignOut} onDifficultyTargetChange={setTargetDistanceKm} />}
+      {page === 'my' && (
+        <MyPage
+          user={user}
+          onSignOut={handleSignOut}
+          onAccountDeleted={handleAccountDeleted}
+          onDifficultyTargetChange={setTargetDistanceKm}
+        />
+      )}
       {page === 'challenge' && (
         <ChallengePage
           user={user}

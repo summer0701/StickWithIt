@@ -32,10 +32,10 @@ describe('login page copy', () => {
     expect(loginPageSource).toContain('validateSignupPasswords(password, passwordConfirmation)');
   });
 
-  it('requires a Resend email verification code before signup', () => {
-    expect(loginPageSource).toContain('이메일 인증코드');
-    expect(loginPageSource).toContain('이메일 인증코드 받기');
-    expect(loginPageSource).toContain('인증 후 회원가입');
-    expect(loginPageSource).toContain('consumeSignupCode(login, signupVerificationCode)');
+  it('does not require a Resend email verification code before signup', () => {
+    expect(loginPageSource).not.toContain('이메일 인증코드');
+    expect(loginPageSource).not.toContain('이메일 인증코드 받기');
+    expect(loginPageSource).not.toContain('인증 후 회원가입');
+    expect(loginPageSource).not.toContain('consumeSignupCode(login, signupVerificationCode)');
   });
 });
